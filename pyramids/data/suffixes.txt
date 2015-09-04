@@ -1,0 +1,43 @@
+# =============================================================================
+# File:    suffixes.txt
+# Author:  Aaron Hosford
+# Created: 7/18/2011
+#
+# Copyright (c) Aaron Hosford 2011
+# =============================================================================
+#
+# Description:
+#
+#   TODO: Write an explanation & provide examples.
+#
+#   Syntax:
+#       category(comma,separated,properties): +/- word suffixes
+#
+# =============================================================================
+#
+# Modification History:
+#
+#   7/18/2011:
+#     - Created this file.
+#
+# =============================================================================
+
+
+verb: +
+verb(ing_ending): + ing
+verb(en_ending): + en
+verb(ed_ending): + ed
+verb(s_ending): + s
+
+noun: +
+noun(s_ending): + s
+
+adjective(recursive): +
+adjective(er_ending): + er
+adjective(est_ending): + est
+
+adverb(direct): +
+adverb(direct,ly_ending): + ly
+adverb(recursive,ly_ending): + ly
+
+

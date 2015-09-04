@@ -1,0 +1,35 @@
+# =============================================================================
+# File:    property_inheritance.txt
+# Author:  Aaron Hosford
+# Created: 7/20/2011
+#
+# Copyright (c) Aaron Hosford 2011
+# =============================================================================
+#
+# Description:
+#
+#   TODO: Write an explanation & provide examples.
+#
+#   Syntax:
+#       category(comma,separated,properties): properties to add
+#
+# =============================================================================
+#
+# Modification History:
+#
+#   7/18/2011:
+#     - Created this file.
+#
+# =============================================================================
+
+# ---------------------------- SUFFIXES ---------------------------------------
+
+#_(-am_ending,-s_ending,-ed_ending,-en_ending,-ing_ending,-ly_ending,-er_ending,-est_ending,-other_ending): no_ending
+#_(known_ending): am_ending s_ending ed_ending en_ending ing_ending ly_ending er_ending est_ending other_ending no_ending
+
+# ------------------------------ PRONOUNS -------------------------------------
+
+pronoun(place): impersonal
+pronoun(time): impersonal
+
+

@@ -1,0 +1,1386 @@
+# =============================================================================
+# File:    grammar.txt
+# Author:  Aaron Hosford
+# Created: 7/18/2011
+#
+# Copyright (c) Aaron Hosford 2011
+# =============================================================================
+#
+# Description:
+#
+#   This file defines the default build rule set for competitive_parser.py.
+#   Rules consist of a category and a list of structures it can consist of.
+#
+#   An asterisk (*) in a structural component indicates the head of the
+#   structure. An asterisk must appear exactly once in each sequence
+#   structure, and must be placed immediately in front of the indicated
+#   category with no intervening white space.
+#
+#   A pipe (|) indicates that multiple categories can be used in the same
+#   structure. Note that * applies to all categories joined together with
+#   pipes. They can only be used at the beginning of the entire group, not
+#   the individual elements.
+#
+#   A category consisting of a single underscore (_) by itself is treated as
+#   a wildcard which can match any category.
+#
+#   TODO: Add an explanation & example for category properties & inheritance.
+#
+#   Links can be inserted between structural components to indicate how
+#   they should be connected to the head of the structure when it is
+#   converted to a semantic net subgraph. Anything containing a <
+#   or a > is considered to be a link name, not a structural component.
+#   The direction of the symbol indicates which node is the source and
+#   which is the sink. Links connect the head with the nearest structural
+#   component on the opposite side. Multiple links can connect the same
+#   component to the head.
+#
+#   Example:
+#           result: component1|component2 <LINK component3 *component1|component4
+#       This rule will look for any parse tree with a category of component1 or
+#       component2, followed by a parse tree with a category of component3, and
+#       finally followed a parse tree with a category of component1 or
+#       component4. The third parse tree will be the head of the new parse
+#       tree. When the language graph is constructed, the node corresponding to
+#       the first parse tree, will be linked to the node corresponding to the
+#       third (head) parse tree via a link of type LINK, with the source being
+#       the head and the sink being the first parse tree's node. The head's
+#       node will then be used to correspond to the parse tree as a whole.
+#
+# =============================================================================
+#
+# Modification History:
+#
+#   7/18/2011:
+#     - Created this file.
+#
+# =============================================================================
+
+
+# TODO: The command, "Do not." is broken now, since I switched over to using not
+#       as purely a prefix "conjunction". Also, it might be good to be able to
+#       handle the somewhat archaic forms used by Yoda in his classic quote:
+#       "Try not. Do, or do not. There is no try."
+
+# TODO: Transitive clauses (having both object & target) should be barred from
+#       restrictions in object and target phrases. They produce complex ambiguities,
+#       and people avoid them in their language.
+#         Examples:
+#           "I bought the dog I gave some food a collar."
+#               would be said "I bought the dog I gave some food to a collar."
+#               or "I bought a collar for the dog that I gave some food."
+#           "I took a friend I gave some money."
+#               would be said "I took a friend I gave some money to."
+#               or "I took a friend that I gave some money."
+
+# TODO: Adjectival phrases that follow pronouns that are made by merging determiners
+#       with other words.
+#         Examples:
+#           "Something big came through here."
+#           "Was there anyone good looking?"
+#           "Everyone finished go ahead and put your tests here."
+#           "Everything smelly goes in the bag."
+
+# TODO: Pronouns that also act as determiners (or vice versa, depending on how you
+#       look at it) need their own word class. Maybe pronouns and determiners
+#       should all be combined into the same category and distinguished via properties?
+#       Also, explore whether numbers and determinerish words like "other" can also
+#       be lumped in.
+
+# TODO: Allow the grammar to specify movable components. These are subtrees which
+#       may be omitted from branch rules and added in at a higher level in the
+#       parse. The most common uses are for restrictions and questions. Rules
+#       based on this should have properties automatically added based on the
+#       link type being omitted. For example, for a restriction in which the
+#       head noun acts as the object of the subordinated predicate, we would
+#       have the OBJECT link of the predicate (and the link's sink) omitted and
+#       a "takes_object" property added to the predicate. Then when the
+#       restriction is combined with the head noun, a link of type OBJECT_OF
+#       would be generated to connect the head noun to the predicate with the
+#       missing object. In this way we preserve the property that links always
+#       traverse from the head to the subordinated trees, but still represent
+#       the relationship between the phrases correctly. A link of type *_OF
+#       is used to represent a reversed link for the cognitive engine.
+
+# TODO: Handle stuff like "each other", "the poor", etc. where there is a determiner
+#       and adjective but no noun, and the assumed noun is "person" or "people".
+
+# TODO: Create a new conjunction rule type and a separate file with its own syntax
+#       for them. Conjunction rules should be generated by category and property, so
+#       that terms which agree can be grouped together. Conjunctive phrases should
+#       promote all properties shared by every case/exception unless specifically
+#       blocked.
+#           Example definition for conjunctions of the category "subject":
+#               *    subject(first): *subject(first) subject # Indicates that to form a first-person subject as a conjunctive phrase containing other subjects, there must be a first-person subject, and there may be other subjects with other personage
+#               *    subject(second): *subject(second) subject(third) # Indicates that to form a second-person subject as a conjunctive phrase containing other subjects, there must be a second-person subject, and there may be third-person subjects
+#               and+ subject(plural): subject # Indicates that to form a plural subject with the "and" conjunction, there must be more than one subject
+#               not  subject(plural): *subject(plural) # Indicates that to form a plural subject with the "not" conjunction, there must be a plural subject
+
+# TODO: Combine QUALITY and ASSOCIATE link types into the single common link type
+#       QUALIFIER. This makes more sense, since both serve to answer questions of the
+#       form "What kind of <noun>?" with statements of the form "<quality> <noun>"
+#       or "<associate> <noun>", and their grammar rules are easily confused as
+#       to which is appropriate to use. Add a rule to convert unconjugated noun
+#       phrases into adjectives and only use adjectives to modify nouns via QUALIFIER
+#       links.
+
+# TODO: Targeted abilities. These are sentences where the main verb acts as a
+#       modal for an ability that has a different subject.
+#           Examples:
+#               "Let me have some."
+#               "She made him go home."
+
+# TODO: The phrase "some more".
+
+# TODO: Replace the OBJECT/TARGET dichotomy with ACCESSORY/TARGET.
+#       ACCESSORY should indicate a third party to the transaction,
+#       the thing being conveyed, transferred, or used, while TARGET
+#       should indicate the recipient of the transaction. Either one
+#       is optional.
+#           Examples:
+#               "He paid me some money."
+#                   TARGET: me
+#                   ACCESSORY: money
+#                   Can be shortened to "He paid me." or "He paid some money." or even "He paid."
+#               "She threw him the ball."
+#                   TARGET: him
+#                   ACCESSORY: ball
+#                   Can be shortened to "She threw the ball." or "She threw." but not "She threw him."
+#                   This is due only to the verb being used, not a general rule.
+
+# TODO: Determiner questions.
+#       Examples:
+#           "Which apple fell?"
+#           "You took which book?"
+#           "You gave which person the money?"
+#           "What level is it?"
+#       NOTE: I've done most of this, but I still need to finish with the property inheritance for "question" moving up through the ranks from noun_phrase.
+
+# TODO: Kind-words such as "kind", "sort", "class", "subclass", "type", "subtype", "set", "subset", etc. need special treatment.
+#       Example phrases where they act differently from standard nouns:
+#           "What kind of apple is that?"
+#           "Which type of sentence was that?"
+
+# TODO: Phrases of the form "anything <adjective_phrase>" or "[any] <noun> that <adjective_phrase>".
+#           Examples:
+#               "Did you find anything odd?"
+#               "Anything that big will need to be checked."
+#               "Anybody that stupid deserves it!"
+#               "We'll just have to truncate any names that long." (Note the variant, "any names longer than that")
+#               "Anything metal has to go in the bin."
+#               "Books that thin shouldn't be hardbacked."
+
+# TODO: Pronomial quantifier phrases of the form "<quantifying pronoun> of <noun phrase>".
+#       Then get rid of "one" and other quantifying pronouns which are currently misclassified as nouns as a kludge.
+#           Examples:
+#               "None of them were right."
+#               "One of the apples had a worm."
+#               "It only happens some of the time.
+#               "Each one of them is a totally new concept."
+#               "Each of them has a different plan."
+#               "All [of] the quantities are equal."
+
+# TODO: Questions of the form "What <prepositional phrase>?"
+#           Examples:
+#               "What if we don't?"
+#               "What about the other one?"
+#               "What in the world?"
+
+# TODO: How-come questions.
+#           Examples:
+#               "How come it does that?"
+
+# TODO: Specially-formed quick answer questions.
+#           Examples:
+#               "What for?"
+#               "Why?"
+#               "Why not?"
+#               "How come?"
+#               "Where?"
+#               "When?"
+#               "What?"
+
+# TODO: Swearing interjections.
+#           Example:
+#               "Where the hell have you been!?"
+#               "It damn well better be!"
+
+
+
+
+# --------------------------------- PUNCTUATION -------------------------------
+
+punctuation(sentence_terminator,-question): punctuation(period)|punctuation(exclamation_mark)
+punctuation(sentence_terminator,question): punctuation(question_mark)
+
+punctuation(sentence_separator): punctuation(semicolon)
+punctuation(phrase_separator): punctuation(comma)|punctuation(semicolon)
+
+
+# ---------------------------- SUFFIXES ---------------------------------------
+
+_(no_ending): 
+    adjective(-am_ending,-s_ending,-ed_ending,-en_ending,-ing_ending,-ly_ending,-er_ending,-est_ending,-other_ending)
+    adverb(-am_ending,-s_ending,-ed_ending,-en_ending,-ing_ending,-ly_ending,-er_ending,-est_ending,-other_ending)
+    noun(-am_ending,-s_ending,-ed_ending,-en_ending,-ing_ending,-ly_ending,-er_ending,-est_ending,-other_ending)
+    verb(-aux,-am_ending,-s_ending,-ed_ending,-en_ending,-ing_ending,-ly_ending,-er_ending,-est_ending,-other_ending)
+
+_(known_ending):
+    _(am_ending)
+    _(s_ending)
+    _(ed_ending)
+    _(en_ending) 
+    _(ing_ending) 
+    _(ly_ending) 
+    _(er_ending) 
+    _(est_ending) 
+    _(other_ending) 
+    _(no_ending)
+
+_(known_ending,categorized):
+    verb(aux)
+    
+# --------------------------------- PHRASING ----------------------------------
+
+_(delimited):
+    *sentence(-delimited,-terminated) DELIMITER> punctuation(phrase_separator)|punctuation(sentence_separator)
+    #*subject(conjunction,-delimited) DELIMITER> punctuation(phrase_separator)
+    #*object(conjunction,-delimited) DELIMITER> punctuation(phrase_separator)
+    #*target(conjunction,-delimited) DELIMITER> punctuation(phrase_separator)
+    *time(-delimited) DELIMITER> punctuation(phrase_separator)
+    *place(-delimited) DELIMITER> punctuation(phrase_separator)
+	*possession(-delimited) DELIMITER> punctuation(phrase_separator)
+    *style(-delimited) DELIMITER> punctuation(phrase_separator)
+    *cause(-delimited) DELIMITER> punctuation(phrase_separator)
+    *effect(-delimited) DELIMITER> punctuation(phrase_separator)
+    *agent(-delimited) DELIMITER> punctuation(phrase_separator)
+    *selection(-delimited) DELIMITER> punctuation(phrase_separator)
+    *addressee(-delimited) DELIMITER> punctuation(phrase_separator)
+    *list_body(-delimited) DELIMITER> punctuation(phrase_separator)
+    *quality(-delimited) DELIMITER> punctuation(phrase_separator)
+    *noun_phrase(-delimited) DELIMITER> punctuation(phrase_separator)
+    *intention(-delimited) DELIMITER> punctuation(phrase_separator)
+    *interjection(-delimited) DELIMITER> punctuation(phrase_separator)
+	*name(-delimited) DELIMITER> punctuation(phrase_separator)
+
+_(terminated,statement):
+    *sentence(-delimited,-terminated) DELIMITER> punctuation(sentence_terminator,-question,-command)
+
+_(terminated,command):
+    *sentence(-delimited,-terminated) DELIMITER> punctuation(sentence_terminator,command)
+
+_(terminated,question):
+    *sentence(-delimited,-terminated) DELIMITER> punctuation(sentence_terminator,question)
+
+
+# -------------------------------- QUOTES -------------------------------------
+
+# For quotes that still function in their original grammatical category. (Usually indicative of sarcasm or wittiness.)
+# Examples:
+#   Oh yeah, he's really "working" hard!
+#   The "consequences" will be dire!
+_(quoted): punctuation(open,quote) <DELIMITER *_ DELIMITER> punctuation(close,quote)
+
+# For quotes that function as objects of indirect reference. (Speech quotes, word names, etc.)
+quoted_literal:
+    *punctuation(open,quote) QUOTED> _ DELIMITER> punctuation(close,quote)
+    punctuation(comma)|punctuation(colon) <DELIMITER *punctuation(open,quote) QUOTED> _ punctuation(close,quote)
+
+
+# -------------------------------- CONJUNCTIONS -------------------------------
+
+# TODO: Add conjunctions for other categories?
+# TODO: Figure out a way to eliminate the redundancies here.
+
+# TODO: Conjunctive phrases containing other conjunctive phrases end up marked with the 
+#       conjunctions of the contained conjunctive phrases as well as their own.
+#       For example, "you and him or her" will end up with the top level node
+#       marked as both "and" and "or" regardless of how it is parsed. We need the
+#       conjunction to be any-promoted like it is now, but we need it to only be for
+#       the outermost conjunction. This means splitting out the rules for each
+#       conjunction and adding a negative property for the other conjunctions.
+
+_(has_selector):
+    determiner(and) <SELECTOR *_(simple,-has_selector,and)
+    determiner(or) <SELECTOR *_(simple,-has_selector,or)
+    determiner(nor) <SELECTOR *_(simple,-has_selector,nor)
+    determiner(but) <SELECTOR *_(simple,-has_selector,but)
+    determiner(not) <SELECTOR *_(simple,-has_selector,not)
+    determiner(and) <SELECTOR *_(compound,-has_selector,and)
+    determiner(or) <SELECTOR *_(compound,-has_selector,or)
+    determiner(nor) <SELECTOR *_(compound,-has_selector,nor)
+    determiner(but) <SELECTOR *_(compound,-has_selector,but)
+    determiner(not) <SELECTOR *_(compound,-has_selector,not)
+
+
+subject: nor_subject(has_selector)
+
+
+#subject(plural,first): conjunctive_phrase(and,subject,first,-question)
+#subject(singular,plural,first): conjunctive_phrase(-and,subject,first,-question)
+#
+#conjunctive_phrase(subject,first,simple,-delimited,-has_selector,-or,-but,-not):
+#    subject(first,-described) <CASE *conjunction(and) CASE> subject(-delimited)
+#    subject(-first,-described) <CASE *conjunction(and) CASE> subject(first,-delimited)
+#
+#conjunctive_phrase(subject,first,simple,-delimited,-has_selector,-and,-but,-not):
+#    subject(first,-described) <CASE *conjunction(or) CASE> subject(-delimited)
+#    subject(-first,-described) <CASE *conjunction(or) CASE> subject(first,-delimited)
+#
+#conjunctive_phrase(subject,first,simple,-delimited,-has_selector,-and,-or,-not):
+#    subject(first,-described) <CASE *conjunction(but) EXCEPTION> subject(-delimited)
+#    subject(-first,-described) <CASE *conjunction(but) EXCEPTION> subject(first,-delimited)
+#
+#conjunctive_phrase(subject,first,single,-delimited,-has_selector,-and,-or,-but):
+#    *conjunction(not) EXCEPTION> subject(-delimited)
+#    *conjunction(not) EXCEPTION> subject(first,-delimited)
+#
+#conjunctive_phrase(subject,first,simple,-delimited,-has_selector,-and,-or,-but):
+#    subject(first,-described) <CASE *conjunction(not) EXCEPTION> subject(-delimited)
+#    subject(-first,-described) <CASE *conjunction(not) EXCEPTION> subject(first,-delimited)
+#
+#conjunctive_phrase(subject,first,compound,-delimited,-has_selector):
+#    subject(first,delimited,-described) <CASE *conjunctive_phrase(subject,-delimited,-has_selector,-single)
+#    subject(-first,delimited,-described) <CASE *conjunctive_phrase(subject,first,-delimited,-has_selector,-single)
+#
+#
+#subject(plural,second): conjunctive_phrase(and,subject,second,-question)
+#subject(singular,plural,second): conjunctive_phrase(-and,subject,second,-question)
+#
+#conjunctive_phrase(subject,second,simple,-delimited,-has_selector,-or,-but,-not):
+#    subject(second,-described) <CASE *conjunction(and) CASE> subject(second,-delimited)
+#
+#conjunctive_phrase(subject,second,simple,-delimited,-has_selector,-and,-but,-not):
+#    subject(second,-described) <CASE *conjunction(or) CASE> subject(second,-delimited)
+#
+#conjunctive_phrase(subject,second,simple,-delimited,-has_selector,-and,-or,-not):
+#    subject(second,-described) <CASE *conjunction(but) EXCEPTION> subject(second,-delimited)
+#
+#conjunctive_phrase(subject,second,single,-delimited,-has_selector,-and,-or,-but):
+#    *conjunction(not) EXCEPTION> subject(second,-delimited)
+#
+#conjunctive_phrase(subject,second,simple,-delimited,-has_selector,-and,-or,-but):
+#    subject(second,-described) <CASE *conjunction(not) EXCEPTION> subject(second,-delimited)
+#
+#conjunctive_phrase(subject,second,compound,-delimited,-has_selector): subject(second,delimited,-described) <CASE *conjunctive_phrase(subject,second,-delimited,-has_selector,-single)
+#
+#
+#subject(plural,third): conjunctive_phrase(and,subject,third,-question)
+#subject(singular,plural,third): conjunctive_phrase(-and,subject,third,-question)
+#
+#conjunctive_phrase(subject,third,simple,-delimited,-has_selector,-or,-but,-not):
+#    subject(third,-described) <CASE *conjunction(and) CASE> subject(third,-delimited)
+#
+#conjunctive_phrase(subject,third,simple,-delimited,-has_selector,-and,-but,-not):
+#    subject(third,-described) <CASE *conjunction(or) CASE> subject(third,-delimited)
+#
+#conjunctive_phrase(subject,third,simple,-delimited,-has_selector,-and,-or,-not):
+#    subject(third,-described) <CASE *conjunction(but) EXCEPTION> subject(third,-delimited)
+#
+#conjunctive_phrase(subject,third,single,-delimited,-has_selector,-and,-or,-but):
+#    *conjunction(not) EXCEPTION> subject(third,-delimited)
+#
+#conjunctive_phrase(subject,third,simple,-delimited,-has_selector,-and,-or,-but):
+#    subject(third,-described) <CASE *conjunction(not) EXCEPTION> subject(third,-delimited)
+#
+#conjunctive_phrase(subject,third,compound,-delimited,-has_selector): subject(third,delimited,-described) <CASE *conjunctive_phrase(subject,third,-delimited,-has_selector,-single)
+#
+#
+#object(plural,third): conjunctive_phrase(and,object,-question)
+#object(singular,plural,third): conjunctive_phrase(-and,object,-question)
+#
+#conjunctive_phrase(object,simple,-delimited,-has_selector,-or,-but,-not):
+#    object(-described) <CASE *conjunction(and) CASE> object(-delimited)
+#
+#conjunctive_phrase(object,simple,-delimited,-has_selector,-and,-but,-not):
+#    object(-described) <CASE *conjunction(or) CASE> object(-delimited)
+#
+#conjunctive_phrase(object,simple,-delimited,-has_selector,-and,-or,-not):
+#    object(-described) <CASE *conjunction(but) EXCEPTION> object(-delimited)
+#
+#conjunctive_phrase(object,single,-delimited,-has_selector,-and,-or,-but):
+#    *conjunction(not) EXCEPTION> object(-delimited)
+#
+#conjunctive_phrase(object,simple,-delimited,-has_selector,-and,-or,-but):
+#    object(-described) <CASE *conjunction(not) EXCEPTION> object(-delimited)
+#
+#conjunctive_phrase(object,compound,-delimited,-has_selector): object(delimited,-described) <CASE *conjunctive_phrase(object,-delimited,-has_selector,-single)
+#
+#
+#target(plural): conjunctive_phrase(and,target,-question)
+#target(singular,plural): conjunctive_phrase(-and,target,-question)
+#
+#conjunctive_phrase(target,simple,-delimited,-has_selector,-or,-but,-not):
+#    target(-described) <CASE *conjunction(and) CASE> target(-delimited)
+#
+#conjunctive_phrase(target,simple,-delimited,-has_selector,-and,-but,-not):
+#    target(-described) <CASE *conjunction(or) CASE> target(-delimited)
+#
+#conjunctive_phrase(target,simple,-delimited,-has_selector,-and,-or,-not):
+#    target(-described) <CASE *conjunction(but) EXCEPTION> target(-delimited)
+#
+#conjunctive_phrase(target,simple,-delimited,-has_selector,-and,-or,-but):
+#    *conjunction(not) EXCEPTION> target(-delimited)
+#
+#conjunctive_phrase(target,simple,-delimited,-has_selector,-and,-or,-but):
+#    target(-described) <CASE *conjunction(not) EXCEPTION> target(-delimited)
+#
+#conjunctive_phrase(target,compound,-delimited,-has_selector): target(delimited,-described) <CASE *conjunctive_phrase(target,-delimited,-has_selector,-single)
+#
+#
+#predicate(finished_predicate,forward,singular,first): conjunctive_phrase(predicate,forward,singular,first)
+#
+#conjunctive_phrase(predicate,forward,singular,first,simple,-delimited,-has_selector,-or,-but,-not):
+#    predicate(finished_predicate,forward,singular,first,-described) <CASE *conjunction(and) CASE> predicate(finished_predicate,forward,singular,first,-delimited)
+#
+#conjunctive_phrase(predicate,forward,singular,first,simple,-delimited,-has_selector,-and,-but,-not):
+#    predicate(finished_predicate,forward,singular,first,-described) <CASE *conjunction(or) CASE> predicate(finished_predicate,forward,singular,first,-delimited)
+#
+#conjunctive_phrase(predicate,forward,singular,first,simple,-delimited,-has_selector,-and,-or,-not):
+#    predicate(finished_predicate,forward,singular,first,-described) <CASE *conjunction(but) EXCEPTION> predicate(finished_predicate,forward,singular,first,-delimited)
+#
+#conjunctive_phrase(predicate,forward,single,first,simple,-delimited,-has_selector,-and,-or,-but):
+#    *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,singular,first,-delimited)
+#
+#conjunctive_phrase(predicate,forward,singular,first,simple,-delimited,-has_selector,-and,-or,-but):
+#    predicate(finished_predicate,forward,singular,first,-described) <CASE *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,singular,first,-delimited)
+#
+#conjunctive_phrase(predicate,forward,singular,first,compound,-delimited,-has_selector): predicate(finished_predicate,forward,singular,first,delimited,-described) <CASE *conjunctive_phrase(predicate,forward,singular,first,-delimited,-has_selector,-single)
+#
+#
+#predicate(finished_predicate,forward,singular,second): conjunctive_phrase(predicate,forward,singular,second)
+#
+#conjunctive_phrase(predicate,forward,singular,second,simple,-delimited,-has_selector,-or,-but,-not):
+#    predicate(finished_predicate,forward,singular,second,-described) <CASE *conjunction(and) CASE> predicate(finished_predicate,forward,singular,second,-delimited)
+#
+#conjunctive_phrase(predicate,forward,singular,second,simple,-delimited,-has_selector,-and,-but,-not):
+#    predicate(finished_predicate,forward,singular,second,-described) <CASE *conjunction(or) CASE> predicate(finished_predicate,forward,singular,second,-delimited)
+#
+#conjunctive_phrase(predicate,forward,singular,second,simple,-delimited,-has_selector,-and,-or,-not):
+#    predicate(finished_predicate,forward,singular,second,-described) <CASE *conjunction(but) EXCEPTION> predicate(finished_predicate,forward,singular,second,-delimited)
+#
+#conjunctive_phrase(predicate,forward,single,second,simple,-delimited,-has_selector,-and,-or,-but):
+#    *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,singular,second,-delimited)
+#
+#conjunctive_phrase(predicate,forward,singular,second,simple,-delimited,-has_selector,-and,-or,-but):
+#    predicate(finished_predicate,forward,singular,second,-described) <CASE *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,singular,second,-delimited)
+#
+#conjunctive_phrase(predicate,forward,singular,second,compound,-delimited,-has_selector): predicate(finished_predicate,forward,singular,second,delimited,-described) <CASE *conjunctive_phrase(predicate,forward,singular,second,-delimited,-has_selector,-single)
+#
+#
+#predicate(finished_predicate,forward,singular,third): conjunctive_phrase(predicate,forward,singular,third)
+#
+#conjunctive_phrase(predicate,forward,singular,third,simple,-delimited,-has_selector,-or,-but,-not):
+#    predicate(finished_predicate,forward,singular,third,-described) <CASE *conjunction(and) CASE> predicate(finished_predicate,forward,singular,third,-delimited)
+#
+#conjunctive_phrase(predicate,forward,singular,third,simple,-delimited,-has_selector,-and,-but,-not):
+#    predicate(finished_predicate,forward,singular,third,-described) <CASE *conjunction(or) CASE> predicate(finished_predicate,forward,singular,third,-delimited)
+#
+#conjunctive_phrase(predicate,forward,singular,third,simple,-delimited,-has_selector,-and,-or,-not):
+#    predicate(finished_predicate,forward,singular,third,-described) <CASE *conjunction(but) EXCEPTION> predicate(finished_predicate,forward,singular,third,-delimited)
+#
+#conjunctive_phrase(predicate,forward,single,third,simple,-delimited,-has_selector,-and,-or,-but):
+#    *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,singular,third,-delimited)
+#
+#conjunctive_phrase(predicate,forward,singular,third,simple,-delimited,-has_selector,-and,-or,-but):
+#    predicate(finished_predicate,forward,singular,third,-described) <CASE *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,singular,third,-delimited)
+#
+#conjunctive_phrase(predicate,forward,singular,third,compound,-delimited,-has_selector): predicate(finished_predicate,forward,singular,third,delimited,-described) <CASE *conjunctive_phrase(predicate,forward,singular,third,-delimited,-has_selector,-single)
+#
+#
+#predicate(finished_predicate,forward,plural,first): conjunctive_phrase(predicate,forward,plural,first)
+#
+#conjunctive_phrase(predicate,forward,plural,first,simple,-delimited,-has_selector,-or,-but,-not):
+#    predicate(finished_predicate,forward,plural,first,-described) <CASE *conjunction(and) CASE> predicate(finished_predicate,forward,plural,first,-delimited)
+#
+#conjunctive_phrase(predicate,forward,plural,first,simple,-delimited,-has_selector,-and,-but,-not):
+#    predicate(finished_predicate,forward,plural,first,-described) <CASE *conjunction(or) CASE> predicate(finished_predicate,forward,plural,first,-delimited)
+#
+#conjunctive_phrase(predicate,forward,plural,first,simple,-delimited,-has_selector,-and,-or,-not):
+#    predicate(finished_predicate,forward,plural,first,-described) <CASE *conjunction(but) EXCEPTION> predicate(finished_predicate,forward,plural,first,-delimited)
+#
+#conjunctive_phrase(predicate,forward,single,first,simple,-delimited,-has_selector,-and,-or,-but):
+#    *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,plural,first,-delimited)
+#
+#conjunctive_phrase(predicate,forward,plural,first,simple,-delimited,-has_selector,-and,-or,-but):
+#    predicate(finished_predicate,forward,plural,first,-described) <CASE *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,plural,first,-delimited)
+#
+#conjunctive_phrase(predicate,forward,plural,first,compound,-delimited,-has_selector): predicate(finished_predicate,forward,plural,first,delimited,-described) <CASE *conjunctive_phrase(predicate,forward,plural,first,-delimited,-has_selector,-single)
+#
+#
+#predicate(finished_predicate,forward,plural,second): conjunctive_phrase(predicate,forward,plural,second)
+#
+#conjunctive_phrase(predicate,forward,plural,second,simple,-delimited,-has_selector,-or,-but,-not):
+#    predicate(finished_predicate,forward,plural,second,-described) <CASE *conjunction(and) CASE> predicate(finished_predicate,forward,plural,second,-delimited)
+#
+#conjunctive_phrase(predicate,forward,plural,second,simple,-delimited,-has_selector,-and,-but,-not):
+#    predicate(finished_predicate,forward,plural,second,-described) <CASE *conjunction(or) CASE> predicate(finished_predicate,forward,plural,second,-delimited)
+#
+#conjunctive_phrase(predicate,forward,plural,second,simple,-delimited,-has_selector,-and,-or,-not):
+#    predicate(finished_predicate,forward,plural,second,-described) <CASE *conjunction(but) EXCEPTION> predicate(finished_predicate,forward,plural,second,-delimited)
+#
+#conjunctive_phrase(predicate,forward,single,second,simple,-delimited,-has_selector,-and,-or,-but):
+#    *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,plural,second,-delimited)
+#
+#conjunctive_phrase(predicate,forward,plural,second,simple,-delimited,-has_selector,-and,-or,-but):
+#    predicate(finished_predicate,forward,plural,second,-described) <CASE *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,plural,second,-delimited)
+#
+#conjunctive_phrase(predicate,forward,plural,second,compound,-delimited,-has_selector): predicate(finished_predicate,forward,plural,second,delimited,-described) <CASE *conjunctive_phrase(predicate,forward,plural,second,-delimited,-has_selector,-single)
+#
+#
+#predicate(finished_predicate,forward,plural,third): conjunctive_phrase(predicate,forward,plural,third)
+#
+#conjunctive_phrase(predicate,forward,plural,third,simple,-delimited,-has_selector,-or,-but,-not):
+#    predicate(finished_predicate,forward,plural,third,-described) <CASE *conjunction(and) CASE> predicate(finished_predicate,forward,plural,third,-delimited)
+#
+#conjunctive_phrase(predicate,forward,plural,third,simple,-delimited,-has_selector,-and,-but,-not):
+#    predicate(finished_predicate,forward,plural,third,-described) <CASE *conjunction(or) CASE> predicate(finished_predicate,forward,plural,third,-delimited)
+#
+#conjunctive_phrase(predicate,forward,plural,third,simple,-delimited,-has_selector,-and,-or,-not):
+#    predicate(finished_predicate,forward,plural,third,-described) <CASE *conjunction(but) EXCEPTION> predicate(finished_predicate,forward,plural,third,-delimited)
+#
+#conjunctive_phrase(predicate,forward,single,third,simple,-delimited,-has_selector,-and,-or,-but):
+#    *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,plural,third,-delimited)
+#
+#conjunctive_phrase(predicate,forward,plural,third,simple,-delimited,-has_selector,-and,-or,-but):
+#    predicate(finished_predicate,forward,plural,third,-described) <CASE *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,plural,third,-delimited)
+#
+#conjunctive_phrase(predicate,forward,plural,third,compound,-delimited,-has_selector): predicate(finished_predicate,forward,plural,third,delimited,-described) <CASE *conjunctive_phrase(predicate,forward,plural,third,-delimited,-has_selector,-single)
+#
+#
+#predicate(finished_predicate,forward,mass,third): conjunctive_phrase(predicate,forward,mass)
+#
+#conjunctive_phrase(predicate,forward,mass,simple,-delimited,-has_selector,-or,-but,-not):
+#    predicate(finished_predicate,forward,mass,-described) <CASE *conjunction(and) CASE> predicate(finished_predicate,forward,mass,-delimited)
+#
+#conjunctive_phrase(predicate,forward,mass,simple,-delimited,-has_selector,-and,-but,-not):
+#    predicate(finished_predicate,forward,mass,-described) <CASE *conjunction(or) CASE> predicate(finished_predicate,forward,mass,-delimited)
+#
+#conjunctive_phrase(predicate,forward,mass,simple,-delimited,-has_selector,-and,-or,-not):
+#    predicate(finished_predicate,forward,mass,-described) <CASE *conjunction(but) EXCEPTION> predicate(finished_predicate,forward,mass,-delimited)
+#
+#conjunctive_phrase(predicate,forward,mass,simple,-delimited,-has_selector,-and,-or,-but):
+#    *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,mass,-delimited)
+#
+#conjunctive_phrase(predicate,forward,mass,simple,-delimited,-has_selector,-and,-or,-but):
+#    predicate(finished_predicate,forward,mass,-described) <CASE *conjunction(not) EXCEPTION> predicate(finished_predicate,forward,mass,-delimited)
+#
+#conjunctive_phrase(predicate,forward,mass,compound,-delimited,-has_selector): predicate(finished_predicate,forward,mass,delimited,-described) <CASE *conjunctive_phrase(predicate,forward,mass,-delimited,-has_selector,-single)
+#
+#
+#sentence(complete): conjunctive_phrase(sentence)
+#
+#conjunctive_phrase(sentence,simple,-delimited,-has_selector,-or,-but):
+#    sentence(complete,-described) <CASE *conjunction(and) CASE> sentence(complete,-delimited)
+#
+#conjunctive_phrase(sentence,simple,-delimited,-has_selector,-and,-but):
+#    sentence(complete,-described) <CASE *conjunction(or) CASE> sentence(complete,-delimited)
+#
+#conjunctive_phrase(sentence,simple,-delimited,-has_selector,-and,-or):
+#    sentence(complete,-described) <CASE *conjunction(but) EXCEPTION> sentence(complete,-delimited)
+#
+#conjunctive_phrase(sentence,compound,-delimited,-has_selector): sentence(complete,delimited,-described) <CASE *conjunctive_phrase(sentence,-delimited,-has_selector,-single)
+#
+#sentence(complete,counter_intentioned,-and,-or): intention(-needs_complement,-needs_cast) <CASE *conjunction(but) EXCEPTION> sentence(complete,-counter_intentioned,-delimited)
+
+
+# ------------------------------ PRONOUNS -------------------------------------
+
+pronoun(finished_pronoun,subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-style,-cause,-effect,-truth): pronoun(subject,-finished_pronoun)
+pronoun(finished_pronoun,object,-subject,-non_subject,-target,-agent,-time,-place,-possession,-style,-cause,-effect,-truth): pronoun(object,-finished_pronoun)|pronoun(non_subject,-finished_pronoun)
+pronoun(finished_pronoun,target,-subject,-non_subject,-object,-agent,-time,-place,-possession,-style,-cause,-effect,-truth): pronoun(target,-finished_pronoun)|pronoun(non_subject,-finished_pronoun)
+pronoun(finished_pronoun,agent,-subject,-non_subject,-object,-target,-time,-place,-possession,-style,-cause,-effect,-truth): pronoun(agent,-finished_pronoun)|pronoun(non_subject,-finished_pronoun)
+pronoun(finished_pronoun,time,-subject,-non_subject,-object,-target,-agent,-place,-possession,-style,-cause,-effect,-truth): pronoun(time,-finished_pronoun)
+pronoun(finished_pronoun,place,-subject,-non_subject,-object,-target,-agent,-time,-possession,-style,-cause,-effect,-truth): pronoun(place,-finished_pronoun)
+pronoun(finished_pronoun,possession,-subject,-non_subject,-object,-target,-agent,-time,-place,-style,-cause,-effect,-truth): pronoun(possession,-finished_pronoun)
+pronoun(finished_pronoun,style,-subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-cause,-effect,-truth): pronoun(style,-finished_pronoun)
+pronoun(finished_pronoun,cause,-subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-style,-effect,-truth): pronoun(cause,-finished_pronoun)
+pronoun(finished_pronoun,effect,-subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-style,-cause,-truth): pronoun(effect,-finished_pronoun)
+pronoun(finished_pronoun,truth,-subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-style,-cause,-effect): pronoun(truth,-finished_pronoun)
+
+# TODO: This is probably overkill. I bet some of these properties will need to be removed.
+pronoun(finished_pronoun,subject,object,target,agent,possession,cause,effect,truth): determiner(ownership)
+
+
+# ------------------------------- ADVERBS -------------------------------------
+
+# TODO:
+#   - Create a new class for 'more', 'much', 'a lot', 'very', 'a little', and other mass
+#     determiner-like words & phrases that can apply to prepositions and adverbs.
+
+# TODO: Build degree adverb phrases such as "a little", "much more", "the most", etc.
+#       Notice their resemblance to mass noun phrases. Notice also that they can only
+#       be used as states, not in regular adverb/adjective phrases.
+
+adverb(direct,-degree): adverb(known_ending,ly_ending)
+
+adverb_phrase(-has_degree):
+    adverb(known_ending,direct)
+    adverb(known_ending,degree)
+    
+adverb_phrase(has_degree): degree <DEGREE  *adverb_phrase
+
+
+# ----------------------------- ADJECTIVES ------------------------------------
+
+#adjective(verb): verb(static)
+
+adjective_phrase(-has_degree): adjective(known_ending)
+adjective_phrase(has_degree): degree <DEGREE *adjective_phrase
+
+
+# --------------------------------- NUMBERS -----------------------------------
+
+# TODO: Simplify this down; it was copied almost without change from the old parser's grammar,
+#       and so it's pretty bloated because it doesn't take advantage of the new parser's power.
+
+number(medium):
+    number(teen)
+    number(tens)
+    
+number(medium,-ordinal):
+    *number(tens,-digit,-ordinal) SUMMAND> number(singular,-digit,-ordinal)|number(small,-digit,-ordinal)
+    
+number(medium,ordinal):
+    *number(tens,-digit,-ordinal) SUMMAND> number(singular,-digit,ordinal)|number(small,-digit,ordinal)
+    
+number(head):
+    number(a) # TODO: This will have to be changed...
+    number(singular)
+    number(small)
+    number(medium)
+
+number(tail):
+    number(singular)
+    number(small)
+    number(medium)
+    
+number(size):
+    number(size,-ordinal) <MULTIPLIER *number(size)
+    
+large_number_part:
+    number(head,-ordinal) <MULTIPLIER *number(size)
+
+large_number_base(-ordinal):
+    large_number_part(-ordinal)
+    *large_number_part(-ordinal) SUMMAND> number(large,-ordinal)
+    *large_number_part(-ordinal) CONJUNCTION> conjunction(and) SUMMAND> number(large,-ordinal)
+    *large_number_part(-ordinal) DELIMITER> punctuation(comma) SUMMAND> number(large,-ordinal)
+    *large_number_part(-ordinal) DELIMITER> punctuation(comma) CONJUNCTION> conjunction(and) SUMMAND> number(large,-ordinal)
+
+large_number_base(ordinal):
+    large_number_part(ordinal)
+    *large_number_part(-ordinal) SUMMAND> number(large,ordinal)
+    *large_number_part(-ordinal) CONJUNCTION> conjunction(and) SUMMAND> number(large,ordinal)
+    *large_number_part(-ordinal) DELIMITER> punctuation(comma) SUMMAND> number(large,ordinal)
+    *large_number_part(-ordinal) DELIMITER> punctuation(comma) CONJUNCTION> conjunction(and) SUMMAND> number(large,ordinal)
+    
+number(large,-ordinal):
+    large_number_base(-ordinal)
+    *large_number_base(-ordinal) SUMMAND> number(head,-ordinal)
+    *large_number_base(-ordinal) CONJUNCTION> conjunction(and) SUMMAND> number(head,-ordinal)
+    *large_number_base(-ordinal) DELIMITER> punctuation(comma) SUMMAND> number(head,-ordinal)
+    *large_number_base(-ordinal) DELIMITER> punctuation(comma) CONJUNCTION> conjunction(and) SUMMAND> number(head,-ordinal)
+    
+number(large,ordinal):
+    large_number_base(ordinal)
+    *large_number_base(-ordinal) SUMMAND> number(head,ordinal)
+    *large_number_base(-ordinal) CONJUNCTION> conjunction(and) SUMMAND> number(head,ordinal)
+    *large_number_base(-ordinal) DELIMITER> punctuation(comma) SUMMAND> number(head,ordinal)
+    *large_number_base(-ordinal) DELIMITER> punctuation(comma) CONJUNCTION> conjunction(and) SUMMAND> number(head,ordinal)
+    
+number(finished_number,plural,-singular):
+    number(zero,-ordinal)
+    number(small,-ordinal)
+    number(medium,-ordinal)
+    number(large,-ordinal)
+    
+number(finished_number,singular,-plural):
+    number(one,-ordinal)
+    number(ordinal)
+
+
+# -------------------------------- NAMES --------------------------------------
+
+name(person,initial,-delimited):
+    letter
+    *letter DELIMITER> punctuation(period)
+
+name(person,first,male): name(person,initial,-finished_name,-delimited)
+name(person,first,female): name(person,initial,-finished_name,-delimited)
+name(person,last): name(person,initial,-finished_name,-delimited)
+    
+name(person,has_middle_name): *name(person,first,-has_middle_name,-has_surname,-finished_name,-delimited) MIDDLE_NAME> name(person,first,-finished_name,-delimited)
+name(person,has_surname): *name(person,first,-has_surname,-finished_name,-delimited) SURNAME> name(person,last,-finished_name,-delimited)
+
+name(person,finished_name):
+    name(person,first,has_middle_name,-initial,-delimited)
+    name(person,first,has_surname,-delimited)
+    name(person,first,-initial,-delimited)
+    name(person,last,-initial,-delimited)
+
+name(language,finished_name,-quote,-open,-single,-double): quoted_literal
+
+name(place,-person,-first,-last,-male,-female): name(person,-delimited,-place,-finished_name,-has_surname,-initial)
+
+name(place,has_place,-delimited): *name(place,delimited,-has_place) PLACE> name(finished_name,place,-delimited)
+
+name(place,finished_name): name(place,-finished_name,-delimited)
+
+
+# --------------------------- NOUN INFLECTIONS --------------------------------
+
+noun(uninflected): noun(known_ending,no_ending,-singular,-mass,-finished_noun)
+noun(singular): noun(known_ending,no_ending,-uninflected,-mass,-finished_noun)
+noun(mass): noun(known_ending,no_ending,-uninflected,-singular,-finished_noun)
+noun(plural): noun(known_ending,s_ending,-finished_noun)
+
+noun(finished_noun): noun(-finished_noun)
+
+noun(associated,-has_associate): noun(finished_noun,singular,-associated)|noun(finished_noun,mass,-associated)|noun(finished_noun,plural,-associated)|noun(finished_noun,uninflected,-associated)
+noun(associated,has_associate): noun(finished_noun,uninflected,qualified) <ASSOCIATE *noun(finished_noun,associated,-qualified)
+
+noun(qualified,-has_quality): noun(finished_noun,associated,-qualified)
+noun(qualified,has_quality): quality <QUALITY *noun(finished_noun,qualified)
+
+
+# --------------------------- NOUN PHRASES ------------------------------------
+
+noun_phrase(has_pronoun): pronoun(finished_pronoun)
+
+noun_phrase(subject,action,third): predication(ongoing,-delimited)
+noun_phrase(subject,intention,third): intention(-delimited)
+
+noun_phrase(has_name,singular,third,subject,object): name(finished_name)
+
+noun_phrase(has_noun,third):
+    # Singular nouns *must* have a determiner or number
+    noun(finished_noun,qualified,mass)
+    noun(finished_noun,qualified,plural)
+
+noun_phrase(has_number,third):
+    number(finished_number,-delimited)
+    number(finished_number,singular,-delimited) <NUMBER *noun(finished_noun,singular,qualified,-has_number)
+    number(finished_number,plural,-delimited) <NUMBER *noun(finished_noun,plural,qualified,-has_number)
+
+noun_phrase(has_noun,has_selector,third,-question):
+    determiner(singular)|determiner(ownership,-question) <SELECTOR *noun(finished_noun,singular,qualified)|noun_phrase(has_number)
+    determiner(mass)|determiner(ownership,-question) <SELECTOR *noun(finished_noun,mass,qualified)|noun_phrase(has_number)
+    determiner(plural)|determiner(ownership,-question) <SELECTOR *noun(finished_noun,plural,qualified)|noun_phrase(has_number)
+
+noun_phrase(has_noun,has_selector,third,question):
+    determiner(question) <SELECTOR *noun(finished_noun,qualified)|noun_phrase(has_number)
+
+noun_phrase(argument_ready): noun_phrase(has_noun,-arguments_complete)|noun_phrase(has_number,-arguments_complete)|noun_phrase(has_name,-arguments_complete)
+    
+noun_phrase(has_selection): *noun_phrase(argument_ready,-arguments_complete,-has_selection)|pronoun(quantifier) SELECTION> selection(is_preposition,has_complement,-delimited)
+noun_phrase(has_time): *noun_phrase(argument_ready,-arguments_complete,-has_time) TIME> time(is_preposition,has_complement,-delimited)
+noun_phrase(has_place): *noun_phrase(argument_ready,-arguments_complete,-has_place) PLACE> place(is_preposition,has_complement,-delimited)
+noun_phrase(has_possession): *noun_phrase(argument_ready,-arguments_complete,-has_possession) POSSESSION> possession(is_preposition,has_complement,-delimited)
+noun_phrase(has_style): *noun_phrase(argument_ready,-arguments_complete,-has_style) STYLE> style(is_preposition,has_complement,-delimited)
+noun_phrase(has_intention): *noun_phrase(argument_ready,-arguments_complete,-has_intention) INTENTION> intention(is_preposition,has_complement,-delimited)
+noun_phrase(has_purpose): *noun_phrase(argument_ready,-arguments_complete,-has_purpose) PURPOSE> purpose(is_preposition,has_complement,-delimited)
+noun_phrase(has_preference): *noun_phrase(argument_ready,-arguments_complete,-has_preference) PREFERENCE> preference(is_preposition,has_complement,-delimited)
+
+noun_phrase(arguments_complete,-mention,-argument_ready):
+    noun_phrase(-arguments_complete,-mention)
+
+noun_phrase(arguments_complete,mention,-argument_ready):
+    *noun_phrase(-arguments_complete,mention) QUOTED> _(-delimited,-terminated)
+    #*noun_phrase(-arguments_complete,mention) DELIMITER> punctuation(comma) QUOTED> _ DELIMITER> punctuation(comma)
+    #*noun_phrase(-arguments_complete,mention) QUOTED> quoted_literal
+
+noun_phrase(has_degree): degree <DEGREE *noun_phrase(arguments_complete,-finished_noun_phrase,-has_degree,-has_restriction)
+
+noun_phrase(has_restriction,-delimited):
+    *noun_phrase(arguments_complete,cause,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) CAUSE_OF> restriction(finished_restriction,needs_cause,-delimited)
+    *noun_phrase(arguments_complete,time,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) TIME_OF> restriction(finished_restriction,needs_time,-delimited)
+    *noun_phrase(arguments_complete,place,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) PLACE_OF> restriction(finished_restriction,needs_place,-delimited)
+	*noun_phrase(arguments_complete,possession,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) POSSESSION_OF> restriction(finished_restriction,needs_possession,-delimited)
+    *noun_phrase(arguments_complete,object,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) SUBJECT_OF> restriction(finished_restriction,needs_subject,-delimited)
+    *noun_phrase(arguments_complete,object,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) OBJECT_OF> restriction(finished_restriction,needs_object,-insubordinable,-delimited)
+    *noun_phrase(arguments_complete,object,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) TARGET_OF> restriction(finished_restriction,needs_target,-insubordinable,-delimited)
+    *noun_phrase(arguments_complete,action,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) CAST_OF> restriction(finished_restriction,needs_cast,-delimited)
+    *noun_phrase(arguments_complete,style,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) STYLE_OF> restriction(finished_restriction,needs_style,-delimited)
+    *noun_phrase(arguments_complete,object,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) COMPLEMENT_OF> restriction(finished_restriction,needs_complement,-delimited)
+
+noun_phrase(has_restriction,insubordinable,-delimited):
+    *noun_phrase(arguments_complete,object,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) OBJECT_OF> restriction(finished_restriction,needs_object,insubordinable,-delimited)
+    *noun_phrase(arguments_complete,object,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) TARGET_OF> restriction(finished_restriction,needs_target,insubordinable,-delimited)
+    
+noun_phrase(finished_noun_phrase): noun_phrase(arguments_complete,-finished_noun_phrase)
+
+noun_phrase(finished_noun_phrase,has_quality,described,-delimited): *noun_phrase(finished_noun_phrase,delimited) QUALITY> quality(-delimited)
+noun_phrase(finished_noun_phrase,has_quality,described,-delimited): *noun_phrase(finished_noun_phrase,delimited) QUALITY> object(-described,-simple,-compound,-delimited)
+
+
+# ------------------------------- OWNERSHIP DETERMINERS -----------------------
+
+determiner(ownership): object <OWNER *ownership
+
+
+# ------------------------------- PREPOSITIONAL PHRASES -----------------------
+
+prepositional_phrase: preposition
+
+prepositional_phrase(has_complement,-needs_complement,-takes_complement,-delimited,-takes_degree,-takes_place,-takes_time,-takes_style,-takes_agent,-takes_selection,-takes_purpose,-takes_cause):
+    *preposition(selection) COMPLEMENT> object(-needs_complement,-is_preposition,-delimited)
+    *preposition(place) COMPLEMENT> object(-needs_complement,-is_preposition,-delimited)|place(-needs_complement,-is_preposition,-delimited)
+	*preposition(possession) COMPLEMENT> object(-needs_complement,-is_preposition,-delimited)
+    *preposition(agent) COMPLEMENT> object(-needs_complement,-is_preposition,-delimited)
+    *preposition(style) COMPLEMENT> object(-needs_complement,-delimited)|fact(-needs_complement,-terse,-has_phrase_indicator,-delimited)
+    *preposition(time) COMPLEMENT> time(-needs_complement,-is_preposition,-delimited)|fact(-needs_complement,-terse,-has_phrase_indicator,-delimited)
+    *preposition(cause) COMPLEMENT> fact(-needs_complement,-terse,-has_phrase_indicator,-delimited)
+    *preposition(cause,conditional) COMPLEMENT> contrapositive(-needs_complement,-delimited)
+    *preposition(effect) COMPLEMENT> fact(-needs_complement,-terse,-has_phrase_indicator,-delimited)
+    *preposition(intention) COMPLEMENT> ability(-needs_complement,-delimited)
+    *preposition(purpose) COMPLEMENT> object(-needs_complement,-is_preposition,-delimited)|place(-needs_complement,-is_preposition,-delimited)|time(-needs_complement,-is_preposition,-delimited)|happening(-needs_complement,-delimited) # TODO: Happening?
+    *preposition(preference) COMPLEMENT> object(-needs_complement,-delimited)|place(-needs_complement,-delimited)|time(-needs_complement,-delimited)|fact(-needs_complement,-terse,-delimited)|contrapositive(-needs_complement,-delimited)|ability(-needs_complement,-delimited)|happening(-needs_complement,-delimited) # TODO: Happening?
+    *preposition(time,outer) COMPLEMENT> prepositional_phrase(time,inner,-question,-needs_complement,-delimited)
+    *preposition(place,outer) COMPLEMENT> prepositional_phrase(place,inner,-question,-needs_complement,-delimited)
+
+prepositional_phrase(question,has_complement,-needs_complement,-takes_complement,-delimited):
+    *preposition(selection) COMPLEMENT> pronoun(question,object)
+    *preposition(place) COMPLEMENT> pronoun(question,object)|pronoun(question,place)
+	*preposition(possession) COMPLEMENT> pronoun(question,object)
+    *preposition(agent) COMPLEMENT> pronoun(question,object)
+    *preposition(style) COMPLEMENT> pronoun(question,object)
+    *preposition(time) COMPLEMENT> pronoun(question,time)
+    *preposition(purpose) COMPLEMENT> pronoun(question,object)|pronoun(question,place)|pronoun(question,time)
+    *preposition(preference) COMPLEMENT> pronoun(question,object)|pronoun(question,place)|pronoun(question,time)
+    *preposition(time,outer) COMPLEMENT> prepositional_phrase(time,inner,question,-needs_complement,-delimited)
+    *preposition(place,outer) COMPLEMENT> prepositional_phrase(place,inner,question,-needs_complement,-delimited)
+    
+# TODO: Should this be style? Or truth? I'm leaning towards truth.
+prepositional_phrase(has_style): degree(-delimited) <DEGREE *prepositional_phrase(-has_style,-delimited)
+
+
+# ----------------------------- SUBJECTS --------------------------------------
+
+subject(-is_preposition,-object):
+    noun_phrase(finished_noun_phrase,subject,-described,-delimited,-takes_complement)
+    noun_phrase(finished_noun_phrase,subject,described,delimited,-takes_complement)
+    object(-has_pronoun,-described,-delimited)
+    object(described,delimited)
+    implicit_answer(object)
+
+
+# ----------------------------- OBJECTS ---------------------------------------
+
+object(is_noun_phrase,-is_preposition,-object):
+    noun_phrase(finished_noun_phrase,finished_number)
+    noun_phrase(finished_noun_phrase,object,-insubordinable)
+    noun_phrase(finished_noun_phrase,cause)
+    
+object(is_noun_phrase,insubordinable,-is_preposition,-object):
+    noun_phrase(finished_noun_phrase,object,insubordinable)
+    
+object(is_implicit_answer,-is_preposition,-object):
+    implicit_answer(object)
+
+
+# ----------------------------- TARGETS ---------------------------------------
+
+target(-is_preposition,-object):
+    noun_phrase(finished_noun_phrase,object,-static)
+    implicit_answer(object)
+
+#target(insubordinable,-is_preposition,-object):
+#    noun_phrase(finished_noun_phrase,object,insubordinable,-static)
+    
+
+# ----------------------------- SELECTIONS ------------------------------------
+
+selection(is_preposition): prepositional_phrase(selection)
+
+
+# ----------------------------- TIMES -----------------------------------------
+
+# Time noun phrases & prepositions
+
+time(is_preposition): prepositional_phrase(time,has_complement)
+
+time(-is_preposition):
+    noun_phrase(finished_noun_phrase,time)
+    implicit_answer(time)
+
+
+# ----------------------------- PLACES ----------------------------------------
+
+# Place noun phrases & prepositions
+
+place(is_preposition): prepositional_phrase(place)
+
+place(-is_preposition):
+    noun_phrase(finished_noun_phrase,place)
+    implicit_answer(place)
+
+
+# ------------------------------- POSSESSIONS ---------------------------------
+
+possession(is_preposition): prepositional_phrase(possession)
+
+
+# ----------------------------- AGENTS ----------------------------------------
+
+# Agent prepositions
+# [It was done] by [agent].
+
+agent(is_preposition): prepositional_phrase(agent)
+agent(-is_preposition): noun_phrase(finished_noun_phrase,agent)
+
+
+# -------------------------------- INTENTIONS ---------------------------------
+
+intention(is_preposition): prepositional_phrase(intention)
+
+
+# ------------------------------- CAUSALS -------------------------------------
+
+# Cause prepositions
+# [I did it] because [fact]
+# [It happened] if [fact]
+# [I will do it] if [contrapositive]
+
+# Effect prepositions
+# [I did it] so [fact]
+# [I did it] therefore [fact]
+
+cause(is_preposition): prepositional_phrase(cause,unconditional)|prepositional_phrase(cause,conditional,has_complement)
+
+effect(is_preposition): prepositional_phrase(effect)
+
+
+# ---------------------------------- STYLES -----------------------------------
+
+style(-is_preposition):
+    adverb_phrase(direct,-question)
+    #pronoun(finished_pronoun,style)
+    noun_phrase(style)
+
+style(is_preposition): prepositional_phrase(style)
+
+
+# ----------------------------------- PURPOSES --------------------------------
+
+purpose(is_preposition): prepositional_phrase(purpose)
+
+
+# ---------------------------------- PREFERENCES ------------------------------
+
+preference(is_preposition): prepositional_phrase(preference)
+
+
+# --------------------------- VERB INFLECTIONS --------------------------------
+
+verb(categorized,future_potential): verb(known_ending,no_ending,-categorized)
+verb(categorized,present_potential): verb(known_ending,ed_ending,-categorized)
+
+verb(categorized,present,singular,first): verb(known_ending,no_ending,-categorized)
+verb(categorized,present,singular,second): verb(known_ending,no_ending,-categorized)
+verb(categorized,present,singular,third): verb(known_ending,s_ending,-categorized)
+verb(categorized,present,plural): verb(known_ending,no_ending,-categorized)
+
+verb(categorized,past,singular,first): verb(known_ending,ed_ending,-present_potential,-categorized)
+verb(categorized,past,singular,second): verb(known_ending,ed_ending,-present_potential,-categorized)
+verb(categorized,past,singular,third): verb(known_ending,ed_ending,-present_potential,-categorized)
+verb(categorized,past,plural): verb(known_ending,ed_ending,-present_potential,-categorized)
+
+verb(categorized,accomplished): verb(known_ending,en_ending,-categorized)|verb(known_ending,ed_ending,-categorized)
+verb(categorized,passive): verb(known_ending,en_ending,-categorized)|verb(known_ending,ed_ending,-categorized)
+
+verb(categorized,ongoing): verb(known_ending,ing_ending,-categorized)
+
+verb(grouped,definite): verb(categorized,present,-grouped)|verb(categorized,past,-grouped)
+verb(grouped,static): verb(categorized,ongoing,-grouped)|verb(categorized,accomplished,-grouped)|verb(categorized,passive,-grouped)
+verb(grouped,indefinite): verb(categorized,present_potential,-grouped)|verb(categorized,future_potential,-grouped)
+
+verb(has_style): style(-question) <STYLE *verb(grouped,-has_style,-has_degree,-finished_verb)
+verb(has_degree): degree(-question) <DEGREE *verb(grouped,-has_degree,-finished_verb)
+
+verb(finished_verb,forward,-has_subject): verb(grouped,-finished_verb)
+
+verb(finished_verb,reverse,has_subject,-question):
+    *verb(grouped,definite,singular,first,-finished_verb,-verb_cast) SUBJECT> subject(singular,first,-question)
+    *verb(grouped,definite,second,-finished_verb,-verb_cast) SUBJECT> subject(singular,second,-question)
+    *verb(grouped,definite,singular,third,-finished_verb,-verb_cast) SUBJECT> subject(singular,third,-question)|subject(mass,third,-question)
+    *verb(grouped,definite,plural,-finished_verb,-verb_cast) SUBJECT> subject(plural,first,-question)|subject(plural,second,-question)|subject(plural,third,-question)
+    *verb(grouped,static,ongoing,-finished_verb,-verb_cast) SUBJECT> subject(-question)
+    *verb(grouped,indefinite,-finished_verb,-verb_cast) SUBJECT> subject(-question)
+
+verb(finished_verb,reverse,has_subject,question):
+    *verb(grouped,definite,singular,third,-finished_verb,-verb_cast) SUBJECT> subject(singular,third,question)|subject(mass,third,question)
+    *verb(grouped,definite,plural,-finished_verb,-verb_cast) SUBJECT> subject(plural,third,question)
+    *verb(grouped,static,ongoing,-finished_verb,-verb_cast) SUBJECT> subject(question)
+    *verb(grouped,indefinite,-finished_verb,-verb_cast) SUBJECT> subject(question)
+    
+ 
+# ------------------------- PREDICATE COMPLEMENTS -----------------------------
+
+subpredication(-that_subject):
+    predication(-has_subject,-definite,-delimited)
+
+cast: # Anything you can do but can't be doing
+    object(impersonal,-delimited)
+    implicit_answer(action,-delimited)
+
+quality(-has_degree):
+    adjective(known_ending)
+#    determiner(ownership)
+
+quality(is_subpredication,-has_degree):
+    experience(basic,-needs_cast,-needs_complement)#subpredication(basic,passive,-delimited,-needs_cast,-needs_complement)
+    happening(-needs_cast,-needs_complement)#subpredication(basic,ongoing,-delimited,-needs_cast,-needs_complement)|subpredication(be,ongoing,-has_happening,-delimited,-needs_cast,-needs_complement)|subpredication(do,verb_cast,ongoing,-delimited,-needs_cast,-needs_complement)
+
+quality(has_degree): degree <DEGREE *quality(-delimited)
+
+degree: adverb_phrase(known_ending,degree)
+
+
+## Anything you can be
+#state(is_adjective_phrase): adjective_phrase(-static,-delimited)
+#state(is_prepositional_phrase): prepositional_phrase(state)
+##state(is_object): object(-has_state,-delimited,-has_pronoun,-has_name)
+
+#state(is_subpredication):
+#    subpredication(basic,passive,-delimited)
+#    subpredication(basic,ongoing,-delimited)
+#    subpredication(be,ongoing,-has_happening,-delimited)
+    
+#state(has_selection): *state(is_adjective_phrase,-has_selection) SELECTION> selection(is_preposition,-delimited)
+#state(has_time): *state(is_adjective_phrase,-has_time) TIME> time(is_preposition,-delimited)
+#state(has_place): *state(is_adjective_phrase,-has_place) PLACE> place(is_preposition,-delimited)
+#state(has_style): *state(is_adjective_phrase,-has_style) STYLE> style(is_preposition,-delimited)
+#state(has_intention): *state(is_adjective_phrase,-has_intention) INTENTION> intention(is_preposition,-delimited)
+#state(has_purpose): *state(is_adjective_phrase,-has_purpose) PURPOSE> purpose(is_preposition,-delimited)
+#state(has_preference): *state(is_adjective_phrase,-has_preference) PREFERENCE> preference(is_preposition,-delimited)
+
+happening(-that_subject): # Anything you can be but can't be being
+    subpredication(basic,ongoing,-delimited)|subpredication(be,ongoing,-has_happening,-delimited)|subpredication(do,verb_cast,ongoing,-delimited)
+
+accomplishment(-that_subject): # Anything you can have done
+    subpredication(basic,static,-ongoing,-delimited)|subpredication(be,static,-ongoing,-delimited)|subpredication(do,verb_cast,static,-ongoing,-delimited)
+
+ability(-that_subject): # Anything you can do, but can't be doing
+    subpredication(basic,future_potential,-delimited)|subpredication(be,future_potential,-delimited)|subpredication(have,future_potential,-delimited)
+
+# TODO: Better integrate the new experience category into the grammar.
+# TODO: What about the construction, "He had <verb cast pronoun> done to him."
+#       In this case, the pronoun masquerades as a subject, but it's actually a cast.
+#       It's symmetric to how the pronoun masquerades as an object in normal casts.
+#       Just as subject/object trade places in a normal passive transformation, so do they for verb casts.
+#       This construction would constitute the subpredication(do,verb_cast,passive,-delimited) category 
+#       at the end of this rule:
+experience(-that_subject): # Anything that can be done to you
+    subpredication(basic,passive,-delimited)|subpredication(be,passive,-delimited)|subpredication(do,verb_cast,passive,-delimited)
+
+
+# ----------------------------- PREDICATES ------------------------------------
+
+predicate(basic): verb(finished_verb,forward,-aux)
+#predicate(basic,has_state): *verb(finished_verb,forward,-aux) STATE> state(-is_object,-delimited,-passive)
+predicate(basic,has_object): *verb(finished_verb,forward,-aux) OBJECT> object(-insubordinable,-delimited)
+predicate(basic,has_target,has_object): *verb(finished_verb,forward,-aux,-passive) TARGET> target(-delimited) OBJECT> object(-insubordinable,-delimited)
+predicate(basic,has_subpredication): *verb(finished_verb,forward,-aux,-passive) FACT> fact(-terse,-delimited)
+predicate(basic,has_subpredication): *verb(finished_verb,forward,-aux,-passive) TRUTH> implicit_answer(truth,-delimited)
+predicate(basic,has_subpredication): *verb(finished_verb,forward,-aux,-passive) POSSIBILITY> contrapositive
+
+predicate(basic,needs_cast): *verb(finished_verb,forward,verb_cast)
+predicate(basic,has_cast): *verb(finished_verb,forward,verb_cast) CAST> cast(-delimited)
+
+predicate(basic,has_object,has_modifier): *verb(finished_verb,forward,-aux) MODIFIER> prepositional_phrase(state) OBJECT> object(-has_pronoun,-delimited)
+
+# TODO: Should this be put back in? It's easily confused with the case of a prepositional phrase, so I'm not sure...
+#predicate(basic,has_target,has_object,has_modifier): *verb(finished_verb,forward,-aux,-passive) TARGET> target(-delimited) MODIFIER> prepositional_phrase(state) OBJECT> object(-delimited)
+
+#predicate(basic,has_particle): *predicate(basic,-has_particle) PARTICLE> prepositional_phrase(state)
+
+# TODO: Implement 'doing' predicates. For example, "I am doing fine," and, "How are you doing?"
+
+predicate(be): verb(finished_verb,cop)
+predicate(have): *verb(finished_verb,have_form)
+predicate(do): *verb(finished_verb,do_form,definite)
+predicate(modal): *verb(finished_verb,modal_form,definite)
+
+#predicate(be,has_state): *verb(finished_verb,cop) STATE> state(-delimited)
+predicate(be,has_object): *verb(finished_verb,cop) OBJECT> object(-delimited)
+#predicate(be,has_happening): *verb(finished_verb,cop) HAPPENING> happening(-delimited)
+predicate(be,has_quality): *verb(finished_verb,cop) QUALITY> quality(-delimited)
+
+predicate(do,has_quality): *verb(finished_verb,forward,verb_cast) QUALITY> quality(-delimited)
+
+predicate(have,has_accomplishment): *verb(finished_verb,have_form) ACCOMPLISHMENT> accomplishment(-delimited)
+predicate(do,has_ability): *verb(finished_verb,do_form,definite) ABILITY> ability(-delimited)
+predicate(modal,has_ability): *verb(finished_verb,modal_form,definite) ABILITY> ability(-delimited)
+
+predicate(go,has_ability): *verb(finished_verb,command_form,future_potential) ABILITY> ability(-delimited)
+
+predicate(finished_predicate): predicate(-finished_predicate,-basic,-be)
+predicate(finished_predicate,takes_degree,takes_place,takes_time,takes_style,takes_agent,takes_selection,takes_purpose,takes_cause): predicate(-finished_predicate,basic)|predicate(-finished_predicate,be)
+
+# TODO: Create head- & tail-inherited properties, and make "delimited" tail inherited. Then simplify some of this mess.
+
+predicate(has_degree,-takes_degree,-needs_degree,-delimited): *predicate(finished_predicate,-has_degree,-has_ability,-has_accomplishment,-has_happening) DEGREE> degree(-delimited)
+predicate(has_place,-takes_place,-needs_place,-delimited): *predicate(finished_predicate,-has_place,-has_ability,-has_accomplishment,-has_happening) PLACE> place(-delimited)
+predicate(has_time,-takes_time,-needs_time,-delimited): 
+	*predicate(finished_predicate,-has_time,-has_ability,-has_accomplishment,-has_happening) TIME> time(-delimited)
+	adverb(time) <TIME *predicate(finished_predicate,-has_time,-has_ability,-has_accomplishment,-has_happening)
+predicate(has_style,-takes_style,-needs_style,-delimited): *predicate(finished_predicate,-has_style,-has_ability,-has_accomplishment,-has_happening) STYLE> style(-delimited)
+predicate(has_cause,-takes_cause,-needs_cause,-delimited): *predicate(finished_predicate,-has_cause,-has_ability,-has_accomplishment,-has_happening) CAUSE> cause(is_preposition,-delimited)
+predicate(has_effect,-delimited): *predicate(finished_predicate,-has_effect,-has_ability,-has_accomplishment,-has_happening) EFFECT> effect(is_preposition,-delimited)
+predicate(has_agent,-takes_agent,-needs_agent,-delimited): *predicate(finished_predicate,-has_agent,-has_ability,-has_accomplishment,-has_happening) AGENT> agent(is_preposition,-delimited)
+predicate(has_selection,-takes_selection,-needs_selection,-delimited): *predicate(finished_predicate,-has_selection,-has_object,-has_target,-has_ability,-has_accomplishment,-has_happening) SELECTION> selection(is_preposition,has_complement,-delimited)
+predicate(has_intention,-delimited): *predicate(finished_predicate,-has_intention,-has_ability,-has_accomplishment,-has_happening) INTENTION> intention(is_preposition,-delimited)
+predicate(has_purpose,-takes_purpose,-needs_purpose,-delimited): *predicate(finished_predicate,-has_purpose,-has_ability,-has_accomplishment,-has_happening) PURPOSE> purpose(is_preposition,-delimited)
+predicate(has_modifier,-delimited): *predicate(finished_predicate,-delimited,-has_modifier,-has_ability,-has_accomplishment,-has_happening,-has_subpredication) MODIFIER> prepositional_phrase(state,-delimited)
+
+# TODO: Add "rather" as an adverb or adjective or something, and let preferences ("than" phrases) be attached to them. Then
+#       remove the places where I just attached "than" to noun phrases & predicates. 
+predicate(has_preference,-delimited): *predicate(finished_predicate,-has_preference) PREFERENCE> preference(is_preposition,-delimited)
+
+
+# ------------------------------ PREDICATIONS ---------------------------------
+
+predication(-has_subject):
+    predicate(forward,finished_predicate,static,-delimited)
+    predicate(forward,finished_predicate,indefinite,-delimited)
+
+predication(terse,-has_subject):
+    predicate(forward,finished_predicate,definite,singular,first,-be,-delimited)
+    predicate(forward,finished_predicate,definite,singular,third,-be,-delimited)
+
+# We inherit the question property from the predicate only if the subject is not itself a question.
+predication(has_subject):
+    subject(singular,first,-question)|subject(mass,first,-question) <SUBJECT *predicate(forward,finished_predicate,definite,singular,first,-delimited)
+    subject(singular,second,-question)|subject(mass,second,-question) <SUBJECT *predicate(forward,finished_predicate,definite,singular,second,-delimited)
+    subject(singular,third,-question)|subject(mass,third,-question) <SUBJECT *predicate(forward,finished_predicate,definite,singular,third,-delimited)
+    subject(plural,first,-question)|subject(plural,second,-question)|subject(plural,third,-question) <SUBJECT *predicate(forward,finished_predicate,definite,plural,-delimited)
+    subject(-question) <SUBJECT *predicate(forward,finished_predicate,static,ongoing,-delimited)
+    subject(-question) <SUBJECT *predicate(forward,finished_predicate,indefinite,-delimited)
+    
+# If the subject is a question, the predication is.
+predication(has_subject,question):
+    subject(singular,first,question)|subject(mass,first,question) <SUBJECT *predicate(forward,finished_predicate,definite,singular,first,-delimited)
+    subject(singular,second,question)|subject(mass,second,question) <SUBJECT *predicate(forward,finished_predicate,definite,singular,second,-delimited)
+    subject(singular,third,question)|subject(mass,third,question) <SUBJECT *predicate(forward,finished_predicate,definite,singular,third,-delimited)
+    subject(plural,first,question)|subject(plural,second,question)|subject(plural,third,question) <SUBJECT *predicate(forward,finished_predicate,definite,plural,-delimited)
+    subject(question) <SUBJECT *predicate(forward,finished_predicate,static,ongoing,-delimited)
+    subject(question) <SUBJECT *predicate(forward,finished_predicate,indefinite,-delimited)
+
+predication: predicate(reverse,finished_predicate,-delimited)
+
+
+# -------------------------------- FACTS --------------------------------------
+
+fact(-has_phrase_indicator): predication(definite,forward,-needs_cast)
+fact(has_phrase_indicator): phrase_indicator(that) <PHRASE_INDICATOR *fact(-terse,-has_phrase_indicator,-needs_cast)
+
+
+# -------------------------------- COMMANDS -----------------------------------
+
+command: predication(future_potential,forward,-needs_complement,-has_subject,-needs_cast)
+
+
+# ------------------------------ CONTRAPOSITIVES ------------------------------
+
+contrapositive: predication(indefinite,forward,has_subject,-needs_complement,-needs_cast)
+
+
+# -------------------------------- QUESTIONS ----------------------------------
+
+style_query:
+    pronoun(finished_pronoun,question,style)
+    pronoun(finished_pronoun,question,degree) <DEGREE *style
+    prepositional_phrase(question,style)
+
+question(truth): predication(reverse,definite,-needs_complement,-needs_cast)
+question(truth,terse): ability
+
+question(cause,has_cause): pronoun(finished_pronoun,question,cause)|prepositional_phrase(question,cause) <CAUSE *predication(reverse,definite,has_subject,-has_cause,-needs_complement,-needs_cast)
+    
+question(time,has_time): pronoun(finished_pronoun,question,time)|prepositional_phrase(question,time) <TIME *predication(reverse,definite,has_subject,-has_time,-needs_complement,-needs_cast)
+question(place,has_place): pronoun(finished_pronoun,question,place)|prepositional_phrase(question,place) <PLACE *predication(reverse,definite,has_subject,-has_place,-needs_complement,-needs_cast)
+question(style,has_style): style_query <STYLE *predication(reverse,definite,has_subject,-has_style,-needs_complement,-needs_cast)
+
+question(object,has_subject): pronoun(finished_pronoun,question,subject) <SUBJECT *predication(definite,-has_subject,-needs_complement,-needs_cast)
+
+# TODO: These may not be quite right. Need to check the property promotion.
+question(object,has_object): pronoun(finished_pronoun,question,object)|prepositional_phrase(question,object) <OBJECT *predication(reverse,definite,has_subject,-has_object,-needs_complement,-needs_cast)
+question(object,has_target): pronoun(finished_pronoun,question,target)|prepositional_phrase(question,target) <TARGET *predication(reverse,definite,has_subject,has_object,-aux,-has_target,-needs_complement,-needs_cast)
+question(action,has_cast,-needs_cast): pronoun(finished_pronoun,question,object) <CAST *predication(reverse,definite,has_subject,needs_cast,-needs_complement)
+
+question(object,has_complement,-needs_complement): pronoun(finished_pronoun,question,object) <COMPLEMENT *predication(reverse,definite,has_subject,needs_complement,-needs_cast)
+question(time,has_complement,-needs_complement): pronoun(finished_pronoun,question,time) <COMPLEMENT *predication(reverse,definite,has_subject,needs_complement,-needs_cast)
+question(place,has_complement,-needs_complement): pronoun(finished_pronoun,question,place) <COMPLEMENT *predication(reverse,definite,has_subject,needs_complement,-needs_cast)
+question(cause,has_complement,-needs_complement): pronoun(finished_pronoun,question,cause) <COMPLEMENT *predication(reverse,definite,has_subject,needs_complement,-needs_cast)
+
+question(effect,has_effect): pronoun(finished_pronoun,question,effect)|prepositional_phrase(question,effect) <EFFECT *cause(is_preposition,has_complement,-question,-needs_complement)
+
+
+# ----------------------------- IMPLICIT ANSWERS ------------------------------
+
+# "what"-type phrases, as in "what ate my homework" or "why I did it"
+
+# TODO: Right now, the predication is the head, but I think it should probably be the pronoun.
+#       The trouble is deciding which links are appropriate.
+
+# TODO: Find a way to compress down the grammar rules for questions, implicit answers, and restrictions based on their grammatical similarity.
+
+implicit_answer(truth): pronoun(finished_pronoun,question,truth) <TRUTH *predication(forward,definite,-needs_cast)
+
+implicit_answer(cause,has_cause): pronoun(finished_pronoun,question,cause) <CAUSE *predication(forward,definite,has_subject,-has_cause,-needs_cast)
+implicit_answer(time,has_time): pronoun(finished_pronoun,question,time) <TIME *predication(forward,definite,has_subject,-has_time,-needs_cast)
+implicit_answer(place,has_place): pronoun(finished_pronoun,question,place) <PLACE *predication(forward,definite,has_subject,-has_place,-needs_cast)
+implicit_answer(style,has_style): style_query <STYLE *predication(forward,definite,has_subject,-has_style,-needs_cast)
+
+implicit_answer(object,has_subject): pronoun(finished_pronoun,question,subject) <SUBJECT *predication(definite,-has_subject,-needs_cast)
+
+# TODO: These may not be quite right. Need to check the property promotion.
+implicit_answer(object,has_object): pronoun(finished_pronoun,question,object) <OBJECT *predication(forward,definite,has_subject,-has_object,-needs_cast)
+implicit_answer(object,has_target): pronoun(finished_pronoun,question,target) <TARGET *predication(forward,definite,has_subject,has_object,-has_target,-needs_cast)
+implicit_answer(action,has_cast,-needs_cast): pronoun(finished_pronoun,question,object) <CAST *predication(forward,definite,has_subject,needs_cast)
+
+implicit_answer(object,has_complement,-needs_complement): pronoun(finished_pronoun,question,object) <COMPLEMENT *predication(forward,definite,has_subject,needs_complement,-needs_cast)
+implicit_answer(time,has_complement,-needs_complement): pronoun(finished_pronoun,question,time) <COMPLEMENT *predication(forward,definite,has_subject,needs_complement,-needs_cast)
+implicit_answer(place,has_complement,-needs_complement): pronoun(finished_pronoun,question,place) <COMPLEMENT *predication(forward,definite,has_subject,needs_complement,-needs_cast)
+implicit_answer(cause,has_complement,-needs_complement): pronoun(finished_pronoun,question,cause) <COMPLEMENT *predication(forward,definite,has_subject,needs_complement,-needs_cast)
+
+
+# ----------------------------------- RESTRICTIONS ----------------------------
+
+# "that"-type phrases, as in "[the dog] that ate my homework" or "[the reason] why I did it"
+
+# TODO: Right now, the predication is the head, but I think it should probably be the pronoun.
+#       The trouble is deciding which links are appropriate.
+
+restriction(needs_cause):
+    predication(forward,definite,has_subject,-terse,-has_cause,-needs_cast,-that_subject)
+    pronoun(finished_pronoun,restriction,cause) <CAUSE *predication(forward,definite,has_subject,-terse,-has_cause,-needs_cast)
+
+restriction(needs_time):
+    predication(forward,definite,has_subject,-terse,-has_time,-needs_cast,-that_subject)
+    pronoun(finished_pronoun,restriction,time) <TIME *predication(forward,definite,has_subject,-terse,-has_time,-needs_cast)
+    
+restriction(needs_place):
+    predication(forward,definite,has_subject,-terse,-has_place,-needs_cast,-that_subject)
+    pronoun(finished_pronoun,restriction,place) <PLACE *predication(forward,definite,has_subject,-terse,-has_place,-needs_cast)
+
+restriction(needs_possession):
+    predication(forward,definite,has_subject,-terse,-has_possession,-needs_cast,-that_subject)
+    pronoun(finished_pronoun,restriction,possession) <POSSESSION *predication(forward,definite,has_subject,-terse,-has_possession,-needs_cast)
+
+# TODO: Take words like "surely", "barely", and "really" out of "style", and put them into something more appropriate.
+#       Really, "style" needs to be broken out into subcategories. In the meantime, don't add "-has_style" back into
+#       the properties for predication in this rule, since otherwise "the way things really work" won't parse properly.
+restriction(needs_style):
+    predication(forward,definite,has_subject,-terse,-needs_cast,-that_subject) #-has_style
+    pronoun(finished_pronoun,restriction,style) <STYLE *predication(forward,definite,has_subject,-terse,-needs_cast) #-has_style
+    
+restriction(needs_subject):
+    # restrictions using subjects cannot be pronounless because it leads to difficult ambiguities
+    pronoun(finished_pronoun,restriction,subject) <SUBJECT *predication(definite,terse,-has_subject,-needs_cast)
+
+# TODO: These may not be quite right. Need to check the property promotion.
+restriction(needs_object,insubordinable):
+    predication(forward,definite,has_subject,-terse,-has_object,-needs_cast,-that_subject)
+    
+restriction(needs_object):
+    pronoun(finished_pronoun,restriction,object) <OBJECT *predication(forward,definite,has_subject,-terse,-has_object,-needs_cast)
+
+restriction(needs_target,insubordinable):
+    predication(forward,definite,has_subject,has_object,-terse,-has_target,-needs_cast,-that_subject)
+    
+restriction(needs_target):
+    pronoun(finished_pronoun,restriction,target) <TARGET *predication(forward,definite,has_subject,has_object,-terse,-has_target,-needs_cast)
+
+restriction(needs_cast):
+    predication(forward,definite,has_subject,needs_cast,-terse,-that_subject)
+    pronoun(finished_pronoun,restriction,object) <CAST *predication(forward,definite,has_subject,needs_cast,-terse)
+
+restriction(needs_subject):
+    predication(forward,passive,-terse,-has_subject,-needs_cast)
+
+
+restriction(needs_complement):
+    predication(forward,definite,has_subject,needs_complement,-needs_cast)
+    pronoun(finished_pronoun,restriction) <COMPLEMENT *predication(forward,definite,has_subject,needs_complement,-needs_cast)
+
+restriction(finished_restriction,-takes_degree,-takes_place,-takes_time,-takes_style,-takes_agent,-takes_selection,-takes_purpose,-takes_cause): restriction(-finished_restriction)
+
+
+# ---------------------------------- INTERJECTIONS ----------------------------
+
+# TODO: Interjections are BS. There are all different kinds, and it's the kinds that matter.
+#       The interjection category may be useful, but the INTERJECTION link needs to go away.
+interjection(insult): insult
+
+
+# ------------------------------ ADDRESSEES -----------------------------------
+
+addressee(person): name(person,finished_name)
+addressee(object): noun(qualified,-has_quality,-has_selector)
+
+
+# -------------------------------- SENTENCES ----------------------------------
+
+# May end in a period/exclamation mark or in question mark (in which case it acts as both a statement/command and a question).
+sentence(statement,complete): *fact(-has_phrase_indicator,-delimited,-needs_complement,-needs_cast)
+sentence(command,complete): *command(-delimited,-needs_complement,-needs_cast)
+sentence(question,complete): *question(-delimited,-needs_complement,-needs_cast)
+
+sentence(interjection,-complete): interjection(-delimited,-needs_complement,-needs_cast)
+sentence(place,-complete): place(-delimited,-needs_complement,-needs_cast)
+sentence(time,-complete): time(-delimited,-needs_complement,-needs_cast)
+sentence(style,-complete): style(-delimited,-needs_complement,-needs_cast)
+sentence(cause,-complete): cause(-delimited,-needs_complement,-needs_cast)
+sentence(effect,-complete): effect(-delimited,-needs_complement,-needs_cast)
+sentence(agent,-complete): agent(-delimited,-needs_complement,-needs_cast)
+sentence(selection,-complete): selection(-delimited,-needs_complement,-needs_cast)
+#sentence(state,-complete): state(-delimited,-is_object,-needs_complement,-needs_cast)
+#sentence(happening,-complete): happening(-delimited,-needs_complement,-needs_cast)
+sentence(object,-complete): object(-delimited,-needs_complement,-needs_cast)
+
+sentence(has_interjection,-delimited):
+    interjection(delimited,-needs_complement,-needs_cast) <INTERJECTION *sentence(-has_interjection,complete,-delimited,-terminated)
+    *sentence(-has_interjection,complete,delimited) INTERJECTION> interjection(-delimited,-terminated,-needs_complement,-needs_cast)
+    
+sentence(has_addressee,-delimited):
+    addressee(delimited,-needs_complement,-needs_cast) <ADDRESSEE *sentence(-has_addressee,complete,-delimited,-terminated)
+    *sentence(-has_interjection,complete,delimited) ADDRESSEE> addressee(-delimited,-needs_complement,-needs_cast)
+
+# These intentionally allow a question-type sentence as the head, to accommodate
+# sentences of this unusual/archaic form:
+#   "There were people outside."
+#   "By the dragon was he bitten."
+#   "For the maiden did he give his life."
+#sentence(has_state,-question): state(-question,-needs_complement,-is_implicit_answer,-needs_complement,-needs_cast) <STATE *sentence(-has_state,complete,-terse,-delimited,-terminated)
+sentence(has_place,-takes_place,-needs_place,-question): place(-question,-needs_complement,-needs_cast) <PLACE *sentence(-has_place,complete,-terse,-delimited,-terminated)
+sentence(has_time,-takes_time,-needs_time,-question): time(-question,-needs_complement,-needs_cast) <TIME *sentence(-has_time,complete,-terse,-delimited,-terminated)
+sentence(has_style,-takes_style,-needs_style,-question): style(-question,-needs_complement,-needs_cast) <STYLE *sentence(-has_opposite,-has_style,complete,-terse,-delimited,-terminated)
+sentence(has_cause,-question): cause(is_preposition,has_complement,-question,-needs_complement,-needs_cast) <CAUSE *sentence(-has_cause,complete,-terse,-delimited,-terminated)
+sentence(has_effect,-question): effect(is_preposition,has_complement,-question,-needs_complement,-needs_cast) <EFFECT *sentence(-has_effect,complete,-terse,-delimited,-terminated)
+sentence(has_agent,-takes_agent,-needs_agent,-question): agent(is_preposition,has_complement,-question,-needs_complement,-needs_cast) <AGENT *sentence(-has_agent,complete,-terse,-delimited,-terminated)
+sentence(has_selection,-takes_selection,-needs_selection,-question): selection(is_preposition,has_complement,-question,-needs_complement,-needs_cast) <SELECTION *sentence(-has_selection,complete,-terse,-delimited,-terminated)
+sentence(has_purpose,-takes_purpose,-needs_purpose,-question): purpose(is_preposition,has_complement,-question,-needs_complement,-needs_cast) <PURPOSE *sentence(-has_purpose,complete,-terse,-delimited,-terminated)
+
+sentence(paired):
+    sentence(delimited,-complete,delimited,-terminated,-paired) <LEADUP *sentence(-has_leadup,-complete,-delimited,-terminated,-paired)
+    sentence(delimited,complete,delimited,-terminated,-paired) <LEADUP *sentence(-has_leadup,complete,-delimited,-terminated,-paired)
+
+
+# --------------------------------- PARAGRAPH ---------------------------------
+
+# TODO: Add this in later...
+
+
+# --------------------------------- CONVERSATION ------------------------------
+
+# TODO: How do we distinguish speakers in a text? Once that's figured out, we can build up entire conversations out of paragraphs directly with the parser.
+
+
+
+# ---------------------------------- SCRATCH ----------------------------------
+
+
+
+
