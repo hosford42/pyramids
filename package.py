@@ -13,9 +13,14 @@ import zipfile
 
 import build_readme
 
+# TODO: This is the only line in this script that depends on the specific
+#       module/package that is being packaged for PyPI. Figure out a way
+#       to genericize it. One possibility: Use setup.py to tell this module
+#       what module/package is being processed.
 from pyramids import __version__, __file__ as module_path
 
 
+# Extract module name from path.
 module_name = os.path.basename(module_path)
 if module_name.endswith('__init__.py'):
     module_name = os.path.basename(os.path.dirname(module_path))
