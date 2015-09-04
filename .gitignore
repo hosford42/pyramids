@@ -1,6 +1,10 @@
 # PyCharm
 .idea/
 
+# Backup Files
+bak/
+*.bak
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
