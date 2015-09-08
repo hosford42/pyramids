@@ -1,3 +1,16 @@
+"""
+pyramids.parsetrees: Parse tree-related classes.
+
+Parse trees in Pyramids are represented a bit unusually. They do not
+represent ordinary trees, but are rather hierarchically grouped unions of
+similar trees. The structure in fact alternates between nodes and node
+sets, where a node holds the actual content and structure of the tree at
+that level of grouping, and a node set contains multiple parse trees having
+the same token span and top-level category. This structure serves to reduce
+the combinatorics inherent to the parsing process, by allowing us to treat
+a whole family of sub-trees as if they were a single entity.
+"""
+
 from functools import reduce
 import math
 import time
@@ -16,15 +29,14 @@ __all__ = [
 
 
 class ParseTreeNode:
-    """Represents a branch or leaf node in a parse tree."""
+    """Represents a branch or leaf node in a parse tree during parsing."""
 
-    def __init__(self, parser_state, rule, head_index, category,
+    def __init__(self, tokens, rule, head_index, category,
                  index_or_components):
-        # assert isinstance(parser_state, parsing.ParserState)
         # assert isinstance(rule, parserules.ParseRule)
         assert isinstance(category, categorization.Category)
 
-        self._parser_state = parser_state
+        self._tokens = tokens
         self._head_index = int(head_index)
         self._rule = rule
 
@@ -142,7 +154,7 @@ class ParseTreeNode:
 
     @property
     def tokens(self):
-        return self._parser_state.tokens
+        return self._tokens
 
     @property
     def rule(self):
@@ -429,6 +441,8 @@ class ParseTreeNode:
 #       they are requested after the tree is built, they will be calculated
 #       and stored.
 class BuildTreeNode:
+    """Represents a branch or leaf node in a parse tree during
+    reconstruction."""
 
     def __init__(self, rule, category, head_spelling, head_index,
                  components=None):

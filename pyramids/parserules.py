@@ -161,7 +161,7 @@ class LeafRule(ParseRule):
             category = parser_state.extend_properties(category)
             parser_state.add_node(
                 parsetrees.ParseTreeNode(
-                    parser_state,
+                    parser_state.tokens,
                     self,
                     index,
                     category,
@@ -471,7 +471,7 @@ class SequenceRule(BranchRule):
                             subtrees[self._head_index].category):
                         parser_state.add_node(
                             parsetrees.ParseTreeNode(
-                                parser_state,
+                                parser_state.tokens,
                                 self,
                                 self._head_index, category,
                                 subtrees
@@ -998,7 +998,7 @@ class ConjunctionRule(BranchRule):
                                 forward_half[head_offset].category):
                             parser_state.add_node(
                                 parsetrees.ParseTreeNode(
-                                    parser_state,
+                                    parser_state.tokens,
                                     self,
                                     head_offset,
                                     category,
@@ -1030,7 +1030,7 @@ class ConjunctionRule(BranchRule):
                                         subtrees[head_offset].category):
                                     parser_state.add_node(
                                         parsetrees.ParseTreeNode(
-                                            parser_state,
+                                            parser_state.tokens,
                                             self,
                                             head_offset,
                                             category,
@@ -1058,7 +1058,7 @@ class ConjunctionRule(BranchRule):
                                     forward_half[head_offset].category):
                                 parser_state.add_node(
                                     parsetrees.ParseTreeNode(
-                                        parser_state,
+                                        parser_state.tokens,
                                         self,
                                         head_offset,
                                         category,
@@ -1089,7 +1089,7 @@ class ConjunctionRule(BranchRule):
                                     subtrees[head_offset].category):
                                 parser_state.add_node(
                                     parsetrees.ParseTreeNode(
-                                        parser_state,
+                                        parser_state.tokens,
                                         self,
                                         head_offset,
                                         category,
@@ -1121,7 +1121,7 @@ class ConjunctionRule(BranchRule):
                                     subtrees[head_offset].category):
                                 parser_state.add_node(
                                     parsetrees.ParseTreeNode(
-                                        parser_state,
+                                        parser_state.tokens,
                                         self,
                                         head_offset,
                                         category,
