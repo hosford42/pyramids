@@ -38,7 +38,7 @@ import time
 
 from pyramids.parsetrees import Parse
 from pyramids.control import ParserCmd, ParserConfigInfo, ParserLoader
-from pyramids.graphs import ParseGraphBuilder
+from pyramids.graphs import ParseGraphBuilder, ParseGraph
 
 
 __author__ = 'Aaron Hosford'
@@ -182,6 +182,15 @@ def get_parse_graphs(forest):
     graph_builder = ParseGraphBuilder()
     forest.visit(graph_builder)
     return graph_builder.get_graphs()
+
+
+def get_parse_trees(graph):
+    assert isinstance(graph, ParseGraph)
+
+    if not _default_parser:
+        load_parser()
+
+    return _default_parser.generate(graph)
 
 
 def main():
