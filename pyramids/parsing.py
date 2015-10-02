@@ -462,8 +462,8 @@ class Parser:
 
     def _generate(self, head_node, sentence):
         head_spelling = sentence[head_node][1]
-        head_category = sentence[head_node][2]
-        print(head_spelling, head_category)
+        head_category = sentence[head_node][3]
+        # print(head_spelling, head_category)
 
         # Find the subnodes of the head node
         subnodes = sentence.get_sinks(head_node)

@@ -320,10 +320,10 @@ class ParseTreeNode:
                 handler.handle_root()
 
             handler.handle_token(
-                self.head_token_start,
                 self.tokens[self.start],
-                self.tokens.spans[self.start],
-                self._category
+                self._category,
+                self.head_token_start,
+                self.tokens.spans[self.start]
             )
 
             need_sources = {}
@@ -334,7 +334,7 @@ class ParseTreeNode:
 
         head_start = \
             self.components[self._head_index].best.head_token_start
-        handler.handle_phrase_start(head_start, self.category)
+        handler.handle_phrase_start(self.category, head_start)
 
         # Visit each subtree, remembering which indices are to receive
         # which potential links.

@@ -1,3 +1,5 @@
+import pyramids.categorization
+
 __author__ = 'Aaron Hosford'
 __all__ = [
     'LanguageContentHandler',
@@ -15,7 +17,7 @@ class LanguageContentHandler:
         """Called to indicate the end of a tree."""
         pass
 
-    def handle_token(self, start_index, spelling, span, category):
+    def handle_token(self, spelling, category, index=None, span=None):
         """Called to indicate the occurrence of a token."""
         pass
 
@@ -29,7 +31,7 @@ class LanguageContentHandler:
         called for both the source and sink."""
         pass
 
-    def handle_phrase_start(self, head_start_index, category):
+    def handle_phrase_start(self, category, head_start_index=None):
         """Called to indicate the start of a phrase."""
         pass
 
@@ -68,9 +70,11 @@ class ParseGraph:
         assert self._phrases and self._phrases[-1]
 
         self._reversed_links = tuple(
-            {source: self._links[source][sink]
-             for source in range(len(self._tokens))
-             if sink in self._links[source]}
+            {
+                source: self._links[source][sink]
+                for source in range(len(self._tokens))
+                if sink in self._links[source]
+            }
             for sink in range(len(self._tokens))
         )
 
@@ -133,12 +137,13 @@ class ParseGraphBuilder(LanguageContentHandler):
     """
 
     def __init__(self):
+        self._counter = 0
         self._root = None
         self._tokens = []
         self._links = []
         self._phrases = []
 
-        self._start_index_map = {}
+        self._index_map = {}
         self._graphs = []
         self._phrase_stack = []
 
@@ -162,43 +167,65 @@ class ParseGraphBuilder(LanguageContentHandler):
 
         self._graphs.append(graph)
 
+        self._counter = 0
         self._root = None
         self._tokens.clear()
         self._links.clear()
         self._phrases.clear()
-        self._start_index_map.clear()
+        self._index_map.clear()
         self._phrase_stack.clear()
 
-    def handle_token(self, start_index, spelling, span, category):
-        assert start_index not in self._start_index_map
-        self._start_index_map[start_index] = len(self._tokens)
-        self._tokens.append((start_index, spelling, span, category))
+    def handle_token(self, spelling, category, index=None, span=None):
+        assert isinstance(spelling, str)
+        assert isinstance(category, pyramids.categorization.Category)
+        assert index is None or isinstance(index, int)
+
+        if index is None:
+            index = self._counter
+            self._counter += 1
+        else:
+            assert index not in self._index_map
+            assert not self._counter
+        self._index_map[index] = len(self._tokens)
+        self._tokens.append((index, spelling, span, category))
         self._links.append({})
         self._phrases.append([(category, frozenset())])
+
+        # For convenience, return the id of the token so users can know
+        # which index to use for links.
+        return len(self._tokens) - 1
 
     def handle_root(self):
         assert self._root is None
         self._root = len(self._tokens)
 
-    def handle_link(self, source_start_index, sink_start_index, label):
-        assert source_start_index in self._start_index_map
-        assert sink_start_index in self._start_index_map
+    def handle_link(self, source_index, sink_index, label):
+        assert source_index in self._index_map
+        assert sink_index in self._index_map
         assert self._phrase_stack
 
-        source_index = self._start_index_map[source_start_index]
-        sink_index = self._start_index_map[sink_start_index]
+        source_id = self._index_map[source_index]
+        sink_id = self._index_map[sink_index]
 
-        assert sink_index not in self._links[source_index]
-        self._links[source_index][sink_index] = label
+        assert sink_id not in self._links[source_id]
+        self._links[source_id][sink_id] = label
 
-        self._phrase_stack[-1][-1].append((source_index, sink_index))
+        self._phrase_stack[-1][-1].append((source_id, sink_id))
 
-    def handle_phrase_start(self, head_start_index, category):
+    def handle_phrase_start(self, category, head_index=None):
+        assert isinstance(category, pyramids.categorization.Category)
+        assert head_index is None or isinstance(head_index, int)
+
         # assert head_start_index in self._start_index_map
         # head_index = self._start_index_map[head_start_index]
 
+        if head_index is None:
+            head_index = self._counter
+        else:
+            assert head_index not in self._index_map
+
         self._phrase_stack.append((
-            head_start_index,  # head_index,
+            head_index,
             category,
             []  # For links
         ))
@@ -208,9 +235,9 @@ class ParseGraphBuilder(LanguageContentHandler):
 
         head_start_index, category, links = self._phrase_stack.pop()
 
-        assert head_start_index in self._start_index_map
+        assert head_start_index in self._index_map
 
-        head_index = self._start_index_map[head_start_index]
+        head_index = self._index_map[head_start_index]
         self._phrases[head_index].append((category, frozenset(links)))
 
 
@@ -219,8 +246,8 @@ class TestHandler(LanguageContentHandler):
     def handle_tree_end(self):
         print("Tree end")
 
-    def handle_token(self, start_index, spelling, category):
-        print("Token:", start_index, spelling, category)
+    def handle_token(self, spelling, category, index=None, span=None):
+        print("Token:", index, spelling, category)
 
     def handle_root(self):
         print("Root")
