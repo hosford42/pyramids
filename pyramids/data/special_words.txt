@@ -77,12 +77,12 @@ conjunction(not): not never
 # ------------------------------- DETERMINERS ---------------------------------
 
 # TODO: Where to words like "only", "extra", "such", and "other" belong? They are like determiners but not.
-determiner(singular): a an another any each every her his its my our some that the their this ye your
-determiner(singular,specific): each every her his its my our some that the their this ye your
+determiner(singular): a an another any each every her his its my our some that the their this ye you your
+determiner(singular,specific): each every her his its my our some that the their this ye you your
 determiner(singular,negative): no
 determiner(mass): all any extra her his its less little more most my our some that the their this ye your
 determiner(mass,negative): no
-determiner(plural): all any both extra few fewer her his its more most my our several some the their these those ye your
+determiner(plural): all any both extra few fewer her his its more most my our several some the their these those ye you your
 determiner(plural,negative): no
 
 determiner(question): what which
@@ -176,6 +176,8 @@ pronoun(impersonal,third,plural,time): twice thrice nowadays sometimes
 pronoun(impersonal,third,singular,place): anywhere away everywhere here someplace somewhere somewheres there
 pronoun(impersonal,third,singular,place,negative): nowhere nowheres
 
+pronoun(assertive): there
+
 pronoun(personal,third,singular,plural,subject,question,restriction): who
 pronoun(personal,third,singular,plural,non_subject,question,restriction): who whom
 pronoun(personal,impersonal,third,singular,plural,subject,object,target,agent,question): whose
@@ -200,7 +202,7 @@ preposition(agent,needs_complement): by
 
 preposition(selection,needs_complement): of besides like
 
-preposition(possession,needs_complement): with
+preposition(possession,needs_complement): with without
 
 preposition(purpose,needs_complement): for
 
@@ -222,7 +224,7 @@ preposition(time,inner,needs_complement): of until about around at before in whi
 preposition(time,inner,takes_complement): before during when
 
 preposition(place,needs_complement): about after against at before beside into onto under
-preposition(place,takes_complement): aboard above around behind beneath beyond throughout
+preposition(place,takes_complement): aboard above among around behind beneath beyond throughout within
 preposition(place,outer,takes_complement): abreast across away down in inside near off over out outside underneath through up
 preposition(place,outer,needs_complement): on
 preposition(place,inner,needs_complement): to from of by

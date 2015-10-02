@@ -56,6 +56,11 @@
 #
 # =============================================================================
 
+# TODO: Names as noun phrase heads.
+#         Examples:
+#           "good old Bob"
+#           "Joseph of Bethlehem"
+#           "the same Janet that he dated"
 
 # TODO: The command, "Do not." is broken now, since I switched over to using not
 #       as purely a prefix "conjunction". Also, it might be good to be able to
@@ -614,19 +619,22 @@ pronoun(finished_pronoun,subject,object,target,agent,possession,cause,effect,tru
 
 adverb(direct,-degree): adverb(known_ending,ly_ending)
 
-adverb_phrase(-has_degree):
+adverb_phrase(-has_degree,-has_style):
     adverb(known_ending,direct)
     adverb(known_ending,degree)
+    adverb(known_ending,style)
     
 adverb_phrase(has_degree): degree <DEGREE  *adverb_phrase
+adverb_phrase(has_style): style(-is_preposition) <STYLE  *adverb_phrase
 
 
 # ----------------------------- ADJECTIVES ------------------------------------
 
 #adjective(verb): verb(static)
 
-adjective_phrase(-has_degree): adjective(known_ending)
+adjective_phrase(-has_degree,-has_style): adjective(known_ending)
 adjective_phrase(has_degree): degree <DEGREE *adjective_phrase
+adjective_phrase(has_style): style(-is_preposition) <STYLE *adjective_phrase
 
 
 # --------------------------------- NUMBERS -----------------------------------
@@ -916,6 +924,14 @@ place(-is_preposition):
     implicit_answer(place)
 
 
+# -------------------------------- ASSERTION ----------------------------------
+
+# Assertions of truth/existence
+# There [is a man here].
+
+assertion: pronoun(assertive)
+
+
 # ------------------------------- POSSESSIONS ---------------------------------
 
 possession(is_preposition): prepositional_phrase(possession)
@@ -954,6 +970,7 @@ effect(is_preposition): prepositional_phrase(effect)
 # ---------------------------------- STYLES -----------------------------------
 
 style(-is_preposition):
+    adverb_phrase(style,-question)
     adverb_phrase(direct,-question)
     #pronoun(finished_pronoun,style)
     noun_phrase(style)
@@ -1000,6 +1017,10 @@ verb(has_degree): degree(-question) <DEGREE *verb(grouped,-has_degree,-finished_
 
 verb(finished_verb,forward,-has_subject): verb(grouped,-finished_verb)
 
+verb(has_assertion):
+	assertion <ASSERTION *verb(grouped,cop,-has_subject,-finished_verb,-has_assertion)
+	*verb(grouped,cop,-has_subject,-finished_verb,-has_assertion) ASSERTION> assertion
+
 verb(finished_verb,reverse,has_subject,-question):
     *verb(grouped,definite,singular,first,-finished_verb,-verb_cast) SUBJECT> subject(singular,first,-question)
     *verb(grouped,definite,second,-finished_verb,-verb_cast) SUBJECT> subject(singular,second,-question)
@@ -1028,7 +1049,7 @@ quality(-has_degree):
     adjective(known_ending)
 #    determiner(ownership)
 
-quality(is_subpredication,-has_degree):
+quality(is_subpredication,-has_degree,-takes_agent,-takes_cause,-takes_degree,-takes_place,-takes_purpose,-takes_selection,-takes_style,-takes_time):
     experience(basic,-needs_cast,-needs_complement)#subpredication(basic,passive,-delimited,-needs_cast,-needs_complement)
     happening(-needs_cast,-needs_complement)#subpredication(basic,ongoing,-delimited,-needs_cast,-needs_complement)|subpredication(be,ongoing,-has_happening,-delimited,-needs_cast,-needs_complement)|subpredication(do,verb_cast,ongoing,-delimited,-needs_cast,-needs_complement)
 
@@ -1107,6 +1128,9 @@ predicate(be,has_object): *verb(finished_verb,cop) OBJECT> object(-delimited)
 #predicate(be,has_happening): *verb(finished_verb,cop) HAPPENING> happening(-delimited)
 predicate(be,has_quality): *verb(finished_verb,cop) QUALITY> quality(-delimited)
 
+#predicate(be,has_existence): *verb(finished_verb,cop) EXISTENCE> existence(-delimited)
+#predicate(be,has_existence): existence(-delimited) <EXISTENCE *verb(finished_verb,cop)
+
 predicate(do,has_quality): *verb(finished_verb,forward,verb_cast) QUALITY> quality(-delimited)
 
 predicate(have,has_accomplishment): *verb(finished_verb,have_form) ACCOMPLISHMENT> accomplishment(-delimited)
@@ -1157,7 +1181,7 @@ predication(has_subject):
     subject(plural,first,-question)|subject(plural,second,-question)|subject(plural,third,-question) <SUBJECT *predicate(forward,finished_predicate,definite,plural,-delimited)
     subject(-question) <SUBJECT *predicate(forward,finished_predicate,static,ongoing,-delimited)
     subject(-question) <SUBJECT *predicate(forward,finished_predicate,indefinite,-delimited)
-    
+
 # If the subject is a question, the predication is.
 predication(has_subject,question):
     subject(singular,first,question)|subject(mass,first,question) <SUBJECT *predicate(forward,finished_predicate,definite,singular,first,-delimited)
