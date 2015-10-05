@@ -77,12 +77,16 @@ conjunction(not): not never
 # ------------------------------- DETERMINERS ---------------------------------
 
 # TODO: Where to words like "only", "extra", "such", and "other" belong? They are like determiners but not.
-determiner(singular): a an another any each every her his its my our some that the their this ye you your
-determiner(singular,specific): each every her his its my our some that the their this ye you your
+
+# Yes, mass also makes sense here. "Get off me, you disgusting sludge!"
+determiner(singular,mass,plural,second): you
+
+determiner(singular): a an another any each every her his its my our some that the their this ye your
+determiner(singular,specific): each every her his its my our some that the their this ye your
 determiner(singular,negative): no
 determiner(mass): all any extra her his its less little more most my our some that the their this ye your
 determiner(mass,negative): no
-determiner(plural): all any both extra few fewer her his its more most my our several some the their these those ye you your
+determiner(plural): all any both extra few fewer her his its more most my our several some the their these those ye your
 determiner(plural,negative): no
 
 determiner(question): what which

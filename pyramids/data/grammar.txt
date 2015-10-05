@@ -771,10 +771,15 @@ noun_phrase(has_number,third):
     number(finished_number,singular,-delimited) <NUMBER *noun(finished_noun,singular,qualified,-has_number)
     number(finished_number,plural,-delimited) <NUMBER *noun(finished_noun,plural,qualified,-has_number)
 
+noun_phrase(has_noun,has_selector,second,-question):
+    determiner(singular,second) <SELECTOR *noun(finished_noun,singular,qualified)|noun_phrase(has_number)
+    determiner(mass,second) <SELECTOR *noun(finished_noun,mass,qualified)|noun_phrase(has_number)
+    determiner(plural,second) <SELECTOR *noun(finished_noun,plural,qualified)|noun_phrase(has_number)
+
 noun_phrase(has_noun,has_selector,third,-question):
-    determiner(singular)|determiner(ownership,-question) <SELECTOR *noun(finished_noun,singular,qualified)|noun_phrase(has_number)
-    determiner(mass)|determiner(ownership,-question) <SELECTOR *noun(finished_noun,mass,qualified)|noun_phrase(has_number)
-    determiner(plural)|determiner(ownership,-question) <SELECTOR *noun(finished_noun,plural,qualified)|noun_phrase(has_number)
+    determiner(singular,-second)|determiner(ownership,-second,-question) <SELECTOR *noun(finished_noun,singular,qualified)|noun_phrase(has_number)
+    determiner(mass,-second)|determiner(ownership,-second,-question) <SELECTOR *noun(finished_noun,mass,qualified)|noun_phrase(has_number)
+    determiner(plural,-second)|determiner(ownership,-second,-question) <SELECTOR *noun(finished_noun,plural,qualified)|noun_phrase(has_number)
 
 noun_phrase(has_noun,has_selector,third,question):
     determiner(question) <SELECTOR *noun(finished_noun,qualified)|noun_phrase(has_number)
