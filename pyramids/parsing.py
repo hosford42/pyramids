@@ -511,6 +511,7 @@ class Parser:
         results = set()
         backup_results = set()
         emergency_results = set()
+
         # If we only have the head node, the leaves for the head node can
         # serve as results
         if len(subtrees) == 1:
@@ -565,8 +566,8 @@ class Parser:
                         component_head_candidates &= {
                             source
                             for source in sentence.get_sources(head_node)
-                            if sentence.get_label(source, head_node) ==
-                            link_type
+                            if link_type in sentence.get_labels(source,
+                                                                head_node)
                         }
                         if not component_head_candidates:
                             break
@@ -579,8 +580,8 @@ class Parser:
                         component_head_candidates &= {
                             sink
                             for sink in sentence.get_sinks(head_node)
-                            if sentence.get_label(head_node, sink) ==
-                            link_type
+                            if link_type in sentence.get_labels(head_node,
+                                                                sink)
                         }
                         if not component_head_candidates:
                             break

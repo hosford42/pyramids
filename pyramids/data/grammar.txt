@@ -253,6 +253,7 @@ _(delimited):
     #*object(conjunction,-delimited) DELIMITER> punctuation(phrase_separator)
     #*target(conjunction,-delimited) DELIMITER> punctuation(phrase_separator)
     *time(-delimited) DELIMITER> punctuation(phrase_separator)
+    *truth(-delimited) DELIMITER> punctuation(phrase_separator)
     *place(-delimited) DELIMITER> punctuation(phrase_separator)
 	*possession(-delimited) DELIMITER> punctuation(phrase_separator)
     *style(-delimited) DELIMITER> punctuation(phrase_separator)
@@ -756,8 +757,8 @@ noun(qualified,has_quality): quality <QUALITY *noun(finished_noun,qualified)
 
 noun_phrase(has_pronoun): pronoun(finished_pronoun)
 
-noun_phrase(subject,action,third): predication(ongoing,-delimited)
-noun_phrase(subject,intention,third): intention(-delimited)
+noun_phrase(subject,object,action,third): predication(ongoing,-delimited)
+noun_phrase(subject,object,intention,third): intention(-delimited)
 
 noun_phrase(has_name,singular,third,subject,object): name(finished_name)
 
@@ -967,7 +968,11 @@ intention(is_preposition): prepositional_phrase(intention)
 # [I did it] so [fact]
 # [I did it] therefore [fact]
 
-cause(is_preposition): prepositional_phrase(cause,unconditional)|prepositional_phrase(cause,conditional,has_complement)
+cause(is_preposition):
+    prepositional_phrase(cause,unconditional)
+    prepositional_phrase(cause,conditional,has_complement)
+
+cause(-is_preposition): implicit_answer(cause)
 
 effect(is_preposition): prepositional_phrase(effect)
 
@@ -979,6 +984,7 @@ style(-is_preposition):
     adverb_phrase(direct,-question)
     #pronoun(finished_pronoun,style)
     noun_phrase(style)
+    implicit_answer(style)
 
 style(is_preposition): prepositional_phrase(style)
 
@@ -1054,6 +1060,8 @@ quality(-has_degree):
     adjective(known_ending)
 #    determiner(ownership)
 
+truth: implicit_answer(truth)
+
 quality(is_subpredication,-has_degree,-takes_agent,-takes_cause,-takes_degree,-takes_place,-takes_purpose,-takes_selection,-takes_style,-takes_time):
     experience(basic,-needs_cast,-needs_complement)#subpredication(basic,passive,-delimited,-needs_cast,-needs_complement)
     happening(-needs_cast,-needs_complement)#subpredication(basic,ongoing,-delimited,-needs_cast,-needs_complement)|subpredication(be,ongoing,-has_happening,-delimited,-needs_cast,-needs_complement)|subpredication(do,verb_cast,ongoing,-delimited,-needs_cast,-needs_complement)
@@ -1108,7 +1116,7 @@ predicate(basic): verb(finished_verb,forward,-aux)
 predicate(basic,has_object): *verb(finished_verb,forward,-aux) OBJECT> object(-insubordinable,-delimited)
 predicate(basic,has_target,has_object): *verb(finished_verb,forward,-aux,-passive) TARGET> target(-delimited) OBJECT> object(-insubordinable,-delimited)
 predicate(basic,has_subpredication): *verb(finished_verb,forward,-aux,-passive) FACT> fact(-terse,-delimited)
-predicate(basic,has_subpredication): *verb(finished_verb,forward,-aux,-passive) TRUTH> implicit_answer(truth,-delimited)
+predicate(basic,has_subpredication): *verb(finished_verb,forward,-aux,-passive) TRUTH> truth(-delimited)
 predicate(basic,has_subpredication): *verb(finished_verb,forward,-aux,-passive) POSSIBILITY> contrapositive
 
 predicate(basic,needs_cast): *verb(finished_verb,forward,verb_cast)
@@ -1250,29 +1258,30 @@ question(effect,has_effect): pronoun(finished_pronoun,question,effect)|prepositi
 
 # "what"-type phrases, as in "what ate my homework" or "why I did it"
 
-# TODO: Right now, the predication is the head, but I think it should probably be the pronoun.
-#       The trouble is deciding which links are appropriate.
+# TODO: Find a way to compress down the grammar rules for questions,
+#       implicit answers, and restrictions based on their grammatical
+#       similarity.
 
-# TODO: Find a way to compress down the grammar rules for questions, implicit answers, and restrictions based on their grammatical similarity.
+implicit_answer(truth): *pronoun(finished_pronoun,question,truth) TRUTH_OF> predication(forward,definite,-needs_cast)
 
-implicit_answer(truth): pronoun(finished_pronoun,question,truth) <TRUTH *predication(forward,definite,-needs_cast)
+implicit_answer(cause): *pronoun(finished_pronoun,question,cause) CAUSE_OF> predication(forward,definite,has_subject,-has_cause,-needs_cast)
+implicit_answer(time): *pronoun(finished_pronoun,question,time) TIME_OF> predication(forward,definite,has_subject,-has_time,-needs_cast)
+implicit_answer(place): *pronoun(finished_pronoun,question,place) PLACE_OF> predication(forward,definite,has_subject,-has_place,-needs_cast)
 
-implicit_answer(cause,has_cause): pronoun(finished_pronoun,question,cause) <CAUSE *predication(forward,definite,has_subject,-has_cause,-needs_cast)
-implicit_answer(time,has_time): pronoun(finished_pronoun,question,time) <TIME *predication(forward,definite,has_subject,-has_time,-needs_cast)
-implicit_answer(place,has_place): pronoun(finished_pronoun,question,place) <PLACE *predication(forward,definite,has_subject,-has_place,-needs_cast)
-implicit_answer(style,has_style): style_query <STYLE *predication(forward,definite,has_subject,-has_style,-needs_cast)
+implicit_answer(style): *style_query STYLE_OF> predication(forward,definite,has_subject,-has_style,-needs_cast)
+implicit_answer(style): *style_query STYLE_OF> intention
 
-implicit_answer(object,has_subject): pronoun(finished_pronoun,question,subject) <SUBJECT *predication(definite,-has_subject,-needs_cast)
+implicit_answer(object): *pronoun(finished_pronoun,question,subject) SUBJECT_OF> predication(definite,-has_subject,-needs_cast)
 
 # TODO: These may not be quite right. Need to check the property promotion.
-implicit_answer(object,has_object): pronoun(finished_pronoun,question,object) <OBJECT *predication(forward,definite,has_subject,-has_object,-needs_cast)
-implicit_answer(object,has_target): pronoun(finished_pronoun,question,target) <TARGET *predication(forward,definite,has_subject,has_object,-has_target,-needs_cast)
-implicit_answer(action,has_cast,-needs_cast): pronoun(finished_pronoun,question,object) <CAST *predication(forward,definite,has_subject,needs_cast)
+implicit_answer(object): *pronoun(finished_pronoun,question,object) OBJECT_OF> predication(forward,definite,has_subject,-has_object,-needs_cast)
+implicit_answer(object): *pronoun(finished_pronoun,question,target) TARGET_OF> predication(forward,definite,has_subject,has_object,-has_target,-needs_cast)
+implicit_answer(action): *pronoun(finished_pronoun,question,object) CAST_OF> predication(forward,definite,has_subject,needs_cast)
 
-implicit_answer(object,has_complement,-needs_complement): pronoun(finished_pronoun,question,object) <COMPLEMENT *predication(forward,definite,has_subject,needs_complement,-needs_cast)
-implicit_answer(time,has_complement,-needs_complement): pronoun(finished_pronoun,question,time) <COMPLEMENT *predication(forward,definite,has_subject,needs_complement,-needs_cast)
-implicit_answer(place,has_complement,-needs_complement): pronoun(finished_pronoun,question,place) <COMPLEMENT *predication(forward,definite,has_subject,needs_complement,-needs_cast)
-implicit_answer(cause,has_complement,-needs_complement): pronoun(finished_pronoun,question,cause) <COMPLEMENT *predication(forward,definite,has_subject,needs_complement,-needs_cast)
+implicit_answer(object): *pronoun(finished_pronoun,question,object) COMPLEMENT_OF> predication(forward,definite,has_subject,needs_complement,-needs_cast)
+implicit_answer(time): *pronoun(finished_pronoun,question,time) COMPLEMENT_OF> predication(forward,definite,has_subject,needs_complement,-needs_cast)
+implicit_answer(place): *pronoun(finished_pronoun,question,place) COMPLEMENT_OF> predication(forward,definite,has_subject,needs_complement,-needs_cast)
+implicit_answer(cause): *pronoun(finished_pronoun,question,cause) COMPLEMENT_OF> predication(forward,definite,has_subject,needs_complement,-needs_cast)
 
 
 # ----------------------------------- RESTRICTIONS ----------------------------
@@ -1386,7 +1395,7 @@ sentence(has_addressee,-delimited):
 sentence(has_place,-takes_place,-needs_place,-question): place(-question,-needs_complement,-needs_cast) <PLACE *sentence(-has_place,complete,-terse,-delimited,-terminated)
 sentence(has_time,-takes_time,-needs_time,-question): time(-question,-needs_complement,-needs_cast) <TIME *sentence(-has_time,complete,-terse,-delimited,-terminated)
 sentence(has_style,-takes_style,-needs_style,-question): style(-question,-needs_complement,-needs_cast) <STYLE *sentence(-has_opposite,-has_style,complete,-terse,-delimited,-terminated)
-sentence(has_cause,-question): cause(is_preposition,has_complement,-question,-needs_complement,-needs_cast) <CAUSE *sentence(-has_cause,complete,-terse,-delimited,-terminated)
+sentence(has_cause,-question): cause(-question,-needs_complement,-needs_cast) <CAUSE *sentence(-has_cause,complete,-terse,-delimited,-terminated)
 sentence(has_effect,-question): effect(is_preposition,has_complement,-question,-needs_complement,-needs_cast) <EFFECT *sentence(-has_effect,complete,-terse,-delimited,-terminated)
 sentence(has_agent,-takes_agent,-needs_agent,-question): agent(is_preposition,has_complement,-question,-needs_complement,-needs_cast) <AGENT *sentence(-has_agent,complete,-terse,-delimited,-terminated)
 sentence(has_selection,-takes_selection,-needs_selection,-question): selection(is_preposition,has_complement,-question,-needs_complement,-needs_cast) <SELECTION *sentence(-has_selection,complete,-terse,-delimited,-terminated)

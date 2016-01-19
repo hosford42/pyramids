@@ -53,7 +53,9 @@ class ParseGraph:
     def __init__(self, root, tokens, links, phrases):
         self._root = root
         self._tokens = tuple(tokens)
-        self._links = tuple(dict(sink_map) for sink_map in links)
+        self._links = tuple({sink: frozenset(labels)
+                             for sink, labels in dict(sink_map).items()}
+                            for sink_map in links)
         self._phrases = tuple(
             tuple(
                 (
@@ -93,9 +95,10 @@ class ParseGraph:
             if index == self._root:
                 result += '*'
             result += self._tokens[index][1] + ':'
-            for sink, label in sorted(self._links[index].items()):
+            for sink, labels in sorted(self._links[index].items()):
+                labels = '|'.join(sorted(str(label) for label in labels))
                 result += (
-                    '\n    ' + str(label) + ': ' +
+                    '\n    ' + labels + ': ' +
                     self._tokens[sink][1]
                 )
         return result
@@ -114,7 +117,7 @@ class ParseGraph:
         assert 0 <= sink <= len(self._tokens)
         return set(self._reversed_links[sink])
 
-    def get_label(self, source, sink, default=None):
+    def get_labels(self, source, sink, default=None):
         assert 0 <= source <= len(self._tokens)
         assert 0 <= sink <= len(self._tokens)
         return self._links[source].get(sink, default)
@@ -208,7 +211,10 @@ class ParseGraphBuilder(LanguageContentHandler):
         sink_id = self._index_map[sink_index]
 
         assert sink_id not in self._links[source_id]
-        self._links[source_id][sink_id] = label
+        if sink_id in self._links[source_id]:
+            self._links[source_id][sink_id].add(label)
+        else:
+            self._links[source_id][sink_id] = {label}
 
         self._phrase_stack[-1][-1].append((source_id, sink_id))
 
