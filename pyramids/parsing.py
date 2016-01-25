@@ -1,5 +1,6 @@
-from sys import intern
+import logging
 import time
+from sys import intern
 
 from pyramids import (categorization, graphs, parserules, parsetrees,
                       tokenization, utility)
@@ -15,6 +16,8 @@ __all__ = [
     'ParserState',
     'Parser',
 ]
+
+log = logging.getLogger(__name__)
 
 
 class CategoryMap:
@@ -458,12 +461,16 @@ class Parser:
 
     def generate(self, sentence):
         assert isinstance(sentence, graphs.ParseGraph)
-        return self._generate(sentence.root_index, sentence)
+        return self._generate(
+            sentence.root_index,
+            sentence
+        )
 
     def _generate(self, head_node, sentence):
         head_spelling = sentence[head_node][1]
         head_category = sentence[head_node][3]
-        # print(head_spelling, head_category)
+
+        log.debug("%s %s", head_spelling, head_category.to_str(False))
 
         # Find the subnodes of the head node
         subnodes = sentence.get_sinks(head_node)
