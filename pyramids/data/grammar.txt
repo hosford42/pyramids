@@ -844,7 +844,9 @@ prepositional_phrase(has_complement,-needs_complement,-takes_complement,-delimit
 	*preposition(possession) COMPLEMENT> object(-needs_complement,-is_preposition,-delimited)
     *preposition(agent) COMPLEMENT> object(-needs_complement,-is_preposition,-delimited)
     *preposition(style) COMPLEMENT> object(-needs_complement,-delimited)|fact(-needs_complement,-terse,-has_phrase_indicator,-delimited)
-    *preposition(time) COMPLEMENT> time(-needs_complement,-is_preposition,-delimited)|fact(-needs_complement,-terse,-has_phrase_indicator,-delimited)
+    *preposition(time,noun_phrase_complement) COMPLEMENT> time(-needs_complement,-is_preposition,-delimited)
+    *preposition(time,s_complement) COMPLEMENT> fact(s_ending,-needs_complement,-terse,-has_phrase_indicator,-delimited)
+    *preposition(time,ed_complement) COMPLEMENT> fact(ed_ending,-needs_complement,-terse,-has_phrase_indicator,-delimited)
     *preposition(cause) COMPLEMENT> fact(-needs_complement,-terse,-has_phrase_indicator,-delimited)
     *preposition(cause,conditional) COMPLEMENT> contrapositive(-needs_complement,-delimited)
     *preposition(effect) COMPLEMENT> fact(-needs_complement,-terse,-has_phrase_indicator,-delimited)
@@ -1242,6 +1244,14 @@ question(style,has_style): style_query <STYLE *predication(reverse,definite,has_
 
 question(object,has_subject): pronoun(finished_pronoun,question,subject) <SUBJECT *predication(definite,-has_subject,-needs_complement,-needs_cast)
 
+# Examples:
+#   What about it?
+#   What in the world?
+question(object,has_place): *pronoun(finished_pronoun,question,object,-delimited) PLACE> prepositional_phrase(place,-needs_complement,-delimited)
+
+# Example: Who in his right mind?
+question(object,has_modifier): *pronoun(finished_pronoun,question,object,-delimited) MODIFIER> prepositional_phrase(state,-needs_complement,-delimited)
+
 # TODO: These may not be quite right. Need to check the property promotion.
 question(object,has_object): pronoun(finished_pronoun,question,object)|prepositional_phrase(question,object) <OBJECT *predication(reverse,definite,has_subject,-has_object,-needs_complement,-needs_cast)
 question(object,has_target): pronoun(finished_pronoun,question,target)|prepositional_phrase(question,target) <TARGET *predication(reverse,definite,has_subject,has_object,-aux,-has_target,-needs_complement,-needs_cast)
@@ -1393,7 +1403,11 @@ sentence(has_addressee,-delimited):
 #   "By the dragon was he bitten."
 #   "For the maiden did he give his life."
 #sentence(has_state,-question): state(-question,-needs_complement,-is_implicit_answer,-needs_complement,-needs_cast) <STATE *sentence(-has_state,complete,-terse,-delimited,-terminated)
-sentence(has_place,-takes_place,-needs_place,-question): place(-question,-needs_complement,-needs_cast) <PLACE *sentence(-has_place,complete,-terse,-delimited,-terminated)
+
+sentence(has_place,-takes_place,-needs_place,-question):
+    place(delimited,-question,-needs_complement,-needs_cast) <PLACE *sentence(-has_place,complete,-terse,-delimited,-terminated)
+    place(-question,-takes_complement,-needs_complement,-needs_cast) <PLACE *sentence(-has_place,complete,-terse,-delimited,-terminated)
+
 sentence(has_time,-takes_time,-needs_time,-question): time(-question,-needs_complement,-needs_cast) <TIME *sentence(-has_time,complete,-terse,-delimited,-terminated)
 sentence(has_style,-takes_style,-needs_style,-question): style(-question,-needs_complement,-needs_cast) <STYLE *sentence(-has_opposite,-has_style,complete,-terse,-delimited,-terminated)
 sentence(has_cause,-question): cause(-question,-needs_complement,-needs_cast) <CAUSE *sentence(-has_cause,complete,-terse,-delimited,-terminated)

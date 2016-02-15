@@ -210,7 +210,6 @@ class ParseGraphBuilder(LanguageContentHandler):
         source_id = self._index_map[source_index]
         sink_id = self._index_map[sink_index]
 
-        assert sink_id not in self._links[source_id]
         if sink_id in self._links[source_id]:
             self._links[source_id][sink_id].add(label)
         else:

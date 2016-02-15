@@ -220,12 +220,25 @@ preposition(causal,cause,conditional,needs_complement): if
 preposition(causal,effect,unconditional,takes_complement): so
 preposition(causal,effect,unconditional,needs_complement): therefore whence
 
-preposition(time,needs_complement): after by for
-preposition(time,takes_complement): over since whenever
-preposition(time,outer,needs_complement): as up
-preposition(time,outer,takes_complement): back ago
-preposition(time,inner,needs_complement): of until about around at before in while
-preposition(time,inner,takes_complement): before during when
+preposition(time,needs_complement,s_complement,ed_complement): after
+preposition(time,needs_complement,noun_phrase_complement): after by for
+
+preposition(time,takes_complement,s_complement,ed_complement): whenever
+preposition(time,takes_complement,ed_complement,noun_phrase_complement): since
+preposition(time,takes_complement,noun_phrase_complement): since
+
+preposition(time,needs_complement,s_complement,ed_complement): as
+preposition(time,needs_complement,outer): as up
+
+# TODO: What's an example usage of "ago" as an outer preposition?
+preposition(time,takes_complement,outer): back ago
+
+preposition(time,needs_complement,inner,s_complement,ed_complement): while
+preposition(time,needs_complement,inner,s_complement,ed_complement,noun_phrase_complement): until
+preposition(time,needs_complement,inner,noun_phrase_complement): of about around at in
+
+preposition(time,takes_complement,inner,s_complement,ed_complement,noun_phrase_complement): before
+preposition(time,takes_complement,inner,noun_phrase_complement): during
 
 preposition(place,needs_complement): about after against at before beside into onto under
 preposition(place,takes_complement): aboard above among around behind beneath beyond throughout within
