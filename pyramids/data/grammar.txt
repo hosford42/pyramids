@@ -888,6 +888,7 @@ object(is_noun_phrase,-is_preposition,-object):
     noun_phrase(finished_noun_phrase,finished_number)
     noun_phrase(finished_noun_phrase,object,-insubordinable)
     noun_phrase(finished_noun_phrase,cause)
+    noun_phrase(finished_noun_phrase,time)
     
 object(is_noun_phrase,insubordinable,-is_preposition,-object):
     noun_phrase(finished_noun_phrase,object,insubordinable)
@@ -1065,8 +1066,10 @@ quality(-has_degree):
 
 truth: implicit_answer(truth)
 
-quality(is_subpredication,-has_degree,-takes_agent,-takes_cause,-takes_degree,-takes_place,-takes_purpose,-takes_selection,-takes_style,-takes_time):
+quality(is_subpredication,experience,-has_degree,-takes_agent,-takes_cause,-takes_degree,-takes_place,-takes_purpose,-takes_selection,-takes_style,-takes_time):
     experience(basic,-needs_cast,-needs_complement)#subpredication(basic,passive,-delimited,-needs_cast,-needs_complement)
+
+quality(is_subpredication,happening,-has_degree,-takes_agent,-takes_cause,-takes_degree,-takes_place,-takes_purpose,-takes_selection,-takes_style,-takes_time):
     happening(-needs_cast,-needs_complement)#subpredication(basic,ongoing,-delimited,-needs_cast,-needs_complement)|subpredication(be,ongoing,-has_happening,-delimited,-needs_cast,-needs_complement)|subpredication(do,verb_cast,ongoing,-delimited,-needs_cast,-needs_complement)
 
 quality(has_degree): degree <DEGREE *quality(-delimited)

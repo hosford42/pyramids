@@ -241,7 +241,7 @@ preposition(time,takes_complement,inner,s_complement,ed_complement,noun_phrase_c
 preposition(time,takes_complement,inner,noun_phrase_complement): during
 
 preposition(place,needs_complement): about after against at before beside into onto under
-preposition(place,takes_complement): aboard above among around behind beneath beyond throughout within
+preposition(place,takes_complement): aboard above among around behind beneath beyond by throughout within
 preposition(place,outer,takes_complement): abreast across away down in inside near off over out outside underneath through up
 preposition(place,outer,needs_complement): on
 preposition(place,inner,needs_complement): to from of by
