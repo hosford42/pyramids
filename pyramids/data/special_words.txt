@@ -273,7 +273,7 @@ verb(aux,cop,get_form,past,singular,first,third): got
 verb(aux,cop,get_form,past,singular,second): got
 verb(aux,cop,get_form,past,plural,first,second,third): got
 
-verb(aux,cop,get_form,ongoing): getting
+verb(aux,cop,get_form,ing_ending,ongoing): getting
 
 verb(aux,cop,get_form,accomplished): got gotten
 
@@ -292,7 +292,7 @@ verb(aux,cop,get_form,past,singular,first,third): kept
 verb(aux,cop,get_form,past,singular,second): kept
 verb(aux,cop,get_form,past,plural,first,second,third): kept
 
-verb(aux,cop,get_form,ongoing): keeping
+verb(aux,cop,get_form,ing_ending,ongoing): keeping
 
 verb(aux,cop,get_form,accomplished): kept
 
@@ -326,7 +326,7 @@ verb(aux,cop,be_form,negative,not,past,singular,first,third): wasn't
 verb(aux,cop,be_form,negative,not,past,singular,second): weren't
 verb(aux,cop,be_form,negative,not,past,plural,first,second,third): weren't
 
-verb(aux,cop,be_form,ongoing): being
+verb(aux,cop,be_form,ing_ending,ongoing): being
 
 verb(aux,cop,be_form,accomplished): been
 
@@ -352,7 +352,7 @@ verb(aux,have_form,past,singular,plural,first,second,third): had
 
 verb(aux,have_form,negative,not,past,singular,plural,first,second,third): hadn't
 
-verb(aux,have_form,ongoing): having
+verb(aux,have_form,ing_ending,ongoing): having
 
 verb(aux,have_form,accomplished): # No accomplished form for the accomplishment have; only for the ownership have
 
@@ -386,7 +386,7 @@ verb(aux,verb_cast,past,singular,plural,first,second,third): did
 
 verb(aux,do_form,negative,not,past,singular,plural,first,second,third): didn't
 
-verb(aux,verb_cast,ongoing): doing # No ongoing form for do_form
+verb(aux,verb_cast,ing_ending,ongoing): doing # No ongoing form for do_form
 
 verb(aux,verb_cast,accomplished): done # No accomplished form for do_form
 
@@ -408,7 +408,7 @@ verb(aux,modal_form,negative,not,past,singular,plural,first,second,third): would
 
 verb(aux,modal_form,contraction,past,singular,plural,first,second,third): 'd
 
-verb(aux,modal_form,ongoing): # No ongoing form for modals
+verb(aux,modal_form,ing_ending,ongoing): # No ongoing form for modals
 
 verb(aux,modal_form,accomplished): # No accomplished form for modals
 
