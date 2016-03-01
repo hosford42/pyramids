@@ -1118,22 +1118,22 @@ experience(-that_subject): # Anything that can be done to you
 # ----------------------------- PREDICATES ------------------------------------
 
 predicate(basic): verb(finished_verb,forward,-aux)
-#predicate(basic,has_state,followed): *verb(finished_verb,forward,-aux) STATE> state(-is_object,-delimited,-passive)
-predicate(basic,has_object,followed): *verb(finished_verb,forward,-aux) OBJECT> object(-insubordinable,-delimited)
-predicate(basic,has_target,has_object,followed): *verb(finished_verb,forward,-aux,-passive) TARGET> target(-delimited) OBJECT> object(-insubordinable,-delimited)
-predicate(basic,has_subpredication,followed): *verb(finished_verb,forward,-aux,-passive) FACT> fact(-terse,-delimited)
-predicate(basic,has_subpredication,followed): *verb(finished_verb,forward,-aux,-passive) TRUTH> truth(-delimited)
-predicate(basic,has_subpredication,followed): *verb(finished_verb,forward,-aux,-passive) POSSIBILITY> contrapositive
+#predicate(basic,has_state): *verb(finished_verb,forward,-aux) STATE> state(-is_object,-delimited,-passive)
+predicate(basic,has_object): *verb(finished_verb,forward,-aux) OBJECT> object(-insubordinable,-delimited)
+predicate(basic,has_target,has_object): *verb(finished_verb,forward,-aux,-passive) TARGET> target(-delimited) OBJECT> object(-insubordinable,-delimited)
+predicate(basic,has_subpredication): *verb(finished_verb,forward,-aux,-passive) FACT> fact(-terse,-delimited)
+predicate(basic,has_subpredication): *verb(finished_verb,forward,-aux,-passive) TRUTH> truth(-delimited)
+predicate(basic,has_subpredication): *verb(finished_verb,forward,-aux,-passive) POSSIBILITY> contrapositive
 
 predicate(basic,needs_cast): *verb(finished_verb,forward,verb_cast)
 predicate(basic,has_cast): *verb(finished_verb,forward,verb_cast) CAST> cast(-delimited)
 
-predicate(basic,has_object,has_modifier,followed): *verb(finished_verb,forward,-aux) MODIFIER> prepositional_phrase(state) OBJECT> object(-has_pronoun,-delimited)
+predicate(basic,has_object,has_modifier): *verb(finished_verb,forward,-aux) MODIFIER> prepositional_phrase(state) OBJECT> object(-has_pronoun,-delimited)
 
 # TODO: Should this be put back in? It's easily confused with the case of a prepositional phrase, so I'm not sure...
-#predicate(basic,has_target,has_object,has_modifier,followed): *verb(finished_verb,forward,-aux,-passive) TARGET> target(-delimited) MODIFIER> prepositional_phrase(state) OBJECT> object(-delimited)
+#predicate(basic,has_target,has_object,has_modifier): *verb(finished_verb,forward,-aux,-passive) TARGET> target(-delimited) MODIFIER> prepositional_phrase(state) OBJECT> object(-delimited)
 
-#predicate(basic,has_particle,followed): *predicate(basic,-has_particle) PARTICLE> prepositional_phrase(state)
+#predicate(basic,has_particle): *predicate(basic,-has_particle) PARTICLE> prepositional_phrase(state)
 
 # TODO: Implement 'doing' predicates. For example, "I am doing fine," and, "How are you doing?"
 
@@ -1142,43 +1142,43 @@ predicate(have): *verb(finished_verb,have_form)
 predicate(do): *verb(finished_verb,do_form,definite)
 predicate(modal): *verb(finished_verb,modal_form,definite)
 
-#predicate(be,has_state,followed): *verb(finished_verb,cop) STATE> state(-delimited)
-predicate(be,has_object,followed): *verb(finished_verb,cop) OBJECT> object(-delimited)
-#predicate(be,has_happening,followed): *verb(finished_verb,cop) HAPPENING> happening(-delimited)
-predicate(be,has_quality,followed): *verb(finished_verb,cop) QUALITY> quality(-delimited)
+#predicate(be,has_state,decorated): *verb(finished_verb,cop) STATE> state(-delimited)
+predicate(be,has_object,decorated): *verb(finished_verb,cop) OBJECT> object(-delimited)
+#predicate(be,has_happening,decorated): *verb(finished_verb,cop) HAPPENING> happening(-delimited)
+predicate(be,has_quality,decorated): *verb(finished_verb,cop) QUALITY> quality(-delimited)
 
-#predicate(be,has_existence,followed): *verb(finished_verb,cop) EXISTENCE> existence(-delimited)
-#predicate(be,has_existence): existence(-delimited) <EXISTENCE *verb(finished_verb,cop)
+#predicate(be,has_existence,decorated): *verb(finished_verb,cop) EXISTENCE> existence(-delimited)
+#predicate(be,has_existence,decorated): existence(-delimited) <EXISTENCE *verb(finished_verb,cop)
 
-predicate(do,has_quality,followed): *verb(finished_verb,forward,verb_cast) QUALITY> quality(-delimited)
+predicate(do,has_quality,decorated): *verb(finished_verb,forward,verb_cast) QUALITY> quality(-delimited)
 
-predicate(have,has_accomplishment,followed): *verb(finished_verb,have_form) ACCOMPLISHMENT> accomplishment(-delimited)
-predicate(do,has_ability,followed): *verb(finished_verb,do_form,definite) ABILITY> ability(-delimited)
-predicate(modal,has_ability,followed): *verb(finished_verb,modal_form,definite) ABILITY> ability(-delimited)
+predicate(have,has_accomplishment,decorated): *verb(finished_verb,have_form) ACCOMPLISHMENT> accomplishment(-delimited)
+predicate(do,has_ability,decorated): *verb(finished_verb,do_form,definite) ABILITY> ability(-delimited)
+predicate(modal,has_ability,decorated): *verb(finished_verb,modal_form,definite) ABILITY> ability(-delimited)
 
-predicate(go,has_ability,followed): *verb(finished_verb,command_form,future_potential) ABILITY> ability(-delimited)
+predicate(go,has_ability,decorated): *verb(finished_verb,command_form,future_potential) ABILITY> ability(-delimited)
 
 predicate(finished_predicate): predicate(-finished_predicate,-basic,-be)
 predicate(finished_predicate,takes_degree,takes_place,takes_time,takes_style,takes_agent,takes_selection,takes_purpose,takes_cause): predicate(-finished_predicate,basic)|predicate(-finished_predicate,be)
 
 # TODO: Create head- & tail-inherited properties, and make "delimited" tail inherited. Then simplify some of this mess.
 
-predicate(has_degree,-takes_degree,-needs_degree,-delimited,followed): *predicate(finished_predicate,-has_degree,-has_ability,-has_accomplishment,-has_happening) DEGREE> degree(-delimited)
-predicate(has_place,-takes_place,-needs_place,-delimited,followed): *predicate(finished_predicate,-has_place,-has_ability,-has_accomplishment,-has_happening) PLACE> place(-delimited)
-predicate(has_time,-takes_time,-needs_time,-delimited,followed): *predicate(finished_predicate,-has_time,-has_ability,-has_accomplishment,-has_happening) TIME> time(-delimited)
-predicate(has_time,-takes_time,-needs_time,-delimited): adverb(time) <TIME *predicate(finished_predicate,-has_time,-has_ability,-has_accomplishment,-has_happening)
-predicate(has_style,-takes_style,-needs_style,-delimited,followed): *predicate(finished_predicate,-has_style,-has_ability,-has_accomplishment,-has_happening) STYLE> style(-delimited)
-predicate(has_cause,-takes_cause,-needs_cause,-delimited,followed): *predicate(finished_predicate,-has_cause,-has_ability,-has_accomplishment,-has_happening) CAUSE> cause(is_preposition,-delimited)
-predicate(has_effect,-delimited,followed): *predicate(finished_predicate,-has_effect,-has_ability,-has_accomplishment,-has_happening) EFFECT> effect(is_preposition,-delimited)
-predicate(has_agent,-takes_agent,-needs_agent,-delimited,followed): *predicate(finished_predicate,-has_agent,-has_ability,-has_accomplishment,-has_happening) AGENT> agent(is_preposition,-delimited)
-predicate(has_selection,-takes_selection,-needs_selection,-delimited,followed): *predicate(finished_predicate,-has_selection,-has_object,-has_target,-has_ability,-has_accomplishment,-has_happening) SELECTION> selection(is_preposition,has_complement,-delimited)
-predicate(has_intention,-delimited,followed): *predicate(finished_predicate,-has_intention,-has_ability,-has_accomplishment,-has_happening) INTENTION> intention(is_preposition,-delimited)
-predicate(has_purpose,-takes_purpose,-needs_purpose,-delimited,followed): *predicate(finished_predicate,-has_purpose,-has_ability,-has_accomplishment,-has_happening) PURPOSE> purpose(is_preposition,-delimited)
-predicate(has_modifier,-delimited,followed): *predicate(finished_predicate,-delimited,-has_modifier,-has_ability,-has_accomplishment,-has_happening,-has_subpredication) MODIFIER> prepositional_phrase(state,-delimited)
+predicate(has_degree,decorated,-takes_degree,-needs_degree,-delimited): *predicate(finished_predicate,-has_degree,-has_ability,-has_accomplishment,-has_happening) DEGREE> degree(-delimited)
+predicate(has_place,decorated,-takes_place,-needs_place,-delimited): *predicate(finished_predicate,-has_place,-has_ability,-has_accomplishment,-has_happening) PLACE> place(-delimited)
+predicate(has_time,decorated,-takes_time,-needs_time,-delimited): *predicate(finished_predicate,-has_time,-has_ability,-has_accomplishment,-has_happening) TIME> time(-delimited)
+predicate(has_time,decorated,-takes_time,-needs_time,-delimited): adverb(time) <TIME *predicate(finished_predicate,-has_time,-has_ability,-has_accomplishment,-has_happening)
+predicate(has_style,decorated,-takes_style,-needs_style,-delimited): *predicate(finished_predicate,-has_style,-has_ability,-has_accomplishment,-has_happening) STYLE> style(-delimited)
+predicate(has_cause,decorated,-takes_cause,-needs_cause,-delimited): *predicate(finished_predicate,-has_cause,-has_ability,-has_accomplishment,-has_happening) CAUSE> cause(is_preposition,-delimited)
+predicate(has_effect,decorated,-delimited): *predicate(finished_predicate,-has_effect,-has_ability,-has_accomplishment,-has_happening) EFFECT> effect(is_preposition,-delimited)
+predicate(has_agent,decorated,-takes_agent,-needs_agent,-delimited): *predicate(finished_predicate,-has_agent,-has_ability,-has_accomplishment,-has_happening) AGENT> agent(is_preposition,-delimited)
+predicate(has_selection,decorated,-takes_selection,-needs_selection,-delimited): *predicate(finished_predicate,-has_selection,-has_object,-has_target,-has_ability,-has_accomplishment,-has_happening) SELECTION> selection(is_preposition,has_complement,-delimited)
+predicate(has_intention,decorated,-delimited): *predicate(finished_predicate,-has_intention,-has_ability,-has_accomplishment,-has_happening) INTENTION> intention(is_preposition,-delimited)
+predicate(has_purpose,decorated,-takes_purpose,-needs_purpose,-delimited): *predicate(finished_predicate,-has_purpose,-has_ability,-has_accomplishment,-has_happening) PURPOSE> purpose(is_preposition,-delimited)
+predicate(has_modifier,decorated,-delimited): *predicate(finished_predicate,-delimited,-has_modifier,-has_ability,-has_accomplishment,-has_happening,-has_subpredication) MODIFIER> prepositional_phrase(state,-delimited)
 
 # TODO: Add "rather" as an adverb or adjective or something, and let preferences ("than" phrases) be attached to them. Then
 #       remove the places where I just attached "than" to noun phrases & predicates. 
-predicate(has_preference,-delimited,followed): *predicate(finished_predicate,-has_preference) PREFERENCE> preference(is_preposition,-delimited)
+predicate(has_preference,decorated,-delimited): *predicate(finished_predicate,-has_preference) PREFERENCE> preference(is_preposition,-delimited)
 
 
 # ------------------------------ PREDICATIONS ---------------------------------
@@ -1192,7 +1192,7 @@ predication(terse,-has_subject):
     predicate(forward,finished_predicate,definite,singular,third,-be,-delimited)
 
 # We inherit the question property from the predicate only if the subject is not itself a question.
-predication(has_subject):
+predication(has_subject,decorated):
     subject(singular,first,-question)|subject(mass,first,-question) <SUBJECT *predicate(forward,finished_predicate,definite,singular,first,-delimited)
     subject(singular,second,-question)|subject(mass,second,-question) <SUBJECT *predicate(forward,finished_predicate,definite,singular,second,-delimited)
     subject(singular,third,-question)|subject(mass,third,-question) <SUBJECT *predicate(forward,finished_predicate,definite,singular,third,-delimited)
@@ -1201,7 +1201,7 @@ predication(has_subject):
     subject(-question) <SUBJECT *predicate(forward,finished_predicate,indefinite,-delimited)
 
 # If the subject is a question, the predication is.
-predication(has_subject,question):
+predication(has_subject,question,decorated):
     subject(singular,first,question)|subject(mass,first,question) <SUBJECT *predicate(forward,finished_predicate,definite,singular,first,-delimited)
     subject(singular,second,question)|subject(mass,second,question) <SUBJECT *predicate(forward,finished_predicate,definite,singular,second,-delimited)
     subject(singular,third,question)|subject(mass,third,question) <SUBJECT *predicate(forward,finished_predicate,definite,singular,third,-delimited)
@@ -1349,7 +1349,7 @@ restriction(needs_cast):
     pronoun(finished_pronoun,restriction,object) <CAST *predication(forward,definite,has_subject,needs_cast,-terse)
 
 restriction(needs_subject):
-    predication(forward,passive,-terse,-has_subject,-needs_cast)
+    predication(forward,passive,decorated,-terse,-has_subject,-needs_cast)
 
 
 restriction(needs_complement):
