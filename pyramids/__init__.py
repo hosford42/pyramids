@@ -197,7 +197,3 @@ def main():
     parser_cmd = ParserCmd()
     print('')
     parser_cmd.cmdloop()
-
-
-if __name__ == "__main__":
-    main()
