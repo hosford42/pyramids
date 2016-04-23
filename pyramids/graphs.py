@@ -86,7 +86,7 @@ class ParseGraph:
 
     @property
     def root_category(self):
-        return self._phrases[self._root][-1][0]
+        return self.get_phrase_category(self._root)
 
     def __str__(self):
         result = str(self.root_category) + ':'
@@ -108,6 +108,14 @@ class ParseGraph:
 
     def __len__(self):
         return len(self._tokens)
+
+    def get_phrase_category(self, head):
+        assert 0 <= head <= len(self._tokens)
+        return self._phrases[head][-1][0]
+
+    def get_phrase_stack(self, head):
+        assert 0 <= head <= len(self._tokens)
+        return self._phrases[head]
 
     def get_sinks(self, source):
         assert 0 <= source < len(self._tokens)
@@ -133,6 +141,20 @@ class ParseGraph:
         indices = set()
         self._get_phrase_tokens(head, indices)
         return [self._tokens[index] for index in sorted(indices)]
+
+    def get_phrase_text(self, head):
+        assert 0 <= head <= len(self._tokens)
+        phrase = ''
+        for index, spelling, span, category in \
+                self.get_phrase_tokens(head):
+            start, end = span
+            assert len(spelling) == end - start
+            assert not phrase[start:end].strip()
+            if len(phrase) < start:
+                phrase += ' ' * (start - len(phrase))
+            phrase = phrase[:start] + spelling + phrase[end:]
+
+        return ' '.join(phrase.split())
 
 
 class ParseGraphBuilder(LanguageContentHandler):
