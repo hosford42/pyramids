@@ -282,8 +282,8 @@ class TestHandler(LanguageContentHandler):
     def handle_link(self, source_start_index, sink_start_index, label):
         print("Link:", source_start_index, sink_start_index, label)
 
-    def handle_phrase_start(self, head_start_index, category):
-        print("Phrase start:", head_start_index, category)
+    def handle_phrase_start(self, category, head_start_index=None):
+        print("Phrase start:", category, head_start_index)
 
     def handle_phrase_end(self):
         print("Phrase end")
