@@ -41,9 +41,7 @@ class ParserConfigInfo:
         data_folder = os.path.dirname(config_file_path)
 
         if pyramids_categories:
-            default_word_sets_folder = os.path.dirname(
-                pyramids_categories.__file__
-            )
+            default_word_sets_folder = os.path.dirname(pyramids_categories.__file__)
         else:
             default_word_sets_folder = 'word_sets'
 
@@ -62,88 +60,55 @@ class ParserConfigInfo:
         config_parser.read(self._config_file_path)
 
         # Tokenizer
-        self._tokenizer_type = config_parser.get(
-            'Tokenizer',
-            'Tokenizer Type'
-        ).strip()
-        self._discard_spaces = config_parser.getboolean(
-            'Tokenizer',
-            'Discard Spaces'
-        )
+        self._tokenizer_type = config_parser.get('Tokenizer', 'Tokenizer Type').strip()
+        self._discard_spaces = config_parser.getboolean('Tokenizer', 'Discard Spaces')
 
         # Properties
         self._any_promoted_properties = frozenset(
             categorization.Property(prop.strip())
-            for prop in config_parser.get(
-                'Properties',
-                'Any-Promoted Properties'
-            ).split(';')
+            for prop in config_parser.get('Properties', 'Any-Promoted Properties').split(';')
             if prop.strip()
         )
         self._all_promoted_properties = frozenset(
             categorization.Property(prop.strip())
-            for prop in config_parser.get(
-                'Properties',
-                'All-Promoted Properties'
-            ).split(';')
+            for prop in config_parser.get('Properties', 'All-Promoted Properties').split(';')
             if prop.strip()
         )
         self._property_inheritance_files = tuple(
             os.path.join(data_folder, path.strip())
-            for path in config_parser.get(
-                'Properties',
-                'Property Inheritance File'
-            ).split(';')
+            for path in config_parser.get('Properties', 'Property Inheritance File').split(';')
             if path.strip()
         )
 
         # Grammar
         self._grammar_definition_files = tuple(
             os.path.join(data_folder, path.strip())
-            for path in config_parser.get(
-                'Grammar',
-                'Grammar Definition File'
-            ).split(';')
+            for path in config_parser.get('Grammar', 'Grammar Definition File').split(';')
             if path.strip()
         )
         self._conjunction_files = tuple(
             os.path.join(data_folder, path.strip())
-            for path in config_parser.get(
-                'Grammar',
-                'Conjunctions File'
-            ).split(';')
+            for path in config_parser.get('Grammar', 'Conjunctions File').split(';')
             if path.strip()
         )
         self._word_sets_folders = tuple(
             os.path.join(data_folder, path.strip())
-            for path in config_parser.get(
-                'Grammar',
-                'Word Sets Folder'
-            ).split(';')
+            for path in config_parser.get('Grammar', 'Word Sets Folder').split(';')
             if path.strip()
         )
         self._suffix_files = tuple(
             os.path.join(data_folder, path.strip())
-            for path in config_parser.get(
-                'Grammar',
-                'Suffix File'
-            ).split(';')
+            for path in config_parser.get('Grammar', 'Suffix File').split(';')
             if path.strip()
         )
         self._special_words_files = tuple(
             os.path.join(data_folder, path.strip())
-            for path in config_parser.get(
-                'Grammar',
-                'Special Words File'
-            ).split(';')
+            for path in config_parser.get('Grammar', 'Special Words File').split(';')
             if path.strip()
         )
         self._name_cases = frozenset(
             prop_name.strip()
-            for prop_name in config_parser.get(
-                'Grammar',
-                'Name Cases'
-            ).split(';')
+            for prop_name in config_parser.get('Grammar', 'Name Cases').split(';')
             if prop_name.strip()
         )
 

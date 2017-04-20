@@ -6,7 +6,9 @@ from pyramids import (categorization, graphs, parserules, parsetrees,
                       tokenization, utility)
 
 # These are used during pickle reconstruction. Do not remove them.
+# noinspection PyUnresolvedReferences
 from pyramids.scoring import ScoringMeasure
+# noinspection PyUnresolvedReferences
 from pyramids.categorization import Category, Property
 
 
@@ -476,43 +478,25 @@ class Parser:
         subnodes = sentence.get_sinks(head_node)
 
         # Build the subtree for each subnode
-        subtrees = {sink: self._generate(sink, sentence)
-                    for sink in subnodes}
+        subtrees = {sink: self._generate(sink, sentence) for sink in subnodes}
 
         # Find all leaves for the head node
         subtrees[head_node] = set()
-        positive_case_properties, negative_case_properties = \
-            parserules.LeafRule.discover_case_properties(head_spelling)
+        positive_case_properties, negative_case_properties = parserules.LeafRule.discover_case_properties(head_spelling)
         for rule in self._primary_leaf_rules:
             if head_spelling in rule:
-                category = rule.category.promote_properties(
-                    positive_case_properties,
-                    negative_case_properties
-                )
+                category = rule.category.promote_properties(positive_case_properties, negative_case_properties)
                 category = self.extend_properties(category)
                 if category in head_category:
-                    tree = parsetrees.BuildTreeNode(
-                        rule,
-                        category,
-                        head_spelling,
-                        head_node
-                    )
+                    tree = parsetrees.BuildTreeNode(rule, category, head_spelling, head_node)
                     subtrees[head_node].add(tree)
         if not subtrees[head_node]:
             for rule in self._secondary_leaf_rules:
                 if head_spelling in rule:
-                    category = rule.category.promote_properties(
-                        positive_case_properties,
-                        negative_case_properties
-                    )
+                    category = rule.category.promote_properties(positive_case_properties, negative_case_properties)
                     category = self.extend_properties(category)
                     if category in head_category:
-                        tree = parsetrees.BuildTreeNode(
-                            rule,
-                            category,
-                            head_spelling,
-                            head_node
-                        )
+                        tree = parsetrees.BuildTreeNode(rule, category, head_spelling, head_node)
                         subtrees[head_node].add(tree)
 
         results = set()
@@ -558,13 +542,10 @@ class Parser:
                 for index in range(len(rule.link_type_sets)):
                     required_incoming = set()
                     required_outgoing = set()
-                    for link_type, left, right in \
-                            rule.link_type_sets[index]:
-                        if ((right and index < rule.head_index) or
-                                (left and index >= rule.head_index)):
+                    for link_type, left, right in rule.link_type_sets[index]:
+                        if (right and index < rule.head_index) or (left and index >= rule.head_index):
                             required_incoming.add(link_type)
-                        if ((left and index < rule.head_index) or
-                                (right and index >= rule.head_index)):
+                        if (left and index < rule.head_index) or (right and index >= rule.head_index):
                             required_outgoing.add(link_type)
                     component_head_candidates = subnodes.copy()
                     for link_type in required_incoming:
@@ -573,8 +554,7 @@ class Parser:
                         component_head_candidates &= {
                             source
                             for source in sentence.get_sources(head_node)
-                            if link_type in sentence.get_labels(source,
-                                                                head_node)
+                            if link_type in sentence.get_labels(source, head_node)
                         }
                         if not component_head_candidates:
                             break
@@ -587,8 +567,7 @@ class Parser:
                         component_head_candidates &= {
                             sink
                             for sink in sentence.get_sinks(head_node)
-                            if link_type in sentence.get_labels(head_node,
-                                                                sink)
+                            if link_type in sentence.get_labels(head_node, sink)
                         }
                         if not component_head_candidates:
                             break
@@ -596,28 +575,32 @@ class Parser:
                         failed = True
                         break
                     component_candidates = set()
-                    cat_name_ids = {
-                        id(category.name)
-                        for category in rule.subcategory_sets[
-                            index if index < rule.head_index else index + 1
-                        ]
-                    }
-                    for candidate in component_head_candidates:
-                        for subtree in subtrees[candidate]:
-                            if id(subtree.category.name) in cat_name_ids:
-                                good = False
-                                cat_index = (
-                                    index
-                                    if index < rule.head_index
-                                    else index + 1
-                                )
-                                for category in \
-                                        rule.subcategory_sets[cat_index]:
-                                    if subtree.category in category:
-                                        good = True
-                                        break
-                                if good:
+                    if isinstance(rule, parserules.ConjunctionRule):
+                        for candidate in component_head_candidates:
+                            for subtree in subtrees[candidate]:
+                                if subtree.category in head_category:
                                     component_candidates.add(subtree)
+                                    break
+                            else:
+                                for subtree in subtrees[candidate]:
+                                    component_candidates.add(subtree)
+                                    break
+                    else:
+                        cat_name_ids = {
+                            id(category.name)
+                            for category in rule.subcategory_sets[index if index < rule.head_index else index + 1]
+                        }
+                        for candidate in component_head_candidates:
+                            for subtree in subtrees[candidate]:
+                                if id(subtree.category.name) in cat_name_ids:
+                                    good = False
+                                    cat_index = (index if index < rule.head_index else index + 1)
+                                    for category in rule.subcategory_sets[cat_index]:
+                                        if subtree.category in category:
+                                            good = True
+                                            break
+                                    if good:
+                                        component_candidates.add(subtree)
                     if not component_candidates:
                         failed = True
                         break
@@ -625,23 +608,15 @@ class Parser:
                 if failed:
                     continue
                 possible_components.insert(rule.head_index, {head_tree})
-                for component_combination in \
-                        utility.iter_combinations(
-                            possible_components):
+                for component_combination in utility.iter_combinations(possible_components):
                     covered = set()
                     for component in component_combination:
                         if component.node_coverage & covered:
                             break
                         covered |= component.node_coverage
                     else:
-                        category = rule.get_category(
-                            self,
-                            [component.category
-                             for component in component_combination]
-                        )
-                        if rule.is_non_recursive(
-                                category,
-                                head_tree.category):
+                        category = rule.get_category(self, [component.category for component in component_combination])
+                        if rule.is_non_recursive(category, head_tree.category):
                             new_tree = parsetrees.BuildTreeNode(
                                 rule,
                                 category,
@@ -651,10 +626,8 @@ class Parser:
                             )
                             if new_tree not in results:
                                 if subnodes <= new_tree.node_coverage:
-                                    if ((new_tree.head_index !=
-                                            sentence.root_index) or
-                                            category in
-                                            sentence.root_category):
+                                    if (new_tree.head_index != sentence.root_index or
+                                            category in sentence.root_category):
                                         results.add(new_tree)
                                     else:
                                         backup_results.add(new_tree)
