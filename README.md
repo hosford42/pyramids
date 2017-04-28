@@ -18,3 +18,7 @@ are returned as trees but can also be used to generate graphs representing
 the semantic relationships between words. The syntactic rules of the parser 
 can also be run in reverse to generate sentences from semantic graphs 
 resembling those it produces.
+
+
+
+An example of how to use the parser can be found [here](https://gist.github.com/hosford42/2902cf75b47ca8f0aded32e51f3896ee).
