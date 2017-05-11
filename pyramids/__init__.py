@@ -96,9 +96,7 @@ _default_parser = None
 _parser_state = None
 
 
-def load_parser(path=None, verbose=False):
-    global _default_parser, _parser_state
-
+def load_parser_config(path=None):
     if path:
         if not os.path.isfile(path):
             raise FileNotFoundError(path)
@@ -112,11 +110,26 @@ def load_parser(path=None, verbose=False):
         else:
             raise FileNotFoundError('pyramids.ini')
 
-    config_info = ParserConfigInfo(path)
+    return ParserConfigInfo(path)
+
+
+def load_parser(path=None, verbose=False):
+    global _default_parser, _parser_state
+
+    config_info = load_parser_config(path)
     parser_loader = ParserLoader(verbose)
     _default_parser = parser_loader.load_parser(config_info)
     _parser_state = _default_parser.new_parser_state()
     return _default_parser
+
+
+def save_parser(path=None):
+    global _default_parser
+    if not _default_parser:
+        return  # Nothing to save.
+
+    config_info = load_parser_config(path)
+    _default_parser.save_scoring_measures(config_info.scoring_measures_file)
 
 
 def clear_parser_state():
