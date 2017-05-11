@@ -115,19 +115,13 @@ class ParserConfigInfo:
         # Scoring
         self._scoring_measures_file = os.path.join(
             data_folder,
-            config_parser.get(
-                'Scoring',
-                'Scoring Measures File'
-            )
+            config_parser.get('Scoring', 'Scoring Measures File')
         )
 
         # Benchmarking
         self._benchmark_file = os.path.join(
             data_folder,
-            config_parser.get(
-                'Benchmarking',
-                'Benchmark File'
-            )
+            config_parser.get('Benchmarking', 'Benchmark File')
         )
 
     @property
@@ -1146,28 +1140,17 @@ class ParserLoader:
 
     def load_parser(self, config_info):
         if self.verbose:
-            print(
-                "Loading parser from",
-                config_info.config_file_path,
-                "..."
-            )
+            print("Loading parser from", config_info.config_file_path, "...")
 
         # Tokenizer
         if config_info.tokenizer_type.lower() != 'standard':
-            raise ValueError(
-                "Tokenizer type not supported: " +
-                config_info.tokenizer_type
-            )
-        tokenizer = tokenization.StandardTokenizer(
-            config_info.discard_spaces
-        )
+            raise ValueError("Tokenizer type not supported: " + config_info.tokenizer_type)
+        tokenizer = tokenization.StandardTokenizer(config_info.discard_spaces)
 
         # Properties
         property_inheritance_rules = []
         for path in config_info.property_inheritance_files:
-            property_inheritance_rules.extend(
-                self.load_property_inheritance_file(path)
-            )
+            property_inheritance_rules.extend(self.load_property_inheritance_file(path))
 
         # Grammar
         branch_rules = []
@@ -1184,9 +1167,7 @@ class ParserLoader:
         for path in config_info.special_words_files:
             primary_leaf_rules.extend(self.parse_special_words_file(path))
         for case in config_info.name_cases:
-            secondary_leaf_rules.append(
-                parserules.CaseRule(categorization.Category('name'), case)
-            )
+            secondary_leaf_rules.append(parserules.CaseRule(categorization.Category('name'), case))
 
         parser = parsing.Parser(
             primary_leaf_rules,
@@ -1201,20 +1182,14 @@ class ParserLoader:
 
         # Scoring
         if self.verbose:
-            print(
-                "Loading scoring measures from",
-                config_info.scoring_measures_file + "..."
-            )
+            print("Loading scoring measures from", config_info.scoring_measures_file + "...")
         if os.path.isfile(config_info.scoring_measures_file):
             parser.load_scoring_measures(config_info.scoring_measures_file)
         else:
             parser.save_scoring_measures(config_info.scoring_measures_file)
 
         if self.verbose:
-            print(
-                "Done loading parser from",
-                config_info.config_file_path + "."
-            )
+            print("Done loading parser from", config_info.config_file_path + ".")
 
         return parser
 
