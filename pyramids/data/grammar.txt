@@ -593,17 +593,18 @@ subject: nor_subject(has_selector)
 
 # ------------------------------ PRONOUNS -------------------------------------
 
-pronoun(finished_pronoun,subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-style,-cause,-effect,-truth): pronoun(subject,-finished_pronoun)
-pronoun(finished_pronoun,object,-subject,-non_subject,-target,-agent,-time,-place,-possession,-style,-cause,-effect,-truth): pronoun(object,-finished_pronoun)|pronoun(non_subject,-finished_pronoun)
-pronoun(finished_pronoun,target,-subject,-non_subject,-object,-agent,-time,-place,-possession,-style,-cause,-effect,-truth): pronoun(target,-finished_pronoun)|pronoun(non_subject,-finished_pronoun)
-pronoun(finished_pronoun,agent,-subject,-non_subject,-object,-target,-time,-place,-possession,-style,-cause,-effect,-truth): pronoun(agent,-finished_pronoun)|pronoun(non_subject,-finished_pronoun)
-pronoun(finished_pronoun,time,-subject,-non_subject,-object,-target,-agent,-place,-possession,-style,-cause,-effect,-truth): pronoun(time,-finished_pronoun)
-pronoun(finished_pronoun,place,-subject,-non_subject,-object,-target,-agent,-time,-possession,-style,-cause,-effect,-truth): pronoun(place,-finished_pronoun)
-pronoun(finished_pronoun,possession,-subject,-non_subject,-object,-target,-agent,-time,-place,-style,-cause,-effect,-truth): pronoun(possession,-finished_pronoun)
-pronoun(finished_pronoun,style,-subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-cause,-effect,-truth): pronoun(style,-finished_pronoun)
-pronoun(finished_pronoun,cause,-subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-style,-effect,-truth): pronoun(cause,-finished_pronoun)
-pronoun(finished_pronoun,effect,-subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-style,-cause,-truth): pronoun(effect,-finished_pronoun)
-pronoun(finished_pronoun,truth,-subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-style,-cause,-effect): pronoun(truth,-finished_pronoun)
+pronoun(finished_pronoun,subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-style,-degree,-cause,-effect,-truth): pronoun(subject,-finished_pronoun)
+pronoun(finished_pronoun,object,-subject,-non_subject,-target,-agent,-time,-place,-possession,-style,-degree,-cause,-effect,-truth): pronoun(object,-finished_pronoun)|pronoun(non_subject,-finished_pronoun)
+pronoun(finished_pronoun,target,-subject,-non_subject,-object,-agent,-time,-place,-possession,-style,-degree,-cause,-effect,-truth): pronoun(target,-finished_pronoun)|pronoun(non_subject,-finished_pronoun)
+pronoun(finished_pronoun,agent,-subject,-non_subject,-object,-target,-time,-place,-possession,-style,-degree,-cause,-effect,-truth): pronoun(agent,-finished_pronoun)|pronoun(non_subject,-finished_pronoun)
+pronoun(finished_pronoun,time,-subject,-non_subject,-object,-target,-agent,-place,-possession,-style,-degree,-cause,-effect,-truth): pronoun(time,-finished_pronoun)
+pronoun(finished_pronoun,place,-subject,-non_subject,-object,-target,-agent,-time,-possession,-style,-degree,-cause,-effect,-truth): pronoun(place,-finished_pronoun)
+pronoun(finished_pronoun,possession,-subject,-non_subject,-object,-target,-agent,-time,-place,-style,-degree,-cause,-effect,-truth): pronoun(possession,-finished_pronoun)
+pronoun(finished_pronoun,style,-subject,-non_subject,-object,-target,-agent,-time,-place,-degree,-possession,-cause,-effect,-truth): pronoun(style,-finished_pronoun)
+pronoun(finished_pronoun,degree,-subject,-non_subject,-object,-target,-agent,-time,-place,-style,-possession,-cause,-effect,-truth): pronoun(degree,-finished_pronoun)
+pronoun(finished_pronoun,cause,-subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-style,-degree,-effect,-truth): pronoun(cause,-finished_pronoun)
+pronoun(finished_pronoun,effect,-subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-style,-degree,-cause,-truth): pronoun(effect,-finished_pronoun)
+pronoun(finished_pronoun,truth,-subject,-non_subject,-object,-target,-agent,-time,-place,-possession,-style,-degree,-cause,-effect): pronoun(truth,-finished_pronoun)
 
 # TODO: This is probably overkill. I bet some of these properties will need to be removed.
 pronoun(finished_pronoun,subject,object,target,agent,possession,cause,effect,truth): determiner(ownership)
@@ -635,7 +636,8 @@ adverb_phrase(has_style): style(-is_preposition) <STYLE  *adverb_phrase
 #adjective(verb): verb(static)
 
 adjective_phrase(-has_degree,-has_style): adjective(known_ending)
-adjective_phrase(has_degree): degree <DEGREE *adjective_phrase
+adjective_phrase(has_degree): degree(-question) <DEGREE *adjective_phrase
+adjective_phrase(has_degree,question): degree(question) <DEGREE *adjective_phrase
 adjective_phrase(has_style): style(-is_preposition) <STYLE *adjective_phrase
 
 
@@ -1072,9 +1074,11 @@ quality(is_subpredication,experience,-has_degree,-takes_agent,-takes_cause,-take
 quality(is_subpredication,happening,-has_degree,-takes_agent,-takes_cause,-takes_degree,-takes_place,-takes_purpose,-takes_selection,-takes_style,-takes_time):
     happening(-needs_complement)#subpredication(basic,ongoing,-delimited,-needs_cast,-needs_complement)|subpredication(be,ongoing,-has_happening,-delimited,-needs_cast,-needs_complement)|subpredication(do,verb_cast,ongoing,-delimited,-needs_cast,-needs_complement)
 
-quality(has_degree): degree <DEGREE *quality(-delimited)
+quality(has_degree): degree(-question) <DEGREE *quality(-delimited)
+quality(has_degree,question): degree(question) <DEGREE *quality(-delimited)
 
 degree: adverb_phrase(known_ending,degree)
+degree(question): degree_query
 
 
 ## Anything you can be
@@ -1147,6 +1151,8 @@ predicate(be,has_object,decorated): *verb(finished_verb,cop) OBJECT> object(-del
 #predicate(be,has_happening,decorated): *verb(finished_verb,cop) HAPPENING> happening(-delimited)
 predicate(be,has_quality,decorated): *verb(finished_verb,cop) QUALITY> quality(-delimited)
 
+predicate(be,needs_quality,decorated): *verb(finished_verb,cop)
+
 #predicate(be,has_existence,decorated): *verb(finished_verb,cop) EXISTENCE> existence(-delimited)
 #predicate(be,has_existence,decorated): existence(-delimited) <EXISTENCE *verb(finished_verb,cop)
 
@@ -1159,7 +1165,7 @@ predicate(modal,has_ability,decorated): *verb(finished_verb,modal_form,definite)
 predicate(go,has_ability,decorated): *verb(finished_verb,command_form,future_potential) ABILITY> ability(-delimited)
 
 predicate(finished_predicate): predicate(-finished_predicate,-basic,-be)
-predicate(finished_predicate,takes_degree,takes_place,takes_time,takes_style,takes_agent,takes_selection,takes_purpose,takes_cause): predicate(-finished_predicate,basic)|predicate(-finished_predicate,be)
+predicate(finished_predicate,takes_degree,takes_place,takes_time,takes_style,takes_agent,takes_selection,takes_purpose,takes_cause): predicate(-finished_predicate,basic)|predicate(-finished_predicate,-needs_quality,be)
 
 # TODO: Create head- & tail-inherited properties, and make "delimited" tail inherited. Then simplify some of this mess.
 
@@ -1235,6 +1241,10 @@ style_query:
     pronoun(finished_pronoun,question,degree) <DEGREE *style
     prepositional_phrase(question,style)
 
+degree_query:
+    pronoun(finished_pronoun,question,degree)
+    pronoun(finished_pronoun,question,degree) <DEGREE *degree
+
 question(truth): predication(reverse,definite,-needs_complement,-needs_cast)
 question(truth,terse): ability
 
@@ -1243,6 +1253,7 @@ question(cause,has_cause): pronoun(finished_pronoun,question,cause)|prepositiona
 question(time,has_time): pronoun(finished_pronoun,question,time)|prepositional_phrase(question,time) <TIME *predication(reverse,definite,has_subject,-has_time,-needs_complement,-needs_cast)
 question(place,has_place): pronoun(finished_pronoun,question,place)|prepositional_phrase(question,place) <PLACE *predication(reverse,definite,has_subject,-has_place,-needs_complement,-needs_cast)
 question(style,has_style): style_query <STYLE *predication(reverse,definite,has_subject,-has_style,-needs_complement,-needs_cast)
+question(quality,has_quality): quality(question) <QUALITY *predicate(be,reverse,definite,has_subject,-has_quality,-needs_complement,-needs_cast,needs_quality)
 
 question(object,has_subject): pronoun(finished_pronoun,question,subject) <SUBJECT *predication(definite,-has_subject,-needs_complement,-needs_cast)
 
