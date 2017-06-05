@@ -4,6 +4,8 @@ pyramids.benchmarking: Benchmarking of parser accuracy
 """
 
 
+import pyramids.control
+
 __author__ = 'Aaron Hosford'
 __all__ = [
     'Benchmark',
@@ -53,12 +55,26 @@ class Benchmark:
         if not self._samples:
             return failures, 0.0
         for input_val, target in self._samples.items():
+            # TODO: Parsing the target & output_val breaks the abstraction of this method.
+            #       It was never meant to have insight into the actual content of these
+            #       values. Instead of doing this here, allow the caller to pass in
+            #       a validator function which is used instead of ordinary equality, and
+            #       make ordinary equality the default if no validator is provided. When
+            #       the user runs a training session, provide the option to automatically
+            #       update benchmarks if they match but not exactly.
+            split_index = target.index(':')
+            target_category = pyramids.control.ParserLoader.parse_category(target[:split_index])
+            target_structure = target[split_index:]
             failed = False
             first = None
             for output_val, feedback_receiver in function(input_val):
+                split_index = output_val.index(':')
+                output_category = pyramids.control.ParserLoader.parse_category(output_val[:split_index])
+                output_structure = output_val[split_index:]
                 if first is None:
                     first = output_val
-                if target == output_val:
+                #if target == output_val:
+                if output_category in target_category and target_structure == output_structure:
                     feedback_receiver(True)
                     break
                 else:
