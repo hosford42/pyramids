@@ -451,71 +451,72 @@ class ParserLoader:
         category = None
         sequence_found = False
         line_number = 0
-        for raw_line in open(path):
-            line_number += 1
-            try:
-                line = raw_line.split('#')[0].rstrip()
-                if not line:
-                    continue
-                if line[:1].isspace():
-                    if ':' in line:
-                        raise exceptions.GrammarSyntaxError(
-                            "Unexpected: ':'",
-                            offset=1 + line.find(':')
-                        )
-                    if not category:
-                        raise exceptions.GrammarSyntaxError(
-                            "Expected: category header",
-                            offset=1 + line.find(line.strip())
-                        )
-                    branch_rules.append(
-                        self.parse_branch_rule(
-                            category,
-                            line.lstrip(),
-                            offset=1 + line.find(line.lstrip())
-                        )
-                    )
-                    sequence_found = True
-                else:
-                    if category is not None and not sequence_found:
-                        raise exceptions.GrammarSyntaxError(
-                            "Expected: category sequence",
-                            offset=1
-                        )
-                    if ':' not in line:
-                        raise exceptions.GrammarSyntaxError(
-                            "Expected: ':'",
-                            offset=1 + len(line)
-                        )
-                    if line.count(':') > 1:
-                        raise exceptions.GrammarSyntaxError(
-                            "Unexpected: ':'",
-                            offset=1 + line.find(':', line.find(':') + 1)
-                        )
-                    header, sequence = line.split(':')
-                    category = self.parse_category(header)
-                    if sequence.strip():
+        with open(path) as grammar_file:
+            for raw_line in grammar_file:
+                line_number += 1
+                try:
+                    line = raw_line.split('#')[0].rstrip()
+                    if not line:
+                        continue
+                    if line[:1].isspace():
+                        if ':' in line:
+                            raise exceptions.GrammarSyntaxError(
+                                "Unexpected: ':'",
+                                offset=1 + line.find(':')
+                            )
+                        if not category:
+                            raise exceptions.GrammarSyntaxError(
+                                "Expected: category header",
+                                offset=1 + line.find(line.strip())
+                            )
                         branch_rules.append(
                             self.parse_branch_rule(
                                 category,
-                                sequence.lstrip(),
-                                offset=1 + sequence.find(sequence.lstrip())
+                                line.lstrip(),
+                                offset=1 + line.find(line.lstrip())
                             )
                         )
                         sequence_found = True
                     else:
-                        sequence_found = False
-            except exceptions.GrammarParserError as error:
-                error.set_info(path, line_number, None, raw_line)
-                raise error
-            except Exception as original_exception:
-                raise exceptions.GrammarParserError(
-                    None,
-                    path,
-                    line_number,
-                    None,
-                    raw_line
-                ) from original_exception
+                        if category is not None and not sequence_found:
+                            raise exceptions.GrammarSyntaxError(
+                                "Expected: category sequence",
+                                offset=1
+                            )
+                        if ':' not in line:
+                            raise exceptions.GrammarSyntaxError(
+                                "Expected: ':'",
+                                offset=1 + len(line)
+                            )
+                        if line.count(':') > 1:
+                            raise exceptions.GrammarSyntaxError(
+                                "Unexpected: ':'",
+                                offset=1 + line.find(':', line.find(':') + 1)
+                            )
+                        header, sequence = line.split(':')
+                        category = self.parse_category(header)
+                        if sequence.strip():
+                            branch_rules.append(
+                                self.parse_branch_rule(
+                                    category,
+                                    sequence.lstrip(),
+                                    offset=1 + sequence.find(sequence.lstrip())
+                                )
+                            )
+                            sequence_found = True
+                        else:
+                            sequence_found = False
+                except exceptions.GrammarParserError as error:
+                    error.set_info(path, line_number, None, raw_line)
+                    raise error
+                except Exception as original_exception:
+                    raise exceptions.GrammarParserError(
+                        None,
+                        path,
+                        line_number,
+                        None,
+                        raw_line
+                    ) from original_exception
         return branch_rules
 
     def parse_match_rule(self, definition, offset=1):
@@ -722,186 +723,214 @@ class ParserLoader:
         property_rules_closed = False
         sequence_found = False
         line_number = 0
-        for raw_line in open(path):
-            line_number += 1
-            try:
-                line = raw_line.split('#')[0].rstrip()
-                if not line:
-                    continue
-                if line[:1].isspace():
-                    if ':' in line:
-                        raise exceptions.GrammarSyntaxError(
-                            "Unexpected: ':'",
-                            offset=1 + line.find(':')
-                        )
-                    if not category:
-                        raise exceptions.GrammarSyntaxError(
-                            "Expected: category header",
-                            offset=1 + line.find(line.strip())
-                        )
-                    if line.endswith(']') and '[' in line:
-                        if line.lstrip().startswith('['):
-                            if match_rules_closed:
-                                raise exceptions.GrammarSyntaxError(
-                                    "Unexpected: matching rule"
-                                    # TODO: offset?
+        with open(path) as conjunctions_file:
+            for raw_line in conjunctions_file:
+                line_number += 1
+                try:
+                    line = raw_line.split('#')[0].rstrip()
+                    if not line:
+                        continue
+                    if line[:1].isspace():
+                        if ':' in line:
+                            raise exceptions.GrammarSyntaxError(
+                                "Unexpected: ':'",
+                                offset=1 + line.find(':')
+                            )
+                        if not category:
+                            raise exceptions.GrammarSyntaxError(
+                                "Expected: category header",
+                                offset=1 + line.find(line.strip())
+                            )
+                        if line.endswith(']') and '[' in line:
+                            if line.lstrip().startswith('['):
+                                if match_rules_closed:
+                                    raise exceptions.GrammarSyntaxError(
+                                        "Unexpected: matching rule"
+                                        # TODO: offset?
+                                    )
+                                match_rules.append(
+                                    self.parse_match_rule(
+                                        line.lstrip(),
+                                        offset=1 + line.find(line.lstrip())
+                                    )
                                 )
-                            match_rules.append(
-                                self.parse_match_rule(
+                            else:
+                                if property_rules_closed:
+                                    raise exceptions.GrammarSyntaxError(
+                                        "Unexpected: property rule"
+                                        # TODO: offset?
+                                    )
+                                match_rules_closed = True
+                                left_bracket_index = line.index('[')
+                                property_names = \
+                                    line[:left_bracket_index].strip().split(
+                                        ','
+                                    )
+                                properties = set()
+                                for property_name in property_names:
+                                    if property_name.startswith('-'):
+                                        properties.add(
+                                            (
+                                                categorization.Property(
+                                                    property_name[1:]
+                                                ),
+                                                False
+                                            )
+                                        )
+                                    else:
+                                        properties.add(
+                                            (
+                                                categorization.Property(
+                                                    property_name
+                                                ),
+                                                True
+                                            )
+                                        )
+                                line_remainder = line[left_bracket_index:]
+                                property_rules.append(
+                                    (
+                                        frozenset(properties),
+                                        self.parse_match_rule(
+                                            line_remainder.lstrip(),
+                                            offset=1 + line.find(
+                                                line_remainder.strip()
+                                            )
+                                        )
+                                    )
+                                )
+                        else:
+                            match_rules_closed = True
+                            property_rules_closed = True
+                            if '[' in line:
+                                raise exceptions.GrammarSyntaxError(
+                                    "Unexpected: '['",
+                                    offset=1 + line.find('[')
+                                )
+                            if ']' in line:
+                                raise exceptions.GrammarSyntaxError(
+                                    "Unexpected: ']'",
+                                    offset=1 + line.find(']')
+                                )
+                            branch_rules.append(
+                                self.parse_conjunction_rule(
+                                    category,
+                                    match_rules,
+                                    property_rules,
                                     line.lstrip(),
                                     offset=1 + line.find(line.lstrip())
                                 )
                             )
+                            sequence_found = True
+                    else:
+                        if category is not None and not sequence_found:
+                            raise exceptions.GrammarSyntaxError(
+                                "Expected: category sequence",
+                                offset=1
+                            )
+                        if ':' not in line:
+                            raise exceptions.GrammarSyntaxError(
+                                "Expected: ':'",
+                                offset=1 + len(line)
+                            )
+                        if line.count(':') > 1:
+                            raise exceptions.GrammarSyntaxError(
+                                "Unexpected: ':'",
+                                offset=1 + line.find(':', line.find(':') + 1)
+                            )
+                        header, sequence = line.split(':')
+                        category = self.parse_category(header)
+                        match_rules = []
+                        match_rules_closed = False
+                        property_rules = []
+                        property_rules_closed = False
+                        if sequence.strip():
+                            branch_rules.append(
+                                self.parse_conjunction_rule(
+                                    category,
+                                    match_rules,
+                                    property_rules,
+                                    sequence.lstrip(),
+                                    offset=1 + sequence.find(
+                                        sequence.lstrip()
+                                    )
+                                )
+                            )
+                            sequence_found = True
                         else:
-                            if property_rules_closed:
-                                raise exceptions.GrammarSyntaxError(
-                                    "Unexpected: property rule"
-                                    # TODO: offset?
-                                )
-                            match_rules_closed = True
-                            left_bracket_index = line.index('[')
-                            property_names = \
-                                line[:left_bracket_index].strip().split(
-                                    ','
-                                )
-                            properties = set()
-                            for property_name in property_names:
-                                if property_name.startswith('-'):
-                                    properties.add(
-                                        (
-                                            categorization.Property(
-                                                property_name[1:]
-                                            ),
-                                            False
-                                        )
-                                    )
-                                else:
-                                    properties.add(
-                                        (
-                                            categorization.Property(
-                                                property_name
-                                            ), 
-                                            True
-                                        )
-                                    )
-                            line_remainder = line[left_bracket_index:]
-                            property_rules.append(
-                                (
-                                    frozenset(properties),
-                                    self.parse_match_rule(
-                                        line_remainder.lstrip(),
-                                        offset=1 + line.find(
-                                            line_remainder.strip()
-                                        )
-                                    )
-                                )
-                            )
-                    else:
-                        match_rules_closed = True
-                        property_rules_closed = True
-                        if '[' in line:
-                            raise exceptions.GrammarSyntaxError(
-                                "Unexpected: '['",
-                                offset=1 + line.find('[')
-                            )
-                        if ']' in line:
-                            raise exceptions.GrammarSyntaxError(
-                                "Unexpected: ']'",
-                                offset=1 + line.find(']')
-                            )
-                        branch_rules.append(
-                            self.parse_conjunction_rule(
-                                category,
-                                match_rules,
-                                property_rules,
-                                line.lstrip(),
-                                offset=1 + line.find(line.lstrip())
-                            )
-                        )
-                        sequence_found = True
-                else:
-                    if category is not None and not sequence_found:
-                        raise exceptions.GrammarSyntaxError(
-                            "Expected: category sequence",
-                            offset=1
-                        )
-                    if ':' not in line:
-                        raise exceptions.GrammarSyntaxError(
-                            "Expected: ':'",
-                            offset=1 + len(line)
-                        )
-                    if line.count(':') > 1:
-                        raise exceptions.GrammarSyntaxError(
-                            "Unexpected: ':'",
-                            offset=1 + line.find(':', line.find(':') + 1)
-                        )
-                    header, sequence = line.split(':')
-                    category = self.parse_category(header)
-                    match_rules = []
-                    match_rules_closed = False
-                    property_rules = []
-                    property_rules_closed = False
-                    if sequence.strip():
-                        branch_rules.append(
-                            self.parse_conjunction_rule(
-                                category,
-                                match_rules,
-                                property_rules,
-                                sequence.lstrip(),
-                                offset=1 + sequence.find(
-                                    sequence.lstrip()
-                                )
-                            )
-                        )
-                        sequence_found = True
-                    else:
-                        sequence_found = False
-            except exceptions.GrammarParserError as error:
-                error.set_info(path, line_number, None, raw_line)
-                raise error
-            except Exception as original_exception:
-                raise exceptions.GrammarParserError(
-                    None,
-                    path,
-                    line_number,
-                    None,
-                    raw_line
-                ) from original_exception
+                            sequence_found = False
+                except exceptions.GrammarParserError as error:
+                    error.set_info(path, line_number, None, raw_line)
+                    raise error
+                except Exception as original_exception:
+                    raise exceptions.GrammarParserError(
+                        None,
+                        path,
+                        line_number,
+                        None,
+                        raw_line
+                    ) from original_exception
         return branch_rules
 
     def parse_suffix_file(self, path):
         leaf_rules = []
         line_number = 0
-        for raw_line in open(path, 'r'):
-            try:
-                line_number += 1
-                line = raw_line.split('#')[0].rstrip()
-                if not line:
-                    continue
-                if ':' not in line:
-                    raise exceptions.GrammarSyntaxError(
-                        "Expected: ':'",
-                        filename=path,
-                        lineno=line_number,
-                        offset=1 + len(line),
-                        text=raw_line
-                    )
-                if line.count(':') > 1:
-                    raise exceptions.GrammarSyntaxError(
-                        "Unexpected: ':'",
-                        filename=path,
-                        lineno=line_number,
-                        offset=1 + line.find(
-                            ':',
-                            line.find(':') + 1
-                        ),
-                        text=raw_line
-                    )
-                definition, suffixes = line.split(':')
+        with open(path) as suffix_file:
+            for raw_line in suffix_file:
                 try:
-                    category = self.parse_category(definition)
+                    line_number += 1
+                    line = raw_line.split('#')[0].rstrip()
+                    if not line:
+                        continue
+                    if ':' not in line:
+                        raise exceptions.GrammarSyntaxError(
+                            "Expected: ':'",
+                            filename=path,
+                            lineno=line_number,
+                            offset=1 + len(line),
+                            text=raw_line
+                        )
+                    if line.count(':') > 1:
+                        raise exceptions.GrammarSyntaxError(
+                            "Unexpected: ':'",
+                            filename=path,
+                            lineno=line_number,
+                            offset=1 + line.find(
+                                ':',
+                                line.find(':') + 1
+                            ),
+                            text=raw_line
+                        )
+                    definition, suffixes = line.split(':')
+                    try:
+                        category = self.parse_category(definition)
+                    except exceptions.GrammarParserError as error:
+                        error.set_info(path, line_number, None, line)
+                        raise error
+                    except Exception as original_exception:
+                        raise exceptions.GrammarParserError(
+                            None,
+                            path,
+                            line_number,
+                            None,
+                            line
+                        ) from original_exception
+                    suffixes = suffixes.split()
+                    if not suffixes or suffixes[0] not in ('+', '-'):
+                        raise exceptions.GrammarSyntaxError(
+                            "Expected: '+' or '-'",
+                            filename=path,
+                            lineno=line_number,
+                            offset=1 + line.find(':') + 1, text=raw_line
+                        )
+                    positive = suffixes.pop(0) == '+'
+                    suffixes = frozenset(suffixes)
+                    if not suffixes:
+                        suffixes = frozenset([''])
+                    leaf_rules.append(
+                        parserules.SuffixRule(category, suffixes, positive)
+                    )
                 except exceptions.GrammarParserError as error:
-                    error.set_info(path, line_number, None, line)
+                    error.set_info(path, line_number, text=raw_line)
                     raise error
                 except Exception as original_exception:
                     raise exceptions.GrammarParserError(
@@ -909,60 +938,48 @@ class ParserLoader:
                         path,
                         line_number,
                         None,
-                        line
+                        raw_line
                     ) from original_exception
-                suffixes = suffixes.split()
-                if not suffixes or suffixes[0] not in ('+', '-'):
-                    raise exceptions.GrammarSyntaxError(
-                        "Expected: '+' or '-'",
-                        filename=path,
-                        lineno=line_number,
-                        offset=1 + line.find(':') + 1, text=raw_line
-                    )
-                positive = suffixes.pop(0) == '+'
-                suffixes = frozenset(suffixes)
-                if not suffixes:
-                    suffixes = frozenset([''])
-                leaf_rules.append(
-                    parserules.SuffixRule(category, suffixes, positive)
-                )
-            except exceptions.GrammarParserError as error:
-                error.set_info(path, line_number, text=raw_line)
-                raise error
-            except Exception as original_exception:
-                raise exceptions.GrammarParserError(
-                    None,
-                    path,
-                    line_number,
-                    None,
-                    raw_line
-                ) from original_exception
         return leaf_rules
 
     def parse_special_words_file(self, path):
         leaf_rules = []
         line_number = 0
-        for raw_line in open(path, 'r'):
-            try:
-                line_number += 1
-                line = raw_line.split('#')[0].rstrip()
-                if not line:
-                    continue
-                if ':' not in line:
-                    raise exceptions.GrammarSyntaxError(
-                        "Expected: ':'",
-                        filename=path,
-                        lineno=line_number,
-                        offset=1 + len(line),
-                        text=raw_line
-                    )
-                line = line.split(':')
-                definition = line.pop(0)
-                token_str = ':'.join(line)
+        with open(path) as word_file:
+            for raw_line in word_file:
                 try:
-                    category = self.parse_category(definition)
+                    line_number += 1
+                    line = raw_line.split('#')[0].rstrip()
+                    if not line:
+                        continue
+                    if ':' not in line:
+                        raise exceptions.GrammarSyntaxError(
+                            "Expected: ':'",
+                            filename=path,
+                            lineno=line_number,
+                            offset=1 + len(line),
+                            text=raw_line
+                        )
+                    line = line.split(':')
+                    definition = line.pop(0)
+                    token_str = ':'.join(line)
+                    try:
+                        category = self.parse_category(definition)
+                    except exceptions.GrammarParserError as error:
+                        error.set_info(path, line_number, None, line)
+                        raise error
+                    except Exception as original_exception:
+                        raise exceptions.GrammarParserError(
+                            None,
+                            path,
+                            line_number,
+                            None,
+                            line
+                        ) from original_exception
+                    token_set = frozenset(token_str.split())
+                    leaf_rules.append(parserules.SetRule(category, token_set))
                 except exceptions.GrammarParserError as error:
-                    error.set_info(path, line_number, None, line)
+                    error.set_info(path, line_number, text=raw_line)
                     raise error
                 except Exception as original_exception:
                     raise exceptions.GrammarParserError(
@@ -970,21 +987,8 @@ class ParserLoader:
                         path,
                         line_number,
                         None,
-                        line
+                        raw_line
                     ) from original_exception
-                token_set = frozenset(token_str.split())
-                leaf_rules.append(parserules.SetRule(category, token_set))
-            except exceptions.GrammarParserError as error:
-                error.set_info(path, line_number, text=raw_line)
-                raise error
-            except Exception as original_exception:
-                raise exceptions.GrammarParserError(
-                    None,
-                    path,
-                    line_number,
-                    None,
-                    raw_line
-                ) from original_exception
         return leaf_rules
 
     def load_word_set(self, file_path):
@@ -1057,33 +1061,78 @@ class ParserLoader:
     def load_property_inheritance_file(self, path):
         inheritance_rules = []
         line_number = 0
-        for raw_line in open(path, 'r'):
-            try:
-                line_number += 1
-                line = raw_line.split('#')[0].rstrip()
-                if not line:
-                    continue
-                if ':' not in line:
-                    raise exceptions.GrammarSyntaxError(
-                        "Expected: ':'",
-                        filename=path,
-                        lineno=line_number,
-                        offset=1 + len(line),
-                        text=raw_line
-                    )
-                if line.count(':') > 1:
-                    raise exceptions.GrammarSyntaxError(
-                        "Unexpected: ':'",
-                        filename=path,
-                        lineno=line_number,
-                        offset=1 + line.find(':', line.find(':') + 1),
-                        text=raw_line
-                    )
-                definition, additions = line.split(':')
+        with open(path) as inheritance_file:
+            for raw_line in inheritance_file:
                 try:
-                    category = self.parse_category(definition)
+                    line_number += 1
+                    line = raw_line.split('#')[0].rstrip()
+                    if not line:
+                        continue
+                    if ':' not in line:
+                        raise exceptions.GrammarSyntaxError(
+                            "Expected: ':'",
+                            filename=path,
+                            lineno=line_number,
+                            offset=1 + len(line),
+                            text=raw_line
+                        )
+                    if line.count(':') > 1:
+                        raise exceptions.GrammarSyntaxError(
+                            "Unexpected: ':'",
+                            filename=path,
+                            lineno=line_number,
+                            offset=1 + line.find(':', line.find(':') + 1),
+                            text=raw_line
+                        )
+                    definition, additions = line.split(':')
+                    try:
+                        category = self.parse_category(definition)
+                    except exceptions.GrammarParserError as error:
+                        error.set_info(path, line_number, None, line)
+                        raise error
+                    except Exception as original_exception:
+                        raise exceptions.GrammarParserError(
+                            None,
+                            path,
+                            line_number,
+                            None,
+                            line
+                        ) from original_exception
+                    additions = additions.split()
+                    if not additions:
+                        raise exceptions.GrammarSyntaxError(
+                            "Expected: property",
+                            filename=path,
+                            lineno=line_number,
+                            offset=1 + line.find(':') + 1,
+                            text=raw_line
+                        )
+                    positive_additions = [
+                        addition
+                        for addition in additions
+                        if not addition.startswith('-')
+                    ]
+                    negative_additions = [
+                        addition[1:]
+                        for addition in additions
+                        if addition.startswith('-')
+                    ]
+                    # TODO: Check negative additions for a double '-'
+                    # TODO: Check that positive & negative additions don't
+                    #       conflict
+                    inheritance_rules.append(
+                        parserules.PropertyInheritanceRule(
+                            category,
+                            positive_additions,
+                            negative_additions
+                        )
+                    )
                 except exceptions.GrammarParserError as error:
-                    error.set_info(path, line_number, None, line)
+                    exceptions.GrammarSyntaxError.set_info(
+                        path,
+                        line_number,
+                        text=raw_line
+                    )
                     raise error
                 except Exception as original_exception:
                     raise exceptions.GrammarParserError(
@@ -1091,52 +1140,8 @@ class ParserLoader:
                         path,
                         line_number,
                         None,
-                        line
+                        raw_line
                     ) from original_exception
-                additions = additions.split()
-                if not additions:
-                    raise exceptions.GrammarSyntaxError(
-                        "Expected: property",
-                        filename=path,
-                        lineno=line_number,
-                        offset=1 + line.find(':') + 1,
-                        text=raw_line
-                    )
-                positive_additions = [
-                    addition
-                    for addition in additions
-                    if not addition.startswith('-')
-                ]
-                negative_additions = [
-                    addition[1:]
-                    for addition in additions
-                    if addition.startswith('-')
-                ]
-                # TODO: Check negative additions for a double '-'
-                # TODO: Check that positive & negative additions don't
-                #       conflict
-                inheritance_rules.append(
-                    parserules.PropertyInheritanceRule(
-                        category,
-                        positive_additions,
-                        negative_additions
-                    )
-                )
-            except exceptions.GrammarParserError as error:
-                exceptions.GrammarSyntaxError.set_info(
-                    path,
-                    line_number,
-                    text=raw_line
-                )
-                raise error
-            except Exception as original_exception:
-                raise exceptions.GrammarParserError(
-                    None,
-                    path,
-                    line_number,
-                    None,
-                    raw_line
-                ) from original_exception
         return inheritance_rules
 
     def load_parser(self, config_info):
@@ -1195,10 +1200,12 @@ class ParserLoader:
         return parser
 
     def standardize_word_set_file(self, filepath):
-        original_data = open(filepath).read()
+        with open(filepath) as word_set_file:
+            original_data = word_set_file.read()
         data = '\n'.join(sorted(set(original_data.split())))
         if data != original_data:
-            open(filepath, 'w').write(data)
+            with open(filepath, 'w') as word_set_file:
+                word_set_file.write(data)
         folder = os.path.dirname(filepath)
         filename = os.path.basename(filepath)
         category = self.parse_category(os.path.splitext(filename)[0])
@@ -1243,7 +1250,8 @@ class ParserLoader:
     def add_words(self, config_info, category, words):
         path = self.find_word_set_path(config_info, category)
         if os.path.isfile(path):
-            known_words = open(path, 'r').read().split()
+            with open(path) as word_set_file:
+                known_words = word_set_file.read().split()
             known_words.sort()
         else:
             known_words = []
@@ -1255,14 +1263,16 @@ class ParserLoader:
                 continue
             added.add(w)
             known_words.insert(index, w)
-        open(path, 'w').write('\n'.join(known_words))
+        with open(path, 'w') as word_set_file:
+            word_set_file.write('\n'.join(known_words))
         return added
 
     def remove_words(self, config_info, category, words):
         path = self.find_word_set_path(config_info, category)
         if not os.path.isfile(path):
             return set()
-        known_words = open(path, 'r').read().split()
+        with open(path) as word_set_file:
+            known_words = word_set_file.read().split()
         known_words.sort()
         removed = set()
         for w in words:
@@ -1271,7 +1281,8 @@ class ParserLoader:
             if index < len(known_words) and known_words[index] == w:
                 removed.add(w)
                 del known_words[index]
-        open(path, 'w').write('\n'.join(known_words))
+        with open(path, 'w') as word_set_file:
+            word_set_file.write('\n'.join(known_words))
         return removed
 
 
@@ -1721,7 +1732,8 @@ class ParserCmd(cmd.Cmd):
                 if not filename.lower().endswith('.ctg'):
                     continue
                 file_path = os.path.join(folder_path, filename)
-                words = set(open(file_path, 'r').read().split())
+                with open(file_path) as word_set_file:
+                    words = set(word_set_file.read().split())
                 if w in words:
                     print(repr(w) + " found in " + file_path + ".")
                     found = True
@@ -1758,7 +1770,8 @@ class ParserCmd(cmd.Cmd):
                 if file_category != category:
                     continue
                 file_path = os.path.join(folder_path, filename)
-                words = set(open(file_path, 'r').read().split())
+                with open(file_path) as word_set_file:
+                    words = set(word_set_file.read().split())
                 for w in words_to_add:
                     if w in words:
                         print(
@@ -1769,7 +1782,8 @@ class ParserCmd(cmd.Cmd):
                             "Adding " + repr(w) + " to " + file_path + "."
                         )
                         words.add(w)
-                open(file_path, 'w').write('\n'.join(sorted(words)))
+                with open(file_path, 'w') as word_set_file:
+                    word_set_file.write('\n'.join(sorted(words)))
                 found = True
         if not found:
             for folder_path in config_info.word_sets_folders:
@@ -1778,7 +1792,8 @@ class ParserCmd(cmd.Cmd):
                     str(category) + '.ctg'
                 )
                 print("Creating " + file_path + ".")
-                open(file_path, 'w').write('\n'.join(sorted(words_to_add)))
+                with open(file_path, 'w') as word_set_file:
+                    word_set_file.write('\n'.join(sorted(words_to_add)))
                 break
             else:
                 print("No word sets folder identified. Cannot add words.")
@@ -1814,7 +1829,8 @@ class ParserCmd(cmd.Cmd):
                 if file_category != category:
                     continue
                 file_path = os.path.join(folder_path, filename)
-                words = set(open(file_path, 'r').read().split())
+                with open(file_path) as words_file:
+                    words = set(words_file.read().split())
                 for w in sorted(words_to_remove):
                     if w in words:
                         print(
@@ -1826,7 +1842,8 @@ class ParserCmd(cmd.Cmd):
                     else:
                         print(repr(w) + " not found in " + file_path + ".")
                 if words:
-                    open(file_path, 'w').write('\n'.join(sorted(words)))
+                    with open(file_path, 'w') as words_file:
+                        words_file.write('\n'.join(sorted(words)))
                 else:
                     print(
                         "Deleting empty word list file " + file_path + "."
