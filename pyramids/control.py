@@ -2355,6 +2355,25 @@ class ParserCmd(cmd.Cmd):
                 print(target)
                 print('')
 
+    def do_training(self, line):
+        """Repeatedly train and save until user hits Ctrl-C."""
+        if line:
+            print("'training' command does not accept arguments.")
+            return
+        if not self._benchmark.samples:
+            print("No benchmarking samples.")
+            return
+        iteration = 0
+        while True:
+            try:
+                iteration += 1
+                print("Iteration:", iteration)
+                self.do_train('')
+                self.do_save('')
+            except KeyboardInterrupt:
+                self.do_save('')
+                break
+
     def do_list(self, line):
         """List all benchmark samples."""
         if line:
