@@ -1002,7 +1002,8 @@ class ParserLoader:
                 file_path,
                 "..."
             )
-        token_set = open(file_path).read().split()
+        with open(file_path) as token_file:
+            token_set = token_file.read().split()
         return parserules.SetRule(category, token_set)
 
     def load_word_sets_folder(self, folder):
