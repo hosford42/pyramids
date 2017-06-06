@@ -974,12 +974,15 @@ intention(is_preposition): prepositional_phrase(intention)
 # [I did it] so [fact]
 # [I did it] therefore [fact]
 
+cause: noun_phrase(finished_noun_phrase,cause)
+
 cause(is_preposition):
     prepositional_phrase(cause,unconditional)
     prepositional_phrase(cause,conditional,has_complement)
 
 cause(-is_preposition): implicit_answer(cause)
 
+effect: noun_phrase(finished_noun_phrase,effect)
 effect(is_preposition): prepositional_phrase(effect)
 
 
@@ -1248,34 +1251,34 @@ degree_query:
 question(truth): predication(reverse,definite,-needs_complement,-needs_cast)
 question(truth,terse): ability
 
-question(cause,has_cause): pronoun(finished_pronoun,question,cause)|prepositional_phrase(question,cause) <CAUSE *predication(reverse,definite,has_subject,-has_cause,-needs_complement,-needs_cast)
+question(cause,has_cause): cause(question) <CAUSE *predication(reverse,definite,has_subject,-has_cause,-needs_complement,-needs_cast)
     
-question(time,has_time): pronoun(finished_pronoun,question,time)|prepositional_phrase(question,time) <TIME *predication(reverse,definite,has_subject,-has_time,-needs_complement,-needs_cast)
-question(place,has_place): pronoun(finished_pronoun,question,place)|prepositional_phrase(question,place) <PLACE *predication(reverse,definite,has_subject,-has_place,-needs_complement,-needs_cast)
+question(time,has_time): time(question) <TIME *predication(reverse,definite,has_subject,-has_time,-needs_complement,-needs_cast)
+question(place,has_place): place(question) <PLACE *predication(reverse,definite,has_subject,-has_place,-needs_complement,-needs_cast)
 question(style,has_style): style_query <STYLE *predication(reverse,definite,has_subject,-has_style,-needs_complement,-needs_cast)
 question(quality,has_quality): quality(question) <QUALITY *predicate(be,reverse,definite,has_subject,-has_quality,-needs_complement,-needs_cast,needs_quality)
 
-question(object,has_subject): pronoun(finished_pronoun,question,subject) <SUBJECT *predication(definite,-has_subject,-needs_complement,-needs_cast)
+question(object,has_subject): subject(question) <SUBJECT *predication(definite,-has_subject,-needs_complement,-needs_cast)
 
 # Examples:
 #   What about it?
 #   What in the world?
-question(object,has_place): *pronoun(finished_pronoun,question,object,-delimited) PLACE> prepositional_phrase(place,-needs_complement,-delimited)
+question(object,has_place): *object(question,-delimited) PLACE> prepositional_phrase(place,-needs_complement,-delimited)
 
 # Example: Who in his right mind?
-question(object,has_modifier): *pronoun(finished_pronoun,question,object,-delimited) MODIFIER> prepositional_phrase(state,-needs_complement,-delimited)
+question(object,has_modifier): *object(question,-delimited) MODIFIER> prepositional_phrase(state,-needs_complement,-delimited)
 
 # TODO: These may not be quite right. Need to check the property promotion.
-question(object,has_object): pronoun(finished_pronoun,question,object)|prepositional_phrase(question,object) <OBJECT *predication(reverse,definite,has_subject,-has_object,-needs_complement,-needs_cast)
-question(object,has_target): pronoun(finished_pronoun,question,target)|prepositional_phrase(question,target) <TARGET *predication(reverse,definite,has_subject,has_object,-aux,-has_target,-needs_complement,-needs_cast)
-question(action,has_cast,-needs_cast): pronoun(finished_pronoun,question,object) <CAST *predication(reverse,definite,has_subject,needs_cast,-needs_complement)
+question(object,has_object): object(question) <OBJECT *predication(reverse,definite,has_subject,-has_object,-needs_complement,-needs_cast)
+question(object,has_target): target(question) <TARGET *predication(reverse,definite,has_subject,has_object,-aux,-has_target,-needs_complement,-needs_cast)
+question(action,has_cast,-needs_cast): object(question) <CAST *predication(reverse,definite,has_subject,needs_cast,-needs_complement)
 
-question(object,has_complement,-needs_complement): pronoun(finished_pronoun,question,object) <COMPLEMENT *predication(reverse,definite,has_subject,needs_complement,-needs_cast)
-question(time,has_complement,-needs_complement): pronoun(finished_pronoun,question,time) <COMPLEMENT *predication(reverse,definite,has_subject,needs_complement,-needs_cast)
-question(place,has_complement,-needs_complement): pronoun(finished_pronoun,question,place) <COMPLEMENT *predication(reverse,definite,has_subject,needs_complement,-needs_cast)
-question(cause,has_complement,-needs_complement): pronoun(finished_pronoun,question,cause) <COMPLEMENT *predication(reverse,definite,has_subject,needs_complement,-needs_cast)
+question(object,has_complement,-needs_complement): object(question) <COMPLEMENT *predication(reverse,definite,has_subject,needs_complement,-needs_cast)
+question(time,has_complement,-needs_complement): time(question) <COMPLEMENT *predication(reverse,definite,has_subject,needs_complement,-needs_cast)
+question(place,has_complement,-needs_complement): place(question) <COMPLEMENT *predication(reverse,definite,has_subject,needs_complement,-needs_cast)
+question(cause,has_complement,-needs_complement): cause(question) <COMPLEMENT *predication(reverse,definite,has_subject,needs_complement,-needs_cast)
 
-question(effect,has_effect): pronoun(finished_pronoun,question,effect)|prepositional_phrase(question,effect) <EFFECT *cause(is_preposition,has_complement,-question,-needs_complement)
+question(effect,has_effect): effect(question) <EFFECT *cause(is_preposition,has_complement,-question,-needs_complement)
 
 
 # ----------------------------- IMPLICIT ANSWERS ------------------------------
