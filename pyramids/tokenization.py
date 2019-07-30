@@ -32,51 +32,44 @@ class StandardTokenizer(Tokenizer):
         return char.isalnum() or char == "'"
 
     def tokenize(self, text):
-        token = ''
+        last_char = ''
         start = 0
         end = 0
+        non_space = False
 
-        for char in text:
-            if (not token or 
-                    token[-1] == char or
-                    (self.is_word_char(token[-1]) and
-                     self.is_word_char(char))):
-                token += char
-            else:
-                if not self.discard_spaces or token.strip():
+        for index, char in enumerate(text):
+            if start != end and last_char != char and not (self.is_word_char(last_char) and self.is_word_char(char)):
+                if not self.discard_spaces or non_space:
+                    token = text[start:end]
                     if token.endswith(self.contractions):
                         split = token.split("'")
-                        if len(split) > 1 and (
-                                len(split) != 2 or split[0]):
-                            yield (
-                                "'".join(split[:-1]),
-                                start,
-                                end - len(split[-1])
-                            )
+                        if len(split) > 1 and (len(split) != 2 or split[0]):
+                            yield "'".join(split[:-1]), start, end - len(split[-1])
                         yield "'" + split[-1], end - len(split[-1]), end
-                    elif (token[-2:].lower() in ('am', 'pm') and
-                            token[:-2].isdigit()):
+                    elif token[-2:].lower() in ('am', 'pm') and token[:-2].isdigit():
                         yield token[:-2], start, end - 2
                         yield token[-2:], end - 2, end
-                    elif (token[-1:].lower() in ('a', 'p') and
-                            token[:-1].isdigit()):
+                    elif token[-1:].lower() in ('a', 'p') and token[:-1].isdigit():
                         yield token[:-1], start, end - 1
                         yield token[-1:], end - 1, end
                     else:
                         yield token, start, end
-                token = char
+                    del token
                 start = end
+                non_space = False
             end += 1
+            last_char = char
+            if not char.isspace():
+                non_space = True
 
-        if token and (not self.discard_spaces or token.strip()):
-            if token.endswith(
-                    ("'", "'m", "'re", "'s", "'ve", "'d", "'ll")):
+        if start < end and (not self.discard_spaces or non_space):
+            token = text[start:end]
+            if token.endswith(self.contractions):
                 split = token.split("'")
                 if len(split) > 1:
                     yield "'".join(split[:-1]), start, end - len(split[-1])
                 yield "'" + split[-1], end - len(split[-1]), end
-            elif (token[-2:].lower() in ('am', 'pm') and
-                    token[:-2].isdigit()):
+            elif token[-2:].lower() in ('am', 'pm') and token[:-2].isdigit():
                 yield token[:-2], start, end - 2
                 yield token[-2:], end - 2, end
             elif token[-1:].lower() in ('a', 'p') and token[:-1].isdigit():
@@ -110,10 +103,7 @@ class TokenSequence:
             spans.append((start, end))
         self._tokens = tuple(interned_tokens)
         self._spans = tuple(spans)
-        self._hash = (
-            reduce(lambda a, b: a ^ id(b), self._tokens, 0) ^
-            reduce(lambda a, b: a ^ hash(b), self._spans, 0)
-        )
+        self._hash = reduce(lambda a, b: a ^ id(b), self._tokens, 0) ^ reduce(lambda a, b: a ^ hash(b), self._spans, 0)
 
     def __str__(self):
         return ' '.join(self._tokens)

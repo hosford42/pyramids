@@ -43,8 +43,7 @@ class PriorityQueue:
         if self._key is None:
             heapq.heappush(self._values, (value, self._counter))
         else:
-            heapq.heappush(self._values,
-                           (self._key(value), self._counter, value))
+            heapq.heappush(self._values, (self._key(value), self._counter, value))
         self._counter += 1
 
     def pop(self):

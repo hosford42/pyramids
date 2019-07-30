@@ -1511,9 +1511,7 @@ class ParserCmd(cmd.Cmd):
         config_info = ParserConfigInfo(line)
         self._parser = self._parser_loader.load_parser(config_info)
         self._benchmark = (
-            benchmarking.Benchmark.load(
-                config_info.benchmark_file
-            ) 
+            benchmarking.Benchmark.load(config_info.benchmark_file)
             if os.path.isfile(config_info.benchmark_file) 
             else benchmarking.Benchmark()
         )
@@ -1553,10 +1551,7 @@ class ParserCmd(cmd.Cmd):
 
         config_info = self._parser.config_info
         if os.path.isfile(config_info.benchmark_file):
-            self._benchmark = \
-                benchmarking.Benchmark.load(
-                    config_info.benchmark_file
-                )
+            self._benchmark = benchmarking.Benchmark.load(config_info.benchmark_file)
         else:
             self._benchmark = benchmarking.Benchmark()
 
@@ -1891,14 +1886,8 @@ class ParserCmd(cmd.Cmd):
         for start, category, end in cat_map:
             for node_set in cat_map.iter_node_sets(start, category, end):
                 for node in node_set:
-                    rule_counts[node.rule] = rule_counts.get(
-                        node.rule,
-                        0
-                    ) + 1
-                    rule_nodes[node.rule] = rule_nodes.get(
-                        node.rule,
-                        []
-                    ) + [node]
+                    rule_counts[node.rule] = rule_counts.get(node.rule, 0) + 1
+                    rule_nodes[node.rule] = rule_nodes.get(node.rule, []) + [node]
         counter = 0
         for rule in sorted(rule_counts, key=rule_counts.get, reverse=True):
             print(str(rule) + " (" + str(rule_counts[rule]) + " nodes)")
@@ -2188,16 +2177,9 @@ class ParserCmd(cmd.Cmd):
 
         self._benchmark_tests_completed += 1
         if time.time() >= self._benchmark_update_time + 1:
-            print(
-                "Benchmark " +
-                str(
-                    round(
-                        (100 * self._benchmark_tests_completed /
-                         float(len(self._benchmark.samples))),
-                        1
-                    )
-                ) + "% complete..."
-            )
+            print("Benchmark " +
+                  str(round((100 * self._benchmark_tests_completed / float(len(self._benchmark.samples))), 1)) +
+                  "% complete...")
             self._benchmark_update_time = time.time()
 
     def do_benchmark(self, line):
@@ -2215,35 +2197,19 @@ class ParserCmd(cmd.Cmd):
         self._benchmark_time = 0.0
         self._benchmark_tests_completed = 0
         self._benchmark_update_time = time.time()
-        failures, score = self._benchmark.test_and_score(
-            self._benchmark_output, self._report_benchmark_progress)
+        failures, score = self._benchmark.test_and_score(self._benchmark_output, self._report_benchmark_progress)
         print("")
         print("Score: " + str(round(100 * score, 1)) + "%")
-        print(
-            "Average Parse Time: " +
-            str(round(self._benchmark_time /
-                      float(len(self._benchmark.samples)), 1)) +
-            ' seconds per parse'
-        )
+        print("Average Parse Time: " + str(round(self._benchmark_time / float(len(self._benchmark.samples)), 1)) +
+              ' seconds per parse')
         print("Samples Evaluated: " + str(len(self._benchmark.samples)))
-        print(
-            "Emergency Disambiguations: " +
-            str(self._benchmark_emergency_disambiguations) + " (" +
-            str(round(100 * self._benchmark_emergency_disambiguations /
-                      float(len(self._benchmark.samples)), 1)) + '%)'
-        )
-        print(
-            "Parse Timeouts: " +
-            str(self._benchmark_parse_timeouts) + " (" +
-            str(round(100 * self._benchmark_parse_timeouts /
-                      float(len(self._benchmark.samples)), 1)) + '%)'
-        )
-        print(
-            "Disambiguation Timeouts: " +
-            str(self._benchmark_disambiguation_timeouts) + " (" +
-            str(round(100 * self._benchmark_disambiguation_timeouts /
-                      float(len(self._benchmark.samples)), 1)) + '%)'
-        )
+        print("Emergency Disambiguations: " + str(self._benchmark_emergency_disambiguations) + " (" +
+              str(round(100 * self._benchmark_emergency_disambiguations / float(len(self._benchmark.samples)), 1)) +
+              '%)')
+        print("Parse Timeouts: " + str(self._benchmark_parse_timeouts) + " (" +
+              str(round(100 * self._benchmark_parse_timeouts / float(len(self._benchmark.samples)), 1)) + '%)')
+        print("Disambiguation Timeouts: " + str(self._benchmark_disambiguation_timeouts) + " (" +
+              str(round(100 * self._benchmark_disambiguation_timeouts / float(len(self._benchmark.samples)), 1)) + '%)')
         if failures:
             print('')
             print("Failures:")

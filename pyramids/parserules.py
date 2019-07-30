@@ -103,8 +103,7 @@ class ParseRule:
         self._scoring_measures[None] = (default_score, default_weight)
         for measure in self.iter_scoring_measures(parse_node):
             if measure not in self._scoring_measures:
-                self._scoring_measures[measure] = \
-                    self._scoring_measures[None]
+                self._scoring_measures[measure] = self._scoring_measures[None]
             score, weight = self._scoring_measures[measure]
             error = (target - score) ** 2
             weight_target = 1 - error
@@ -154,20 +153,9 @@ class LeafRule(ParseRule):
     def __call__(self, parser_state, new_token, index):
         if new_token in self:
             positive, negative = self.discover_case_properties(new_token)
-            category = self._category.promote_properties(
-                positive,
-                negative
-            )
+            category = self._category.promote_properties(positive, negative)
             category = parser_state.extend_properties(category)
-            parser_state.add_node(
-                parsetrees.ParseTreeNode(
-                    parser_state.tokens,
-                    self,
-                    index,
-                    category,
-                    index
-                )
-            )
+            parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self, index, category, index))
             return True
         else:
             return False
@@ -442,34 +430,15 @@ class SequenceRule(BranchRule):
         # Check forward halves first, because they're less likely, and if
         # we don't find any, we won't even need to bother looking for
         # backward halves.
-        forward_halves = list(
-            self._iter_forward_halves(
-                parser_state.category_map,
-                index + 1,
-                new_node_set.end
-            )
-        )
+        forward_halves = list(self._iter_forward_halves(parser_state.category_map, index + 1, new_node_set.end))
         if forward_halves:
-            for backward_half in self._iter_backward_halves(
-                    parser_state.category_map, index - 1,
-                    new_node_set.start):
+            for backward_half in self._iter_backward_halves(parser_state.category_map, index - 1, new_node_set.start):
                 for forward_half in forward_halves:
-                    subtrees = \
-                        backward_half + [new_node_set] + forward_half
-                    category = self.get_category(
-                        parser_state.parser,
-                        [subtree.category for subtree in subtrees]
-                    )
-                    if self.is_non_recursive(
-                            category,
-                            subtrees[self._head_index].category):
+                    subtrees = backward_half + [new_node_set] + forward_half
+                    category = self.get_category(parser_state.parser, [subtree.category for subtree in subtrees])
+                    if self.is_non_recursive(category, subtrees[self._head_index].category):
                         parser_state.add_node(
-                            parsetrees.ParseTreeNode(
-                                parser_state.tokens,
-                                self,
-                                self._head_index, category,
-                                subtrees
-                            )
+                            parsetrees.ParseTreeNode(parser_state.tokens, self, self._head_index, category, subtrees)
                         )
 
     def __call__(self, parser_state, new_node_set):
@@ -956,13 +925,7 @@ class ConjunctionRule(BranchRule):
         # Check forward halves first, because they're less likely, and if
         # we don't find any, we won't even need to bother looking for
         # backward halves.
-        forward_halves = list(
-            self._iter_forward_halves(
-                parser_state.category_map,
-                state,
-                new_node_set.start
-            )
-        )
+        forward_halves = list(self._iter_forward_halves(parser_state.category_map, state, new_node_set.start))
         if forward_halves:
             if state == -1:  # Leadup case/exception
                 for forward_half in forward_halves:
@@ -1376,6 +1339,7 @@ class ConjunctionRule(BranchRule):
         # )
         return category.promote_properties(positive, negative)
 
+    # noinspection PyUnusedLocal
     @staticmethod
     def is_non_recursive(result_category, head_category):
         # It's *never* recursive, because we require more than one token

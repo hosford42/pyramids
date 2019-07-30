@@ -31,8 +31,7 @@ __all__ = [
 class ParseTreeNode:
     """Represents a branch or leaf node in a parse tree during parsing."""
 
-    def __init__(self, tokens, rule, head_index, category,
-                 index_or_components):
+    def __init__(self, tokens, rule, head_index, category, index_or_components):
         # assert isinstance(rule, parserules.ParseRule)
         assert isinstance(category, categorization.Category)
 
@@ -47,19 +46,15 @@ class ParseTreeNode:
         else:
             self._components = tuple(index_or_components)
             if not self._components:
-                raise ValueError(
-                    "At least one component must be provided for a non-"
-                    "leaf node."
-                )
+                raise ValueError("At least one component must be provided for a non-leaf node.")
             for component in self._components:
                 if not isinstance(component, ParseTreeNodeSet):
                     raise TypeError(component, ParseTreeNodeSet)
+                component.add_parent(self)
             self._start = self._end = self._components[0].start
             for component in self._components:
                 if self._end != component.start:
-                    raise ValueError(
-                        "Discontinuity in component coverage."
-                    )
+                    raise ValueError("Discontinuity in component coverage.")
                 self._end = component.end
         self._category = category
         self._hash = (
@@ -72,6 +67,8 @@ class ParseTreeNode:
         )
         self._score = None
         self._raw_score = None
+        self._parents = None
+        self.update_weighted_score()
 
     def __hash__(self):
         return self._hash
@@ -224,10 +221,7 @@ class ParseTreeNode:
             if not simplify:
                 result += ' [' + str(self.rule) + ']'
             for component in self.components:
-                result += (
-                    '\n    ' +
-                    component.to_str(simplify).replace('\n', '\n    ')
-                )
+                result += '\n    ' + component.to_str(simplify).replace('\n', '\n    ')
         return result
 
     def restrict(self, categories):
@@ -241,24 +235,20 @@ class ParseTreeNode:
                     for restriction in component.restrict(categories):
                         yield restriction
 
-    def weighted_score_is_dirty(self):
-        if self.is_leaf():
-            return False
-        for component in self.components:
-            if component.weighted_score_is_dirty():
-                return True
-        return False
+    def get_weighted_score(self):
+        return self._score
 
-    def _calculate_weighted_score(self):
-        total_weighted_score, total_weight = \
-            self.rule.calculate_weighted_score(self)
+    def get_score_data(self):
+        return self._raw_score
+
+    def update_weighted_score(self):
+        total_weighted_score, total_weight = self.rule.calculate_weighted_score(self)
         if self.is_leaf():
             depth = 1
         else:
             depth = total_weight
             for component in self.components:
-                component_depth, weighted_score, weight = \
-                    component._calculate_weighted_score()
+                component_depth, weighted_score, weight = component.get_score_data()
 
                 # It's already weighted, so don't multiply it
                 total_weighted_score += weighted_score
@@ -275,33 +265,25 @@ class ParseTreeNode:
         # return self._score
 
         self._raw_score = (depth, total_weighted_score, total_weight)
-        self._score = (
-            total_weighted_score / math.log(1 + depth, 2),
-            total_weight
-        )
+        self._score = (total_weighted_score / math.log(1 + depth, 2), total_weight)
 
-        return self._raw_score
-
-    def calculate_weighted_score(self):
-        self._calculate_weighted_score()
-        return self._score
-
-    def _get_weighted_score(self):
-        if self._score is None or self.weighted_score_is_dirty():
-            self._calculate_weighted_score()
-        return self._raw_score
-
-    def get_weighted_score(self):
-        if self._score is None or self.weighted_score_is_dirty():
-            self._calculate_weighted_score()
-        return self._score
+        if self._parents:
+            for parent in self._parents:
+                parent.update_weighted_score(self)
 
     def adjust_score(self, target):
         self.rule.adjust_score(self, target)
         if not self.is_leaf():
             for component in self.components:
                 component.adjust_score(target)
-        self._score = None
+        # self._score = None
+        self.update_weighted_score()
+
+    def add_parent(self, parent):
+        if self._parents is None:
+            self._parents = [parent]
+        else:
+            self._parents.append(parent)
 
     def visit(self, handler, is_root=False):
         """Visit this node with a LanguageContentHandler."""
@@ -332,8 +314,7 @@ class ParseTreeNode:
                     need_sources[prop.name[6:]] = {self.head_token_start}
             return need_sources
 
-        head_start = \
-            self.components[self._head_index].best.head_token_start
+        head_start = self.components[self._head_index].best.head_token_start
         handler.handle_phrase_start(self.category, head_start)
 
         # Visit each subtree, remembering which indices are to receive
@@ -347,10 +328,7 @@ class ParseTreeNode:
             component = component.best
             assert isinstance(component, ParseTreeNode)
 
-            component_need_sources = component._visit(
-                handler,
-                is_root and index == self._head_index
-            )
+            component_need_sources = component._visit(handler, is_root and index == self._head_index)
 
             nodes.append(component.head_token_start)
 
@@ -652,6 +630,8 @@ class ParseTreeNodeSet:
         self._best_node = None
         self._best_score = None
         self._best_raw_score = None
+        self._parents = None
+
         values_set = False
         for node in nodes:
             if not values_set:
@@ -661,13 +641,9 @@ class ParseTreeNodeSet:
                 values_set = True
             self.add(node)
         if not values_set:
-            raise ValueError(
-                "ParseTreeNodeSet must contain at least one node.")
-        self._hash = (
-            hash(self._start) ^
-            hash(self._end) ^
-            hash(self._category)
-        )
+            raise ValueError("ParseTreeNodeSet must contain at least one node.")
+
+        self._hash = hash(self._start) ^ hash(self._end) ^ hash(self._category)
 
     def __repr__(self):
         return type(self).__name__ + "(" + repr(self._unique) + ")"
@@ -773,54 +749,38 @@ class ParseTreeNodeSet:
         if node in self._unique:
             return
         self._unique.add(node)
-        score = node.get_weighted_score()
-        if self._best_score is None or score > self._best_score:
-            self._best_score = score
-            self._best_node = node
-
-    # TODO: Scoring is all jacked up! All these methods with ambiguous
-    #       names and purposes... It's not even clear what's happening.
-    def weighted_score_is_dirty(self):
-        for node in self._unique:
-            if node.weighted_score_is_dirty():
-                return True
-        return False
-
-    def _calculate_weighted_score(self):
-        self._best_score = (
-            self._best_node.calculate_weighted_score()
-            if self._best_node is not None
-            else None
-        )
-        self._best_raw_score = (
-            self._best_node._get_weighted_score()
-            if self._best_node is not None
-            else None
-        )
-        for node in self._unique:
-            score = node.get_weighted_score()
-            if self._best_score is None or score > self._best_score:
-                self._best_score = score
-                self._best_node = node
-                self._best_raw_score = node._get_weighted_score()
-        return self._best_raw_score
-
-    def calculate_weighted_score(self):
-        self._calculate_weighted_score()
-        return self._best_score
-
-    def _get_weighted_score(self):
-        if self.weighted_score_is_dirty():
-            self.calculate_weighted_score()
-        return self._best_raw_score
+        node.add_parent(self)
+        self.update_weighted_score(node)
 
     def get_weighted_score(self):
-        if self.weighted_score_is_dirty():
-            self.calculate_weighted_score()
-        return self._best_score
+        return self._best_node.get_weighted_score() if self._best_node else None
+
+    def get_score_data(self):
+        return self._best_node.get_score_data() if self._best_node else None
+
+    def update_weighted_score(self, affected_node):
+        if self._best_node is None or self._best_node.get_weighted_score() < affected_node.get_weighted_score():
+            self._best_node = affected_node
+        if self._parents:
+            for parent in self._parents:
+                parent.update_weighted_score()
 
     def adjust_score(self, target):
-        self._best_node.adjust_score(target)
+        best_score = None
+        best_node = None
+        for node in self._unique:
+            node.adjust_score(target)
+            score = node.get_weighted_score()
+            if best_score is None or best_score < score:
+                best_score = score
+                best_node = node
+        self._best_node = best_node
+
+    def add_parent(self, parent):
+        if self._parents is None:
+            self._parents = [parent]
+        else:
+            self._parents.append(parent)
 
     def to_str(self, simplify=False):
         return self._best_node.to_str(simplify)
@@ -939,16 +899,7 @@ class ParseTree:
         return results
 
     def is_ambiguous_with(self, other):
-        return (
-            self.start <= other.start < self.end or
-            other.start <= self.start < other.end
-        )
-
-    def weighted_score_is_dirty(self):
-        return self.root.weighted_score_is_dirty()
-
-    def calculate_weighted_score(self):
-        return self.root.calculate_weighted_score()
+        return self.start <= other.start < self.end or other.start <= self.start < other.end
 
     def get_weighted_score(self):
         return self.root.get_weighted_score()
@@ -978,6 +929,7 @@ class Parse:
         self._parse_trees = frozenset(parse_trees)
         self._hash = None
         self._score = None
+        self.update_weighted_score()
 
     def __hash__(self):
         if self._hash is None:
@@ -1022,42 +974,24 @@ class Parse:
 
     def get_rank(self):
         score, weight = self.get_weighted_score()
-        return (
-            self.total_gap_size(),
-            len(self.parse_trees),
-            -score,
-            -weight
-        )
+        return self.total_gap_size(), len(self.parse_trees), -score, -weight
 
-    def weighted_score_is_dirty(self):
-        if self._score is None:
-            return True
+    def get_weighted_score(self):
+        return self._score
+
+    def adjust_score(self, target):
         for tree in self._parse_trees:
-            if tree.weighted_score_is_dirty():
-                return True
-        return False
+            tree.adjust_score(target)
+        self.update_weighted_score()
 
-    def calculate_weighted_score(self):
+    def update_weighted_score(self):
         total_weighted_score = 0.0
         total_weight = 0.0
         for tree in self._parse_trees:
             weighted_score, weight = tree.get_weighted_score()
             total_weighted_score += weighted_score
             total_weight += weight
-        self._score = (
-            (total_weighted_score / total_weight if total_weight else 0.0),
-            total_weight
-        )
-        return self._score
-
-    def get_weighted_score(self):
-        if self.weighted_score_is_dirty():
-            self.calculate_weighted_score()
-        return self._score
-
-    def adjust_score(self, target):
-        for tree in self._parse_trees:
-            tree.adjust_score(target)
+        self._score = ((total_weighted_score / total_weight if total_weight else 0.0), total_weight)
 
     def restrict(self, categories):
         if isinstance(categories, categorization.Category):

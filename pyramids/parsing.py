@@ -11,7 +11,6 @@ from pyramids.scoring import ScoringMeasure
 # noinspection PyUnresolvedReferences
 from pyramids.categorization import Category, Property
 
-
 __author__ = 'Aaron Hosford'
 __all__ = [
     'CategoryMap',
@@ -36,8 +35,7 @@ class CategoryMap:
         for start in self._map:
             for category_name_id in self._map[start]:
                 for category in self._map[start][category_name_id]:
-                    for end in \
-                            self._map[start][category_name_id][category]:
+                    for end in self._map[start][category_name_id][category]:
                         yield start, category, end
 
     @property
@@ -174,13 +172,11 @@ class ParserState:
             if item.rule is node.rule:
                 same_rule_count += 1
 
-        # no_predecessor = node.start > 0 and \
-        #     not self._category_map.has_range(0, node.start)
-        # no_successor = node.end < self._category_map.max_end and \
-        #     not self._category_map.has_range(
-        #         node.end,
-        #         self._category_map.max_end
-        #     )
+        # no_predecessor = node.start > 0 and not self._category_map.has_range(0, node.start)
+        # no_successor = (
+        #   node.end < self._category_map.max_end and
+        #   not self._category_map.has_range(node.end, self._category_map.max_end)
+        # )
 
         # Always sorts smallest to largest, so make the best the smallest.
         # Using same_rule_count forces highly-recursive rules to take a
@@ -198,9 +194,7 @@ class ParserState:
         self._tokens = []
         self._token_sequence = None
         self._category_map = CategoryMap()
-        self._insertion_queue = utility.PrioritySet(
-            key=self._insertion_key
-        )
+        self._insertion_queue = utility.PrioritySet(key=self._insertion_key)
         self._node_set_ids = set()
         self._roots = set()
 
@@ -211,9 +205,7 @@ class ParserState:
     @property
     def tokens(self):
         if self._token_sequence is None:
-            self._token_sequence = tokenization.TokenSequence(
-                self._tokens
-            )
+            self._token_sequence = tokenization.TokenSequence(self._tokens)
         return self._token_sequence
 
     @property
@@ -226,8 +218,7 @@ class ParserState:
 
     @property
     def any_promoted_properties(self):
-        """Properties that may be promoted if any element possesses them.
-        """
+        """Properties that may be promoted if any element possesses them."""
         return self._parser.any_promoted_properties
 
     @property
@@ -269,16 +260,14 @@ class ParserState:
                (timeout is None or time.time() < timeout)):
             node = self._insertion_queue.pop()
             if not self._category_map.add(node):
-                # Drop it and continue on to the next one. "We've already
-                # got one!"
+                # Drop it and continue on to the next one. "We've already got one!"
                 continue
             if not node.is_leaf():
                 self._roots -= set(node.components)
             node_set = self._category_map.get_node_set(node)
             if id(node_set) not in self._node_set_ids:
                 self._node_set_ids.add(id(node_set))
-                # Only add to roots if the node set hasn't already been
-                # removed
+                # Only add to roots if the node set hasn't already been removed
                 self._roots.add(node_set)
             for branch_rule in self._parser.branch_rules:
                 branch_rule(self, node_set)
@@ -298,26 +287,19 @@ class ParserState:
         input is covered by a single tree."""
         # TODO: This isn't always working. Sometimes I don't get a complete
         #       parse. I checked, and is_covered is not the problem.
-        while (not self.is_covered() and
-               self.process_node() and
-               (timeout is None or time.time() < timeout)):
+        while not self.is_covered() and self.process_node() and (timeout is None or time.time() < timeout):
             pass  # The condition call does all the work.
 
     def process_all_nodes(self, timeout=None):
         """Process all pending nodes."""
-        while self.process_node(timeout) and (
-                timeout is None or time.time() < timeout):
+        while self.process_node(timeout) and (timeout is None or time.time() < timeout):
             pass  # The condition call does all the work.
 
     def get_parse(self):
         """Create a tree for each node that doesn't get included as a
         component to some other one. Then it make a Parse instance with
         those trees."""
-        return parsetrees.Parse(
-            self.tokens,
-            [parsetrees.ParseTree(self.tokens, node)
-             for node in self._roots]
-        )
+        return parsetrees.Parse(self.tokens, [parsetrees.ParseTree(self.tokens, node) for node in self._roots])
 
 
 class Parser:
@@ -327,18 +309,15 @@ class Parser:
     or can be queried to determine the recognized structure(s) of the
     input."""
 
-    def __init__(self, primary_leaf_rules, secondary_leaf_rules,
-                 branch_rules, tokenizer, any_promoted_properties,
-                 all_promoted_properties, property_inheritance_rules,
-                 config_info=None):
+    def __init__(self, primary_leaf_rules, secondary_leaf_rules, branch_rules, tokenizer, any_promoted_properties,
+                 all_promoted_properties, property_inheritance_rules, config_info=None):
         self._primary_leaf_rules = frozenset(primary_leaf_rules)
         self._secondary_leaf_rules = frozenset(secondary_leaf_rules)
         self._branch_rules = frozenset(branch_rules)
         self._tokenizer = tokenizer
         self._any_promoted_properties = frozenset(any_promoted_properties)
         self._all_promoted_properties = frozenset(all_promoted_properties)
-        self._property_inheritance_rules = frozenset(
-            property_inheritance_rules)
+        self._property_inheritance_rules = frozenset(property_inheritance_rules)
         self._config_info = config_info
         self._score_file_path = None
         self._scoring_measures_path = None
@@ -373,8 +352,7 @@ class Parser:
 
     @property
     def any_promoted_properties(self):
-        """Properties that may be promoted if any element possesses them.
-        """
+        """Properties that may be promoted if any element possesses them."""
         return self._any_promoted_properties
 
     @property
@@ -410,11 +388,7 @@ class Parser:
                         positive |= new_positive
                         negative |= new_negative
         negative -= positive
-        return categorization.Category(
-            category.name,
-            positive,
-            negative
-        )
+        return categorization.Category(category.name, positive, negative)
 
     def new_parser_state(self):
         """Return a new parser state, for incremental parsing."""
@@ -455,18 +429,12 @@ class Parser:
                         break
                 if not satisfied:
                     continue
-                for tail in self._iter_combos(
-                        subcategory_sets,
-                        covered | tree.node_coverage,
-                        trees):
+                for tail in self._iter_combos(subcategory_sets, covered | tree.node_coverage, trees):
                     yield [tree] + tail
 
     def generate(self, sentence):
         assert isinstance(sentence, graphs.ParseGraph)
-        return self._generate(
-            sentence.root_index,
-            sentence
-        )
+        return self._generate(sentence.root_index, sentence)
 
     def _generate(self, head_node, sentence):
         head_spelling = sentence[head_node][1]
@@ -547,60 +515,9 @@ class Parser:
                             required_incoming.add(link_type)
                         if (left and index < rule.head_index) or (right and index >= rule.head_index):
                             required_outgoing.add(link_type)
-                    component_head_candidates = subnodes.copy()
-                    for link_type in required_incoming:
-                        if link_type not in self._rules_by_link_type:
-                            continue
-                        component_head_candidates &= {
-                            source
-                            for source in sentence.get_sources(head_node)
-                            if link_type in sentence.get_labels(source, head_node)
-                        }
-                        if not component_head_candidates:
-                            break
-                    if not component_head_candidates:
-                        failed = True
-                        break
-                    for link_type in required_outgoing:
-                        if link_type not in self._rules_by_link_type:
-                            continue
-                        component_head_candidates &= {
-                            sink
-                            for sink in sentence.get_sinks(head_node)
-                            if link_type in sentence.get_labels(head_node, sink)
-                        }
-                        if not component_head_candidates:
-                            break
-                    if not component_head_candidates:
-                        failed = True
-                        break
-                    component_candidates = set()
-                    if isinstance(rule, parserules.ConjunctionRule):
-                        for candidate in component_head_candidates:
-                            for subtree in subtrees[candidate]:
-                                if subtree.category in head_category:
-                                    component_candidates.add(subtree)
-                                    break
-                            else:
-                                for subtree in subtrees[candidate]:
-                                    component_candidates.add(subtree)
-                                    break
-                    else:
-                        cat_name_ids = {
-                            id(category.name)
-                            for category in rule.subcategory_sets[index if index < rule.head_index else index + 1]
-                        }
-                        for candidate in component_head_candidates:
-                            for subtree in subtrees[candidate]:
-                                if id(subtree.category.name) in cat_name_ids:
-                                    good = False
-                                    cat_index = (index if index < rule.head_index else index + 1)
-                                    for category in rule.subcategory_sets[cat_index]:
-                                        if subtree.category in category:
-                                            good = True
-                                            break
-                                    if good:
-                                        component_candidates.add(subtree)
+                    component_candidates = self.get_component_candidates(head_category, head_node, index,
+                                                                         required_incoming, required_outgoing, rule,
+                                                                         sentence, subnodes, subtrees)
                     if not component_candidates:
                         failed = True
                         break
@@ -617,17 +534,11 @@ class Parser:
                     else:
                         category = rule.get_category(self, [component.category for component in component_combination])
                         if rule.is_non_recursive(category, head_tree.category):
-                            new_tree = parsetrees.BuildTreeNode(
-                                rule,
-                                category,
-                                head_tree.head_spelling,
-                                head_tree.head_index,
-                                component_combination
-                            )
+                            new_tree = parsetrees.BuildTreeNode(rule, category, head_tree.head_spelling,
+                                                                head_tree.head_index, component_combination)
                             if new_tree not in results:
                                 if subnodes <= new_tree.node_coverage:
-                                    if (new_tree.head_index != sentence.root_index or
-                                            category in sentence.root_category):
+                                    if new_tree.head_index != sentence.root_index or category in sentence.root_category:
                                         results.add(new_tree)
                                     else:
                                         backup_results.add(new_tree)
@@ -640,6 +551,54 @@ class Parser:
         else:
             return emergency_results
 
+    def get_component_candidates(self, head_category, head_node, index, required_incoming, required_outgoing, rule,
+                                 sentence, subnodes, subtrees):
+        component_head_candidates = subnodes.copy()
+        for link_type in required_incoming:
+            if link_type not in self._rules_by_link_type:
+                continue
+            component_head_candidates &= {source for source in sentence.get_sources(head_node)
+                                          if link_type in sentence.get_labels(source, head_node)}
+            if not component_head_candidates:
+                break
+        if not component_head_candidates:
+            return None
+        for link_type in required_outgoing:
+            if link_type not in self._rules_by_link_type:
+                continue
+            component_head_candidates &= {sink for sink in sentence.get_sinks(head_node)
+                                          if link_type in sentence.get_labels(head_node, sink)}
+            if not component_head_candidates:
+                break
+        if not component_head_candidates:
+            return None
+        component_candidates = set()
+        if isinstance(rule, parserules.ConjunctionRule):
+            for candidate in component_head_candidates:
+                for subtree in subtrees[candidate]:
+                    if subtree.category in head_category:
+                        component_candidates.add(subtree)
+                        break
+                else:
+                    for subtree in subtrees[candidate]:
+                        component_candidates.add(subtree)
+                        break
+        else:
+            cat_name_ids = {id(category.name)
+                            for category in rule.subcategory_sets[index if index < rule.head_index else index + 1]}
+            for candidate in component_head_candidates:
+                for subtree in subtrees[candidate]:
+                    if id(subtree.category.name) in cat_name_ids:
+                        good = False
+                        cat_index = (index if index < rule.head_index else index + 1)
+                        for category in rule.subcategory_sets[cat_index]:
+                            if subtree.category in category:
+                                good = True
+                                break
+                        if good:
+                            component_candidates.add(subtree)
+        return component_candidates
+
     def load_scoring_measures(self, path=None):
         if path is None:
             if self._scoring_measures_path is None:
@@ -650,20 +609,11 @@ class Parser:
         scores = {}
         with open(path, 'r') as save_file:
             for line in save_file:
-                rule_str, measure_str, score_str, accuracy_str = \
-                    line.strip().split('\t')
+                rule_str, measure_str, score_str, accuracy_str = line.strip().split('\t')
                 if rule_str not in scores:
                     scores[rule_str] = set()
-                scores[rule_str].add(
-                    (
-                        eval(measure_str),
-                        float(score_str),
-                        float(accuracy_str)
-                    )
-                )
-            for rule in (self._primary_leaf_rules |
-                         self._secondary_leaf_rules |
-                         self._branch_rules):
+                scores[rule_str].add((eval(measure_str), float(score_str), float(accuracy_str)))
+            for rule in self._primary_leaf_rules | self._secondary_leaf_rules | self._branch_rules:
                 rule_str = repr(str(rule))
                 if rule_str not in scores:
                     continue
@@ -678,17 +628,7 @@ class Parser:
         else:
             self._scoring_measures_path = path
         with open(path, 'w') as save_file:
-            for rule in sorted(self._primary_leaf_rules |
-                               self._secondary_leaf_rules |
-                               self._branch_rules, key=str):
+            for rule in sorted(self._primary_leaf_rules | self._secondary_leaf_rules | self._branch_rules, key=str):
                 for measure in rule.iter_all_scoring_measures():
                     score, accuracy = rule.get_score(measure)
-                    save_file.write(
-                        '\t'.join(
-                            repr(item)
-                            for item in (str(rule),
-                                         measure,
-                                         score,
-                                         accuracy))
-                        + '\n'
-                    )
+                    save_file.write('\t'.join(repr(item) for item in (str(rule), measure, score, accuracy)) + '\n')
