@@ -1,7 +1,7 @@
 from sys import intern
 
 from pyramids import categorization, parsetrees, scoring
-
+from pyramids.categorization import Category, CATEGORY_WILDCARD
 
 __author__ = 'Aaron Hosford'
 __all__ = [
@@ -27,16 +27,14 @@ class PropertyInheritanceRule:
 
     def __init__(self, category, positive_additions, negative_additions):
         self._category = category
-        self._positive_additions = frozenset(
-            [intern(prop) for prop in positive_additions])
-        self._negative_additions = frozenset(
-            [intern(prop) for prop in negative_additions])
+        self._positive_additions = frozenset(intern(prop) for prop in positive_additions)
+        self._negative_additions = frozenset(intern(prop) for prop in negative_additions)
 
     def __call__(self, category_name, positive, negative):
-        if ((self.category.name == '_' or
-                self.category.name is category_name) and
-                self.category.positive_properties <= positive and
-                self.category.negative_properties <= negative):
+        category = Category(category_name, positive, negative)
+        if ((self.category.is_wildcard() or self.category.name is category.name) and
+                self.category.positive_properties <= category.positive_properties and
+                self.category.negative_properties <= category.negative_properties):
             return self.positive_additions, self.negative_additions
         else:
             return None
@@ -50,10 +48,8 @@ class PropertyInheritanceRule:
         return result
 
     def __repr__(self):
-        return type(self).__name__ + "(" + repr(
-            self.category) + ", " + repr(
-            self.positive_additions) + ", " + repr(
-            self.negative_additions) + ")"
+        return (type(self).__name__ + "(" + repr(self.category) + ", " + repr(self.positive_additions) + ", " +
+                repr(self.negative_additions) + ")")
 
     @property
     def category(self):
@@ -93,8 +89,7 @@ class ParseRule:
 
     def adjust_score(self, parse_node, target):
         if not 0 <= target <= 1:
-            raise ValueError(
-                "Score target must be in the interval [0, 1].")
+            raise ValueError("Score target must be in the interval [0, 1].")
         default_score, default_weight = self._scoring_measures[None]
         error = (target - default_score) ** 2
         weight_target = 1 - error
@@ -176,31 +171,22 @@ class LeafRule(ParseRule):
                 positive.add("mixed_case")
         if not positive:
             positive.add("mixed_case")
-        negative = {
-            "case_free",
-            "lower_case",
-            "upper_case",
-            "title_case",
-            "mixed_case"
-        } - positive
+        negative = {"case_free", "lower_case", "upper_case", "title_case", "mixed_case"} - positive
         return positive, negative
 
     def iter_scoring_measures(self, parse_node):
         # CAREFUL!!! Scoring measures must be perfectly recoverable via
         # eval(repr(measure))
-        yield scoring.ScoringMeasure(
-            tuple(parse_node.tokens[parse_node.start:parse_node.end]))
+        yield scoring.ScoringMeasure(tuple(parse_node.tokens[parse_node.start:parse_node.end]))
         for index in range(parse_node.start, parse_node.end):
-            yield scoring.ScoringMeasure(
-                (index - parse_node.start, parse_node.tokens[index]))
+            yield scoring.ScoringMeasure((index - parse_node.start, parse_node.tokens[index]))
 
 
 class SetRule(LeafRule):
 
     def __init__(self, category, tokens):
         super().__init__(category)
-        self._tokens = frozenset(
-            [intern(token.lower()) for token in tokens])
+        self._tokens = frozenset([intern(token.lower()) for token in tokens])
         self._hash = hash(self._category) ^ hash(self._tokens)
 
     def __hash__(self):
@@ -209,11 +195,8 @@ class SetRule(LeafRule):
     def __eq__(self, other):
         if not isinstance(other, SetRule):
             return NotImplemented
-        return self is other or (
-            self._hash == other._hash and
-            self._category == other._category and
-            self._tokens == other._tokens
-        )
+        return self is other or (self._hash == other._hash and self._category == other._category and
+                                 self._tokens == other._tokens)
 
     def __ne__(self, other):
         if not isinstance(other, SetRule):
@@ -224,8 +207,7 @@ class SetRule(LeafRule):
         return token.lower() in self._tokens
 
     def __repr__(self):
-        return type(self).__name__ + repr((self.category,
-                                           sorted(self.tokens)))
+        return type(self).__name__ + repr((self.category, sorted(self.tokens)))
 
     def __str__(self):
         return str(self.category) + '.ctg'
@@ -241,8 +223,7 @@ class SuffixRule(LeafRule):
         super().__init__(category)
         self._suffixes = frozenset([suffix.lower() for suffix in suffixes])
         self._positive = bool(positive)
-        self._hash = hash(self._category) ^ hash(self._suffixes) ^ hash(
-            self._positive)
+        self._hash = hash(self._category) ^ hash(self._suffixes) ^ hash(self._positive)
 
     def __hash__(self):
         return self._hash
@@ -250,12 +231,8 @@ class SuffixRule(LeafRule):
     def __eq__(self, other):
         if not isinstance(other, SuffixRule):
             return NotImplemented
-        return self is other or (
-            self._hash == other._hash and
-            self._positive == other._positive and
-            self._category == other._category and
-            self._suffixes == other._suffixes
-        )
+        return self is other or (self._hash == other._hash and self._positive == other._positive and
+                                 self._category == other._category and self._suffixes == other._suffixes)
 
     def __ne__(self, other):
         if not isinstance(other, SuffixRule):
@@ -270,13 +247,11 @@ class SuffixRule(LeafRule):
         return not self._positive
 
     def __repr__(self):
-        return type(self).__name__ + "(" + repr(
-            self.category) + ", " + repr(
-            sorted(self.suffixes)) + ", " + repr(self.positive) + ")"
+        return (type(self).__name__ + "(" + repr(self.category) + ", " + repr(sorted(self.suffixes)) + ", " +
+                repr(self.positive) + ")")
 
     def __str__(self):
-        return str(self.category) + ': ' + '-+'[
-            self.positive] + ' ' + ' '.join(sorted(self.suffixes))
+        return str(self.category) + ': ' + '-+'[self.positive] + ' ' + ' '.join(sorted(self.suffixes))
 
     @property
     def suffixes(self):
@@ -290,8 +265,7 @@ class SuffixRule(LeafRule):
 class CaseRule(LeafRule):
 
     def __init__(self, category, case):
-        assert case in ("case_free", "lower_case", "upper_case",
-                        "title_case", "mixed_case")
+        assert case in ("case_free", "lower_case", "upper_case", "title_case", "mixed_case")
         super().__init__(category)
         self._case = case
         self._hash = hash(self._category) ^ hash(self._case)
@@ -306,11 +280,8 @@ class CaseRule(LeafRule):
     def __eq__(self, other):
         if not isinstance(other, CaseRule):
             return NotImplemented
-        return self is other or (
-            self._hash == other._hash and
-            self._category == other._category and
-            self._case == other._case
-        )
+        return self is other or (self._hash == other._hash and self._category == other._category and
+                                 self._case == other._case)
 
     def __ne__(self, other):
         if not isinstance(other, CaseRule):
@@ -339,8 +310,7 @@ class BranchRule(ParseRule):
         raise NotImplementedError()
 
     def iter_scoring_measures(self, parse_node):
-        # CAREFUL!!! Scoring measures must be perfectly recoverable via
-        # eval(repr(measure))
+        # CAREFUL!!! Scoring measures must be perfectly recoverable via eval(repr(measure))
 
         # TODO: These are basic scoring measures. We could conceivably add
         #       much more sophisticated measures that would allow the
@@ -357,12 +327,9 @@ class BranchRule(ParseRule):
         #       class. This allows each rule to identify its own optimal
         #       set of scoring measures independently of the others. That
         #       makes each rule into a unique classifier system.
-        yield scoring.ScoringMeasure(tuple(
-            [component.category for component in parse_node.components]))
+        yield scoring.ScoringMeasure(tuple([component.category for component in parse_node.components]))
         for index in range(len(parse_node.components)):
-            yield scoring.ScoringMeasure(
-                (index, parse_node.components[index].category)
-            )
+            yield scoring.ScoringMeasure((index, parse_node.components[index].category))
         yield scoring.ScoringMeasure(('head', parse_node.head_token))
 
 
@@ -372,53 +339,34 @@ class SequenceRule(BranchRule):
         super(BranchRule, self).__init__()
         # TODO: Type checking
         self._category = category
-        self._subcategory_sets = tuple([frozenset(subcategory_set) for subcategory_set in subcategory_sets])
+        self._subcategory_sets = tuple(frozenset(subcategory_set) for subcategory_set in subcategory_sets)
         self._head_index = head_index
-        self._link_type_sets = tuple([frozenset(link_type_set) for link_type_set in link_type_sets])
+        self._link_type_sets = tuple(frozenset(link_type_set) for link_type_set in link_type_sets)
         if len(self._link_type_sets) >= len(self._subcategory_sets):
             raise ValueError("Too many link type sets.")
-        self._hash = hash(self._category) ^ hash(self._subcategory_sets) ^ hash(self._head_index) ^ \
-                     hash(self._link_type_sets)
-        self._references = frozenset([id(c.name) for s in self._subcategory_sets for c in s])
-        self._has_wildcard = id(intern('_')) in self._references
+        self._hash = (hash(self._category) ^ hash(self._subcategory_sets) ^ hash(self._head_index) ^
+                      hash(self._link_type_sets))
+        self._references = frozenset(c.name for s in self._subcategory_sets for c in s)
+        self._has_wildcard = CATEGORY_WILDCARD in self._references
 
     def _iter_forward_halves(self, category_map, index, start):
-        # Otherwise, we can't possibly find a match since it would have to
-        # fall off the edge
-        if len(self._subcategory_sets) - index <= \
-                category_map.max_end - start:
+        # Otherwise, we can't possibly find a match since it would have to fall off the edge
+        if len(self._subcategory_sets) - index <= category_map.max_end - start:
             if index < len(self._subcategory_sets):
-                for category, end in category_map.iter_forward_matches(
-                        start,
-                        self._subcategory_sets[index]):
-                    for tail in self._iter_forward_halves(
-                            category_map,
-                            index + 1,
-                            end):
-                        for node_set in category_map.iter_node_sets(
-                                start,
-                                category,
-                                end):
+                for category, end in category_map.iter_forward_matches(start, self._subcategory_sets[index]):
+                    for tail in self._iter_forward_halves(category_map, index + 1, end):
+                        for node_set in category_map.iter_node_sets(start, category, end):
                             yield [node_set] + tail
             else:
                 yield []
 
     def _iter_backward_halves(self, category_map, index, end):
-        # Otherwise, we can't possibly find a match since it would have to
-        # fall off the edge
+        # Otherwise, we can't possibly find a match since it would have to fall off the edge
         if index <= end:
             if index >= 0:
-                for category, start in category_map.iter_backward_matches(
-                        end,
-                        self._subcategory_sets[index]):
-                    for tail in self._iter_backward_halves(
-                            category_map,
-                            index - 1,
-                            start):
-                        for node_set in category_map.iter_node_sets(
-                                start,
-                                category,
-                                end):
+                for category, start in category_map.iter_backward_matches(end, self._subcategory_sets[index]):
+                    for tail in self._iter_backward_halves(category_map, index - 1, start):
+                        for node_set in category_map.iter_node_sets(start, category, end):
                             yield tail + [node_set]
             else:
                 yield []
@@ -427,9 +375,8 @@ class SequenceRule(BranchRule):
         """Given a starting index in the sequence, attempt to find and add
         all parse node sequences in the parser state that can contain the
         new node at that index."""
-        # Check forward halves first, because they're less likely, and if
-        # we don't find any, we won't even need to bother looking for
-        # backward halves.
+        # Check forward halves first, because they're less likely, and if we don't find any, we won't even need to
+        # bother looking for backward halves.
         forward_halves = list(self._iter_forward_halves(parser_state.category_map, index + 1, new_node_set.end))
         if forward_halves:
             for backward_half in self._iter_backward_halves(parser_state.category_map, index - 1, new_node_set.start):
@@ -437,16 +384,13 @@ class SequenceRule(BranchRule):
                     subtrees = backward_half + [new_node_set] + forward_half
                     category = self.get_category(parser_state.parser, [subtree.category for subtree in subtrees])
                     if self.is_non_recursive(category, subtrees[self._head_index].category):
-                        parser_state.add_node(
-                            parsetrees.ParseTreeNode(parser_state.tokens, self, self._head_index, category, subtrees)
-                        )
+                        parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self, self._head_index,
+                                                                       category, subtrees))
 
     def __call__(self, parser_state, new_node_set):
-        if not (self._has_wildcard or
-                id(new_node_set.category.name) in self._references):
+        if not (self._has_wildcard or new_node_set.category.name in self._references):
             return
-        for index in range(len(self._subcategory_sets)):
-            subcategory_set = self._subcategory_sets[index]
+        for index, subcategory_set in enumerate(self._subcategory_sets):
             for subcategory in subcategory_set:
                 if new_node_set.category in subcategory:
                     self._find_matches(parser_state, index, new_node_set)
@@ -458,22 +402,16 @@ class SequenceRule(BranchRule):
     def __eq__(self, other):
         if not isinstance(other, SequenceRule):
             return NotImplemented
-        return self is other or (
-            self._hash == other._hash and
-            self._head_index == other._head_index and
-            self._subcategory_sets == other._subcategory_sets and
-            self._link_type_sets == other._link_type_sets
-        )
+        return self is other or (self._hash == other._hash and self._head_index == other._head_index and
+                                 self._subcategory_sets == other._subcategory_sets and
+                                 self._link_type_sets == other._link_type_sets)
 
     def __ne__(self, other):
         if not isinstance(other, SequenceRule):
             return NotImplemented
-        return self is not other and (
-            self._hash != other._hash or
-            self._head_index != other._head_index or
-            self._subcategory_sets != other._subcategory_sets or
-            self._link_type_sets != other._link_type_sets
-        )
+        return self is not other and (self._hash != other._hash or self._head_index != other._head_index or
+                                      self._subcategory_sets != other._subcategory_sets or
+                                      self._link_type_sets != other._link_type_sets)
 
     def __str__(self):
         result = str(self.category) + ':'
@@ -481,15 +419,9 @@ class SequenceRule(BranchRule):
             result += ' '
             if index == self._head_index:
                 result += '*'
-            result += '|'.join(
-                sorted(
-                    str(category)
-                    for category in self._subcategory_sets[index]
-                )
-            )
+            result += '|'.join(sorted(str(category) for category in self._subcategory_sets[index]))
             if index < len(self._link_type_sets):
-                for link_type, left, right in sorted(
-                        self._link_type_sets[index]):
+                for link_type, left, right in sorted(self._link_type_sets[index]):
                     result += ' '
                     if left:
                         result += '<'
@@ -499,19 +431,10 @@ class SequenceRule(BranchRule):
         return result
 
     def __repr__(self):
-        return (
-            type(self).__name__ + "(" +
-            repr(self.category) + ", " +
-            repr([
-                sorted(subcategory_set)
-                for subcategory_set in self.subcategory_sets
-            ]) + ", " +
-            repr(self._head_index) + ", " +
-            repr([
-                sorted(link_type_set)
-                for link_type_set in self.link_type_sets
-            ]) + ")"
-        )
+        return (type(self).__name__ + "(" + repr(self.category) + ", " +
+                repr([sorted(subcategory_set) for subcategory_set in self.subcategory_sets]) + ", " +
+                repr(self._head_index) + ", " +
+                repr([sorted(link_type_set) for link_type_set in self.link_type_sets]) + ")")
 
     @property
     def category(self):
@@ -544,11 +467,8 @@ class SequenceRule(BranchRule):
     def get_category(self, parser, subtree_categories):
         head_category = subtree_categories[self._head_index]
         if self.category.is_wildcard():
-            category = categorization.Category(
-                head_category.name,
-                self.category.positive_properties,
-                self.category.negative_properties
-            )
+            category = categorization.Category(head_category.name, self.category.positive_properties,
+                                               self.category.negative_properties)
         else:
             category = self.category
         positive = set(head_category.positive_properties)
@@ -577,22 +497,16 @@ class SequenceRule(BranchRule):
                         break
                 else:
                     positive.add(prop)
-        # return parser.extend_properties(
-        #     category.promote_properties(positive, negative)
-        # )
+        # return parser.extend_properties(category.promote_properties(positive, negative))
         return category.promote_properties(positive, negative)
 
     def is_non_recursive(self, result_category, head_category):
-        return (
-            len(self.subcategory_sets) > 1 or
+        return (len(self.subcategory_sets) > 1 or
 
-            # TODO: Can we make this better?
-            result_category not in head_category or
-            (result_category.positive_properties >
-                head_category.positive_properties) or
-            (result_category.negative_properties >
-                head_category.negative_properties)
-        )
+                # TODO: Can we make this better?
+                result_category not in head_category or
+                (result_category.positive_properties > head_category.positive_properties) or
+                (result_category.negative_properties > head_category.negative_properties))
 
 
 class SubtreeMatchRule:
@@ -613,9 +527,8 @@ class SubtreeMatchRule:
         raise NotImplementedError()
 
     def __repr__(self):
-        return type(self).__name__ + "(" + repr(
-            self._positive_properties) + ", " + repr(
-            self._negative_properties) + ")"
+        return (type(self).__name__ + "(" + repr(self._positive_properties) + ", " +
+                repr(self._negative_properties) + ")")
 
     # def __eq__(self, other):
     #     raise NotImplementedError()
@@ -643,21 +556,13 @@ class SubtreeMatchRule:
 class CompoundMatchRule(SubtreeMatchRule):
 
     def __str__(self):
-        return str(
-            categorization.Category(
-                'compound',
-                self._positive_properties,
-                self._negative_properties
-            )
-        )
+        return str(categorization.Category('compound', self._positive_properties, self._negative_properties))
 
     def __call__(self, category_list, head_index):
         # Stop before the term that immediately precedes the head
         for index in range(head_index - 1):
-            if ((not self._positive_properties <=
-                    category_list[index].positive_properties) or
-                    (self._negative_properties &
-                     category_list[index].positive_properties)):
+            if ((not self._positive_properties <= category_list[index].positive_properties) or
+                    (self._negative_properties & category_list[index].positive_properties)):
                 return False
         return True
 
@@ -666,67 +571,41 @@ class CompoundMatchRule(SubtreeMatchRule):
 class HeadMatchRule(SubtreeMatchRule):
 
     def __str__(self):
-        return str(
-            categorization.Category(
-                'head',
-                self._positive_properties,
-                self._negative_properties
-            )
-        )
+        return str(categorization.Category('head', self._positive_properties, self._negative_properties))
 
     def __call__(self, category_list, head_index):
-        return (
-            (self._positive_properties <=
-             category_list[head_index].positive_properties) and
-            not (self._negative_properties &
-                 category_list[head_index].positive_properties)
-        )
+        return ((self._positive_properties <= category_list[head_index].positive_properties) and
+                not (self._negative_properties & category_list[head_index].positive_properties))
 
 
 # any_term()
 class AnyTermMatchRule(SubtreeMatchRule):
 
     def __str__(self):
-        return str(
-            categorization.Category(
-                'any_term',
-                self._positive_properties,
-                self._negative_properties
-            )
-        )
+        return str(categorization.Category('any_term', self._positive_properties, self._negative_properties))
 
     def __call__(self, category_list, head_index):
         for index in range(len(category_list)):
             if index == head_index:
                 continue
-            if ((self._positive_properties <=
-                    category_list[index].positive_properties) and
-                    not (self._negative_properties &
-                         category_list[index].positive_properties)):
+            if ((self._positive_properties <= category_list[index].positive_properties) and
+                    not (self._negative_properties & category_list[index].positive_properties)):
                 return True
         return False
 
 
-# all_terms()
+# all_terms(),
 class AllTermsMatchRule(SubtreeMatchRule):
 
     def __str__(self):
-        return str(
-            categorization.Category(
-                'all_terms',
-                self._positive_properties,
-                self._negative_properties
-            )
-        )
+        return str(categorization.Category('all_terms', self._positive_properties, self._negative_properties))
 
     def __call__(self, category_list, head_index):
         for index in range(len(category_list)):
             if index == head_index:
                 continue
-            if (not (self._positive_properties <=
-                     category_list[index].positive_properties) or
-                    (self._negative_properties &
-                     category_list[index].positive_properties)):
+            if (not (self._positive_properties <= category_list[index].positive_properties) or
+                    (self._negative_properties & category_list[index].positive_properties)):
                 return False
         return True
 
@@ -735,23 +614,15 @@ class AllTermsMatchRule(SubtreeMatchRule):
 class OneTermMatchRule(SubtreeMatchRule):
 
     def __str__(self):
-        return str(
-            categorization.Category(
-                'one_term',
-                self._positive_properties,
-                self._negative_properties
-            )
-        )
+        return str(categorization.Category('one_term', self._positive_properties, self._negative_properties))
 
     def __call__(self, category_list, head_index):
         found = False
         for index in range(len(category_list)):
             if index == head_index:
                 continue
-            if ((self._positive_properties <=
-                    category_list[index].positive_properties) and
-                    not (self._negative_properties &
-                         category_list[index].positive_properties)):
+            if ((self._positive_properties <= category_list[index].positive_properties) and
+                    not (self._negative_properties & category_list[index].positive_properties)):
                 if found:
                     return False
                 found = True
@@ -760,22 +631,13 @@ class OneTermMatchRule(SubtreeMatchRule):
 
 # last_term()
 class LastTermMatchRule(SubtreeMatchRule):
+
     def __str__(self):
-        return str(
-            categorization.Category(
-                'last_term',
-                self._positive_properties,
-                self._negative_properties
-            )
-        )
+        return str(categorization.Category('last_term', self._positive_properties, self._negative_properties))
 
     def __call__(self, category_list, head_index):
-        return (
-            (self._positive_properties <=
-             category_list[-1].positive_properties) and
-            not (self._negative_properties &
-                 category_list[-1].positive_properties)
-        )
+        return ((self._positive_properties <= category_list[-1].positive_properties) and
+                not (self._negative_properties & category_list[-1].positive_properties))
 
 
 # TODO: Define properties in the .ini that are used to indicate compound,
@@ -813,103 +675,53 @@ class ConjunctionRule(BranchRule):
         self._compound = bool(compound) and leadup_categories is not None
 
         subcategory_sets = (self._leadup_categories, self._conjunction_categories, self._followup_categories)
-        self._hash = (
-            hash(self._category) ^
-            hash(subcategory_sets) ^
-            hash(self._leadup_link_types) ^
-            hash(self._followup_link_types) ^
-            hash(self._single) ^
-            hash(self._compound)
-        )
-        self._references = frozenset(
-            id(category.name)
-            for category_set in subcategory_sets
-            for category in category_set
-        )
-        self._has_wildcard = id(intern('_')) in self._references
+        self._hash = (hash(self._category) ^ hash(subcategory_sets) ^ hash(self._leadup_link_types) ^
+                      hash(self._followup_link_types) ^ hash(self._single) ^ hash(self._compound))
+        self._references = frozenset(category.name for category_set in subcategory_sets
+                                     for category in category_set)
+        self._has_wildcard = CATEGORY_WILDCARD in self._references
 
     def _can_match(self, subtree_categories, head_index):
         if not self._match_rules:
             return True
         for match_rules in self._match_rules:
-            if all(rule(subtree_categories, head_index)
-                   for rule in match_rules):
+            if all(rule(subtree_categories, head_index) for rule in match_rules):
                 return True
         return False
 
     def _iter_forward_halves(self, category_map, state, start):
         if state == -1:  # Leadup case/exception
-            for category, end in category_map.iter_forward_matches(
-                    start,
-                    self._leadup_categories):
-                for node_set in category_map.iter_node_sets(
-                        start,
-                        category,
-                        end):
-                    for tail in self._iter_forward_halves(
-                            category_map,
-                            0,
-                            end):
+            for category, end in category_map.iter_forward_matches(start, self._leadup_categories):
+                for node_set in category_map.iter_node_sets(start, category, end):
+                    for tail in self._iter_forward_halves(category_map, 0, end):
                         yield [node_set] + tail
                     if self._compound:
-                        for tail in self._iter_forward_halves(
-                                category_map,
-                                -1,
-                                end):
+                        for tail in self._iter_forward_halves(category_map, -1, end):
                             yield [node_set] + tail
         elif state == 0:  # Conjunction
-            for category, end in category_map.iter_forward_matches(
-                    start,
-                    self._conjunction_categories):
-                for node_set in category_map.iter_node_sets(
-                        start,
-                        category,
-                        end):
-                    for tail in self._iter_forward_halves(
-                            category_map,
-                            1,
-                            end):
+            for category, end in category_map.iter_forward_matches(start, self._conjunction_categories):
+                for node_set in category_map.iter_node_sets(start, category, end):
+                    for tail in self._iter_forward_halves(category_map, 1, end):
                         yield [node_set] + tail
         elif state == 1:  # Followup case/exception
-            for category, end in category_map.iter_forward_matches(
-                    start,
-                    self._followup_categories):
-                for node_set in category_map.iter_node_sets(
-                        start,
-                        category,
-                        end):
+            for category, end in category_map.iter_forward_matches(start, self._followup_categories):
+                for node_set in category_map.iter_node_sets(start, category, end):
                     yield [node_set]
         else:
             raise Exception("Unexpected state: " + repr(state))
 
     def _iter_backward_halves(self, category_map, state, end):
         if state == -1:  # Leadup case/exception
-            for category, start in category_map.iter_backward_matches(
-                    end,
-                    self._leadup_categories):
-                for node_set in category_map.iter_node_sets(
-                        start,
-                        category,
-                        end):
+            for category, start in category_map.iter_backward_matches(end, self._leadup_categories):
+                for node_set in category_map.iter_node_sets(start, category, end):
                     if self._compound:
-                        for tail in self._iter_backward_halves(
-                                category_map,
-                                -1,
-                                start):
+                        for tail in self._iter_backward_halves(category_map, -1, start):
                             yield tail + [node_set]
                     yield [node_set]
         elif state == 0:  # Conjunction
-            for category, start in category_map.iter_backward_matches(
-                    end,
-                    self._conjunction_categories):
-                for node_set in category_map.iter_node_sets(
-                        start,
-                        category,
-                        end):
-                    for tail in self._iter_backward_halves(
-                            category_map,
-                            -1,
-                            start):
+            for category, start in category_map.iter_backward_matches(end, self._conjunction_categories):
+                for node_set in category_map.iter_node_sets(start, category, end):
+                    for tail in self._iter_backward_halves(category_map, -1, start):
                         yield tail + [node_set]
                     if self._single:
                         yield [node_set]
@@ -930,151 +742,54 @@ class ConjunctionRule(BranchRule):
             if state == -1:  # Leadup case/exception
                 for forward_half in forward_halves:
                     head_offset = len(forward_half) - 2
-                    subtree_categories = [
-                        subtree.category
-                        for subtree in forward_half
-                    ]
+                    subtree_categories = [subtree.category for subtree in forward_half]
                     if self._can_match(subtree_categories, head_offset):
-                        category = self.get_category(
-                            parser_state.parser,
-                            subtree_categories,
-                            head_offset
-                        )
-                        if self.is_non_recursive(
-                                category,
-                                forward_half[head_offset].category):
-                            parser_state.add_node(
-                                parsetrees.ParseTreeNode(
-                                    parser_state.tokens,
-                                    self,
-                                    head_offset,
-                                    category,
-                                    forward_half
-                                )
-                            )
+                        category = self.get_category(parser_state.parser, subtree_categories, head_offset)
+                        if self.is_non_recursive(category, forward_half[head_offset].category):
+                            parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self, head_offset,
+                                                                           category, forward_half))
                 if self._compound:
-                    for backward_half in self._iter_backward_halves(
-                            parser_state.category_map,
-                            -1,
-                            new_node_set.start):
+                    for backward_half in self._iter_backward_halves(parser_state.category_map, -1, new_node_set.start):
                         for forward_half in forward_halves:
                             subtrees = backward_half + forward_half
                             head_offset = len(subtrees) - 2
-                            subtree_categories = [
-                                subtree.category
-                                for subtree in subtrees
-                            ]
-                            if self._can_match(
-                                    subtree_categories,
-                                    head_offset):
-                                category = self.get_category(
-                                    parser_state.parser,
-                                    subtree_categories,
-                                    head_offset
-                                )
-                                if self.is_non_recursive(
-                                        category,
-                                        subtrees[head_offset].category):
-                                    parser_state.add_node(
-                                        parsetrees.ParseTreeNode(
-                                            parser_state.tokens,
-                                            self,
-                                            head_offset,
-                                            category,
-                                            subtrees
-                                        )
-                                    )
+                            subtree_categories = [subtree.category for subtree in subtrees]
+                            if self._can_match(subtree_categories, head_offset):
+                                category = self.get_category(parser_state.parser, subtree_categories, head_offset)
+                                if self.is_non_recursive(category, subtrees[head_offset].category):
+                                    parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self,
+                                                                                   head_offset, category, subtrees))
             elif state == 0:  # Conjunction
                 if self._single:
                     for forward_half in forward_halves:
                         head_offset = len(forward_half) - 2
-                        subtree_categories = [
-                            subtree.category
-                            for subtree in forward_half
-                        ]
-                        if self._can_match(
-                                subtree_categories,
-                                head_offset):
-                            category = self.get_category(
-                                parser_state.parser,
-                                subtree_categories,
-                                head_offset
-                            )
-                            if self.is_non_recursive(
-                                    category,
-                                    forward_half[head_offset].category):
-                                parser_state.add_node(
-                                    parsetrees.ParseTreeNode(
-                                        parser_state.tokens,
-                                        self,
-                                        head_offset,
-                                        category,
-                                        forward_half
-                                    )
-                                )
-                for backward_half in self._iter_backward_halves(
-                        parser_state.category_map,
-                        -1,
-                        new_node_set.start):
+                        subtree_categories = [subtree.category for subtree in forward_half]
+                        if self._can_match(subtree_categories, head_offset):
+                            category = self.get_category(parser_state.parser, subtree_categories, head_offset)
+                            if self.is_non_recursive(category, forward_half[head_offset].category):
+                                parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self, head_offset,
+                                                                               category, forward_half))
+                for backward_half in self._iter_backward_halves(parser_state.category_map, -1, new_node_set.start):
                     for forward_half in forward_halves:
                         subtrees = backward_half + forward_half
                         head_offset = len(subtrees) - 2
-                        subtree_categories = [
-                            subtree.category
-                            for subtree in subtrees
-                        ]
-                        if self._can_match(
-                                subtree_categories,
-                                head_offset):
-                            category = self.get_category(
-                                parser_state.parser,
-                                subtree_categories,
-                                head_offset
-                            )
-                            if self.is_non_recursive(
-                                    category,
-                                    subtrees[head_offset].category):
-                                parser_state.add_node(
-                                    parsetrees.ParseTreeNode(
-                                        parser_state.tokens,
-                                        self,
-                                        head_offset,
-                                        category,
-                                        subtrees
-                                    )
-                                )
+                        subtree_categories = [subtree.category for subtree in subtrees]
+                        if self._can_match(subtree_categories, head_offset):
+                            category = self.get_category(parser_state.parser, subtree_categories, head_offset)
+                            if self.is_non_recursive(category, subtrees[head_offset].category):
+                                parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self, head_offset,
+                                                                               category, subtrees))
             elif state == 1:  # Followup case/exception
-                for backward_half in self._iter_backward_halves(
-                        parser_state.category_map,
-                        0,
-                        new_node_set.start):
+                for backward_half in self._iter_backward_halves(parser_state.category_map, 0, new_node_set.start):
                     for forward_half in forward_halves:
                         subtrees = backward_half + forward_half
                         head_offset = len(subtrees) - 2
-                        subtree_categories = [
-                            subtree.category
-                            for subtree in subtrees
-                        ]
-                        if self._can_match(
-                                subtree_categories,
-                                head_offset):
-                            category = self.get_category(
-                                parser_state.parser,
-                                subtree_categories,
-                                head_offset
-                            )
-                            if self.is_non_recursive(
-                                    category,
-                                    subtrees[head_offset].category):
-                                parser_state.add_node(
-                                    parsetrees.ParseTreeNode(
-                                        parser_state.tokens,
-                                        self,
-                                        head_offset,
-                                        category,
-                                        subtrees
-                                    )
-                                )
+                        subtree_categories = [subtree.category for subtree in subtrees]
+                        if self._can_match(subtree_categories, head_offset):
+                            category = self.get_category(parser_state.parser, subtree_categories, head_offset)
+                            if self.is_non_recursive(category, subtrees[head_offset].category):
+                                parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self, head_offset,
+                                                                               category, subtrees))
             else:
                 raise Exception("Unexpected state: " + repr(state))
 
@@ -1084,11 +799,9 @@ class ConjunctionRule(BranchRule):
     #       if we're strictly appending new tokens? This may be an
     #       opportunity for an extreme speedup.
     def __call__(self, parser_state, new_node_set):
-        if not (self._has_wildcard or
-                id(new_node_set.category.name) in self._references):
+        if not (self._has_wildcard or new_node_set.category.name in self._references):
             return
-        for state, subcategory_set in ((-1, self._leadup_categories),
-                                       (0, self._conjunction_categories),
+        for state, subcategory_set in ((-1, self._leadup_categories), (0, self._conjunction_categories),
                                        (1, self._followup_categories)):
             for subcategory in subcategory_set:
                 if new_node_set.category in subcategory:
@@ -1101,61 +814,39 @@ class ConjunctionRule(BranchRule):
     def __eq__(self, other):
         if not isinstance(other, ConjunctionRule):
             return NotImplemented
-        return self is other or (
-            self._hash == other._hash and
-            self._single == other._single and
-            self._compound == other._compound and
-            self._leadup_link_types == other._leadup_link_types and
-            self._followup_link_types == other._followup_link_types and
-            self._category == other._category and
-            (self._conjunction_categories ==
-             other._conjunction_categories) and
-            self._leadup_categories == other._leadup_categories and
-            self._followup_categories == other._followup_categories
-        )
+        return self is other or (self._hash == other._hash and self._single == other._single and
+                                 self._compound == other._compound and
+                                 self._leadup_link_types == other._leadup_link_types and
+                                 self._followup_link_types == other._followup_link_types and
+                                 self._category == other._category and
+                                 self._conjunction_categories == other._conjunction_categories and
+                                 self._leadup_categories == other._leadup_categories and
+                                 self._followup_categories == other._followup_categories)
 
     def __ne__(self, other):
         if not isinstance(other, ConjunctionRule):
             return NotImplemented
-        return self is not other and not (
-            self._hash == other._hash and
-            self._single == other._single and
-            self._compound == other._compound and
-            self._leadup_link_types == other._leadup_link_types and
-            self._followup_link_types == other._followup_link_types and
-            self._category == other._category and
-            (self._conjunction_categories ==
-             other._conjunction_categories) and
-            self._leadup_categories == other._leadup_categories and
-            self._followup_categories == other._followup_categories
-        )
+        return self is not other and not (self._hash == other._hash and self._single == other._single and
+                                          self._compound == other._compound and
+                                          self._leadup_link_types == other._leadup_link_types and
+                                          self._followup_link_types == other._followup_link_types and
+                                          self._category == other._category and
+                                          self._conjunction_categories == other._conjunction_categories and
+                                          self._leadup_categories == other._leadup_categories and
+                                          self._followup_categories == other._followup_categories)
 
     def __str__(self):
         result = str(self.category) + ':'
         for rules in self._match_rules:
             result += ' [' + ' '.join(str(rule) for rule in rules) + ']'
         for properties, rules in self._property_rules:
-            result += (
-                ' ' +
-                ','.join(
-                    ('' if is_positive else '-') + prop.name
-                    for prop, is_positive in properties
-                ) +
-                '[' + ' '.join(str(rule) for rule in rules) + ']'
-            )
-        for prefix, category_set, link_types in (
-                ('+' if self._compound else ('-' if self._single else ''),
-                 self._leadup_categories,
-                 self._leadup_link_types),
-                ('*',
-                 self._conjunction_categories,
-                 self._followup_link_types),
-                ('',
-                 self._followup_categories,
-                 None)):
-            result += ' ' + prefix + '|'.join(
-                sorted(str(category) for category in category_set)
-            )
+            result += (' ' + ','.join(('' if is_positive else '-') + prop for prop, is_positive in properties) +
+                       '[' + ' '.join(str(rule) for rule in rules) + ']')
+        for prefix, category_set, link_types in (('+' if self._compound else ('-' if self._single else ''),
+                                                  self._leadup_categories, self._leadup_link_types),
+                                                 ('*', self._conjunction_categories, self._followup_link_types),
+                                                 ('', self._followup_categories, None)):
+            result += ' ' + prefix + '|'.join(sorted(str(category) for category in category_set))
             if link_types:
                 for link_type, left, right in sorted(link_types):
                     result += ' '
@@ -1167,36 +858,21 @@ class ConjunctionRule(BranchRule):
         return result
 
     def __repr__(self):
-        return (
-            type(self).__name__ + "(" +
-            repr(self.category) + ", " +
-            repr([
-                sorted(subcategory_set)
-                for subcategory_set in self._leadup_categories
-            ]) + ", " +
-            repr([
-                sorted(subcategory_set)
-                for subcategory_set in self._conjunction_categories
-            ]) + ", " +
-            repr([
-                sorted(subcategory_set)
-                for subcategory_set in self._followup_categories
-            ]) + ", " +
-            repr(self._leadup_link_types) + ", " +
-            repr(self._followup_link_types) + ", " +
-            repr(self._single) + ", " + repr(self._compound) + ")"
-        )
+        return (type(self).__name__ + "(" + repr(self.category) + ", " +
+                repr([sorted(subcategory_set) for subcategory_set in self._leadup_categories]) + ", " +
+                repr([sorted(subcategory_set) for subcategory_set in self._conjunction_categories]) + ", " +
+                repr([sorted(subcategory_set) for subcategory_set in self._followup_categories]) + ", " +
+                repr(self._leadup_link_types) + ", " + repr(self._followup_link_types) + ", " +
+                repr(self._single) + ", " + repr(self._compound) + ")")
 
     @property
     def category(self):
-        """The category (and required properties) generated by this rule.
-        """
+        """The category (and required properties) generated by this rule."""
         return self._category
 
     @property
     def head_category_set(self):
-        """The category set for the head of the generated parse tree nodes.
-        """
+        """The category set for the head of the generated parse tree nodes."""
         return self._conjunction_categories
 
     @property
@@ -1233,10 +909,8 @@ class ConjunctionRule(BranchRule):
 
     @property
     def link_type_sets(self):
-        return (
-            frozenset([(self._leadup_link_types, True, False)]),
-            frozenset([(self._followup_link_types, False, True)]),
-        )
+        return (frozenset([(self._leadup_link_types, True, False)]),
+                frozenset([(self._followup_link_types, False, True)]),)
 
     def get_link_types(self, parse_node, link_set_index):
         # If it's the last link set interval
@@ -1251,11 +925,8 @@ class ConjunctionRule(BranchRule):
             # Figure out what head index to use
             head_index = len(subtree_categories) - 2
         if self.category.is_wildcard():
-            category = categorization.Category(
-                subtree_categories[-1].name,
-                self.category.positive_properties,
-                self.category.negative_properties
-            )
+            category = categorization.Category(subtree_categories[-1].name, self.category.positive_properties,
+                                               self.category.negative_properties)
         else:
             category = self.category
 
@@ -1295,10 +966,10 @@ class ConjunctionRule(BranchRule):
 
         # Add the standard properties
         # TODO: Load these from the .ini instead of hard-coding them.
-        conjunction_property = categorization.Property("conjunction")
-        compound_property = categorization.Property("compound")
-        simple_property = categorization.Property("simple")
-        single_property = categorization.Property("single")
+        conjunction_property = categorization.Property.get("conjunction")
+        compound_property = categorization.Property.get("compound")
+        simple_property = categorization.Property.get("simple")
+        single_property = categorization.Property.get("single")
         positive.add(conjunction_property)
         negative.discard(conjunction_property)
         if len(subtree_categories) > 3:
@@ -1334,14 +1005,11 @@ class ConjunctionRule(BranchRule):
                     negative.add(prop)
                     positive.discard(prop)
 
-        # return parser.extend_properties(
-        #     category.promote_properties(positive, negative)
-        # )
+        # return parser.extend_properties(category.promote_properties(positive, negative))
         return category.promote_properties(positive, negative)
 
     # noinspection PyUnusedLocal
     @staticmethod
     def is_non_recursive(result_category, head_category):
-        # It's *never* recursive, because we require more than one token
-        # for every conjunctive phrase
+        # It's *never* recursive, because we require more than one token for every conjunctive phrase
         return True

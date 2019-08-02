@@ -16,7 +16,7 @@ import math
 import time
 
 from pyramids import categorization, exceptions, graphs, tokenization
-
+from pyramids.categorization import Property
 
 __author__ = 'Aaron Hosford'
 __all__ = [
@@ -269,7 +269,7 @@ class ParseTreeNode:
 
         if self._parents:
             for parent in self._parents:
-                parent.update_weighted_score(self)
+                parent.update_weighted_score()
 
     def adjust_score(self, target):
         self.rule.adjust_score(self, target)
@@ -277,7 +277,14 @@ class ParseTreeNode:
             for component in self.components:
                 component.adjust_score(target)
         # self._score = None
-        self.update_weighted_score()
+        # self.update_weighted_score()
+
+    def recursive_score_update(self):
+        if self.is_leaf():
+            self.update_weighted_score()
+        else:
+            for component in self.components:
+                component.recursive_score_update()
 
     def add_parent(self, parent):
         if self._parents is None:
@@ -310,8 +317,9 @@ class ParseTreeNode:
 
             need_sources = {}
             for prop in self.category.positive_properties:
-                if prop.name.startswith(('needs_', 'takes_')):
-                    need_sources[prop.name[6:]] = {self.head_token_start}
+                if prop.startswith(('needs_', 'takes_')):
+                    needed = Property.get(prop[6:])
+                    need_sources[needed] = {self.head_token_start}
             return need_sources
 
         head_start = self.components[self._head_index].best.head_token_start
@@ -400,12 +408,12 @@ class ParseTreeNode:
         # subtree
         parent_need_sources = {}
         for prop in self.category.positive_properties:
-            if prop.name.startswith(('needs_', 'takes_')):
-                if prop.name[6:] in need_sources:
-                    parent_need_sources[prop.name[6:]] = \
-                        need_sources[prop.name[6:]]
+            if prop.startswith(('needs_', 'takes_')):
+                needed = Property.get(prop[6:])
+                if needed in need_sources:
+                    parent_need_sources[needed] = need_sources[needed]
                 else:
-                    parent_need_sources[prop.name[6:]] = {head_start}
+                    parent_need_sources[needed] = {head_start}
         return parent_need_sources
 
 
@@ -645,6 +653,8 @@ class ParseTreeNodeSet:
 
         self._hash = hash(self._start) ^ hash(self._end) ^ hash(self._category)
 
+        assert self._best_node is not None
+
     def __repr__(self):
         return type(self).__name__ + "(" + repr(self._unique) + ")"
 
@@ -732,6 +742,8 @@ class ParseTreeNodeSet:
 
     @property
     def head_token(self):
+        if self._best_node is None:
+            print(self._unique)
         return self._best_node.head_token
 
     def is_compatible(self, node_or_set):
@@ -750,6 +762,8 @@ class ParseTreeNodeSet:
             return
         self._unique.add(node)
         node.add_parent(self)
+        if self._best_node is None:
+            self._best_node = node
         self.update_weighted_score(node)
 
     def get_weighted_score(self):
@@ -758,23 +772,38 @@ class ParseTreeNodeSet:
     def get_score_data(self):
         return self._best_node.get_score_data() if self._best_node else None
 
-    def update_weighted_score(self, affected_node):
-        if self._best_node is None or self._best_node.get_weighted_score() < affected_node.get_weighted_score():
+    def update_weighted_score(self, affected_node=None):
+        assert self._best_node is not None
+        if affected_node is None or affected_node is self._best_node:
+            best_score = None
+            best_node = None
+            for node in self._unique:
+                score = node.get_weighted_score()
+                if best_score is None or best_score < score:
+                    best_score = score
+                    best_node = node
+            self._best_node = best_node
+            if self._parents:
+                for parent in self._parents:
+                    parent.update_weighted_score()
+        elif self._best_node.get_weighted_score() < affected_node.get_weighted_score():
             self._best_node = affected_node
-        if self._parents:
-            for parent in self._parents:
-                parent.update_weighted_score()
+            if self._parents:
+                for parent in self._parents:
+                    parent.update_weighted_score()
+        assert self._best_node is not None
 
     def adjust_score(self, target):
-        best_score = None
-        best_node = None
         for node in self._unique:
             node.adjust_score(target)
-            score = node.get_weighted_score()
-            if best_score is None or best_score < score:
-                best_score = score
-                best_node = node
-        self._best_node = best_node
+        # if self._parents:
+        #     for parent in self._parents:
+        #         parent.update_weighted_score()
+
+    def recursive_score_update(self):
+        for node in self._unique:
+            node.recursive_score_update()
+        assert self._best_node is not None
 
     def add_parent(self, parent):
         if self._parents is None:
@@ -906,6 +935,7 @@ class ParseTree:
 
     def adjust_score(self, target):
         self.root.adjust_score(target)
+        self.root.recursive_score_update()
 
     def visit(self, handler):
         # TODO: Make sure the return value is empty. If not, it's a bad

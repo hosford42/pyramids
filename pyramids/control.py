@@ -65,12 +65,12 @@ class ParserConfigInfo:
 
         # Properties
         self._any_promoted_properties = frozenset(
-            categorization.Property(prop.strip())
+            categorization.Property.get(prop.strip())
             for prop in config_parser.get('Properties', 'Any-Promoted Properties').split(';')
             if prop.strip()
         )
         self._all_promoted_properties = frozenset(
-            categorization.Property(prop.strip())
+            categorization.Property.get(prop.strip())
             for prop in config_parser.get('Properties', 'All-Promoted Properties').split(';')
             if prop.strip()
         )
@@ -227,57 +227,33 @@ class ParserLoader:
                     "Unexpected: white space in category definition",
                     offset=offset + len(name) + 1
                 )
-            properties = [
-                prop.strip()
-                for prop in properties.split(',')
-            ]
+            properties = [prop.strip() for prop in properties.split(',')]
             for prop in properties:
                 if not prop.strip():
                     if ",," in definition:
-                        raise exceptions.GrammarSyntaxError(
-                            "Unexpected: ','",
-                            offset=offset + definition.find(",,") + 1
-                        )
+                        raise exceptions.GrammarSyntaxError("Unexpected: ','",
+                                                            offset=offset + definition.find(",,") + 1)
                     elif "(," in definition:
-                        raise exceptions.GrammarSyntaxError(
-                            "Unexpected: ','",
-                            offset=offset + definition.find("(,") + 1
-                        )
+                        raise exceptions.GrammarSyntaxError("Unexpected: ','",
+                                                            offset=offset + definition.find("(,") + 1)
                     elif ",)" in definition:
-                        raise exceptions.GrammarSyntaxError(
-                            "Unexpected: ')'",
-                            offset=offset + definition.find(",)") + 1
-                        )
+                        raise exceptions.GrammarSyntaxError("Unexpected: ')'",
+                                                            offset=offset + definition.find(",)") + 1)
                     else:
-                        raise exceptions.GrammarSyntaxError(
-                            "Unexpected: ')'",
-                            offset=offset + definition.find("()") + 1
-                        )
-            positive = [
-                prop
-                for prop in properties
-                if not prop.startswith('-')
-            ]
-            negative = [
-                prop[1:]
-                for prop in properties
-                if prop.startswith('-')
-            ]
+                        raise exceptions.GrammarSyntaxError("Unexpected: ')'",
+                                                            offset=offset + definition.find("()") + 1)
+            positive = [prop for prop in properties if not prop.startswith('-')]
+            negative = [prop[1:] for prop in properties if prop.startswith('-')]
             for prop in negative:
                 if prop.startswith('-'):
-                    raise exceptions.GrammarSyntaxError(
-                        "Unexpected: '-'",
-                        offset=offset + definition.find('-' + prop)
-                    )
+                    raise exceptions.GrammarSyntaxError("Unexpected: '-'", offset=offset + definition.find('-' + prop))
                 if prop in positive:
-                    raise exceptions.GrammarSyntaxError(
-                        "Unexpected: prop is both positive and negative",
-                        offset=offset + definition.find(prop)
-                    )
+                    raise exceptions.GrammarSyntaxError("Unexpected: prop is both positive and negative",
+                                                        offset=offset + definition.find(prop))
             return categorization.Category(
                 name,
-                [categorization.Property(name) for name in positive],
-                [categorization.Property(name) for name in negative]
+                [categorization.Property.get(n) for n in positive],
+                [categorization.Property.get(n) for n in negative]
             )
         else:
             if ')' in definition:
@@ -296,10 +272,7 @@ class ParserLoader:
                     offset=offset + len(definition.split()[0]) + 1
                 )
             if not definition:
-                raise exceptions.GrammarSyntaxError(
-                    "Expected: category definition",
-                    offset=offset
-                )
+                raise exceptions.GrammarSyntaxError("Expected: category definition", offset=offset)
             return categorization.Category(definition)
 
     def parse_branch_rule_term(self, term, offset=1):
@@ -510,13 +483,7 @@ class ParserLoader:
                     error.set_info(path, line_number, None, raw_line)
                     raise error
                 except Exception as original_exception:
-                    raise exceptions.GrammarParserError(
-                        None,
-                        path,
-                        line_number,
-                        None,
-                        raw_line
-                    ) from original_exception
+                    raise exceptions.GrammarParserError(None, path, line_number, None, raw_line) from original_exception
         return branch_rules
 
     def parse_match_rule(self, definition, offset=1):
@@ -544,24 +511,15 @@ class ParserLoader:
                 category_definition,
                 offset=1 + definition.find(category_definition)
             )
-            generator = generator_map.get(category.name, None)
+            generator = generator_map.get(str(category.name), None)
             if generator is None:
-                raise exceptions.GrammarSyntaxError(
-                    "Unexpected: " + repr(category),
-                    offset=1 + definition.find(category_definition)
-                )
+                raise exceptions.GrammarSyntaxError("Unexpected: " + repr(category),
+                                                    offset=1 + definition.find(category_definition))
             else:
                 assert callable(generator)
-                rule_list.append(
-                    generator(
-                        category.positive_properties,
-                        category.negative_properties
-                    )
-                )
+                rule_list.append(generator(category.positive_properties, category.negative_properties))
         if not rule_list:
-            raise exceptions.GrammarSyntaxError(
-                "Expected: category"
-            )
+            raise exceptions.GrammarSyntaxError("Expected: category")
         return tuple(rule_list)
 
     def parse_conjunction_rule(self, category, match_rules, property_rules,
@@ -769,33 +727,15 @@ class ParserLoader:
                                 properties = set()
                                 for property_name in property_names:
                                     if property_name.startswith('-'):
-                                        properties.add(
-                                            (
-                                                categorization.Property(
-                                                    property_name[1:]
-                                                ),
-                                                False
-                                            )
-                                        )
+                                        properties.add((categorization.Property.get(property_name[1:]), False))
                                     else:
-                                        properties.add(
-                                            (
-                                                categorization.Property(
-                                                    property_name
-                                                ),
-                                                True
-                                            )
-                                        )
+                                        properties.add((categorization.Property.get(property_name), True))
                                 line_remainder = line[left_bracket_index:]
                                 property_rules.append(
                                     (
                                         frozenset(properties),
-                                        self.parse_match_rule(
-                                            line_remainder.lstrip(),
-                                            offset=1 + line.find(
-                                                line_remainder.strip()
-                                            )
-                                        )
+                                        self.parse_match_rule(line_remainder.lstrip(),
+                                                              offset=1 + line.find(line_remainder.strip()))
                                     )
                                 )
                         else:
@@ -1501,10 +1441,7 @@ class ParserCmd(cmd.Cmd):
         if not line:
             line = os.path.abspath('data/pyramids.ini')
             if not os.path.isfile(line):
-                line = os.path.join(
-                    os.path.dirname(__file__),
-                    'data/pyramids.ini'
-                )
+                line = os.path.join(os.path.dirname(__file__), 'data/pyramids.ini')
         if not os.path.isfile(line):
             print("The pyramids.ini file could not be found.")
             return
@@ -2072,8 +2009,7 @@ class ParserCmd(cmd.Cmd):
             for parse in self._parses:
                 ranks[parse] = parse.get_rank()
             self._parses.sort(key=ranks.get, reverse=True)
-            self._parse_index = [id(parse) for parse in
-                                 self._parses].index(id(best_parse))
+            self._parse_index = [id(parse) for parse in self._parses].index(id(best_parse))
             if (self._parses[0] is best_parse or
                     len(self._parses[self._parse_index - 1].parse_trees) !=
                     len(best_parse.parse_trees) or
@@ -2233,10 +2169,8 @@ class ParserCmd(cmd.Cmd):
         #       occur if the first try gives the right answer and
         #       the score is already >= .9; otherwise, it will
         #       throw off the relative scoring of other parses.
-        if (not target or
-                self._parse_index or
-                (self._parses[self._parse_index].get_weighted_score()[0] <
-                 .9)):
+        if (not target or self._parse_index or
+                (self._parses[self._parse_index].get_weighted_score()[0] < .9)):
             self._parses[self._parse_index].adjust_score(target)
 
     def _training_iterator(self, text):

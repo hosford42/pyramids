@@ -52,36 +52,36 @@ class CategoryMap:
         mapped."""
 
         cat = node.category
-        name_id = id(cat.name)
+        name = cat.name
         start = node.start
         end = node.end
 
         if start not in self._map:
             node_set = parsetrees.ParseTreeNodeSet(node)
-            self._map[start] = {name_id: {cat: {end: node_set}}}
-        elif name_id not in self._map[start]:
+            self._map[start] = {name: {cat: {end: node_set}}}
+        elif name not in self._map[start]:
             node_set = parsetrees.ParseTreeNodeSet(node)
-            self._map[start][name_id] = {cat: {end: node_set}}
-        elif cat not in self._map[start][name_id]:
+            self._map[start][name] = {cat: {end: node_set}}
+        elif cat not in self._map[start][name]:
             node_set = parsetrees.ParseTreeNodeSet(node)
-            self._map[start][name_id][cat] = {end: node_set}
-        elif end not in self._map[start][name_id][cat]:
+            self._map[start][name][cat] = {end: node_set}
+        elif end not in self._map[start][name][cat]:
             node_set = parsetrees.ParseTreeNodeSet(node)
-            self._map[start][name_id][cat][end] = node_set
-        elif node not in self._map[start][name_id][cat][end]:
-            self._map[start][name_id][cat][end].add(node)
+            self._map[start][name][cat][end] = node_set
+        elif node not in self._map[start][name][cat][end]:
+            self._map[start][name][cat][end].add(node)
             return False  # No new node sets were added.
         else:
             return False  # It's already in the map
 
         if end not in self._reverse_map:
-            self._reverse_map[end] = {name_id: {cat: {start: node_set}}}
-        elif name_id not in self._reverse_map[end]:
-            self._reverse_map[end][name_id] = {cat: {start: node_set}}
-        elif cat not in self._reverse_map[end][name_id]:
-            self._reverse_map[end][name_id][cat] = {start: node_set}
-        elif start not in self._reverse_map[end][name_id][cat]:
-            self._reverse_map[end][name_id][cat][start] = node_set
+            self._reverse_map[end] = {name: {cat: {start: node_set}}}
+        elif name not in self._reverse_map[end]:
+            self._reverse_map[end][name] = {cat: {start: node_set}}
+        elif cat not in self._reverse_map[end][name]:
+            self._reverse_map[end][name][cat] = {start: node_set}
+        elif start not in self._reverse_map[end][name][cat]:
+            self._reverse_map[end][name][cat][start] = node_set
 
         if end > self._max_end:
             self._max_end = end
@@ -94,16 +94,16 @@ class CategoryMap:
     def iter_forward_matches(self, start, categories):
         if start in self._map:
             for category in categories:
-                by_name_id = self._map[start]
-                if category.name == '_':
-                    for category_name_id in by_name_id:
-                        by_cat = by_name_id[category_name_id]
+                by_name = self._map[start]
+                if category.is_wildcard():
+                    for category_name in by_name:
+                        by_cat = by_name[category_name]
                         for mapped_category in by_cat:
                             if mapped_category in category:
                                 for end in by_cat[mapped_category]:
                                     yield mapped_category, end
-                elif id(category.name) in by_name_id:
-                    by_cat = by_name_id[id(category.name)]
+                elif category.name in by_name:
+                    by_cat = by_name[category.name]
                     for mapped_category in by_cat:
                         if mapped_category in category:
                             for end in by_cat[mapped_category]:
@@ -112,16 +112,16 @@ class CategoryMap:
     def iter_backward_matches(self, end, categories):
         if end in self._reverse_map:
             for category in categories:
-                by_name_id = self._reverse_map[end]
-                if category.name == '_':
-                    for category_name_id in by_name_id:
-                        by_cat = by_name_id[category_name_id]
+                by_name = self._reverse_map[end]
+                if category.is_wildcard():
+                    for category_name in by_name:
+                        by_cat = by_name[category_name]
                         for mapped_category in by_cat:
                             if mapped_category in category:
                                 for start in by_cat[mapped_category]:
                                     yield mapped_category, start
-                elif id(category.name) in by_name_id:
-                    by_cat = by_name_id[id(category.name)]
+                elif category.name in by_name:
+                    by_cat = by_name[category.name]
                     for mapped_category in by_cat:
                         if mapped_category in category:
                             for start in by_cat[mapped_category]:
@@ -129,20 +129,20 @@ class CategoryMap:
 
     def iter_node_sets(self, start, category, end):
         if (start in self._map and
-                id(category.name) in self._map[start] and
-                category in self._map[start][id(category.name)] and
-                end in self._map[start][id(category.name)][category]):
-            yield self._map[start][id(category.name)][category][end]
+                category.name in self._map[start] and
+                category in self._map[start][category.name] and
+                end in self._map[start][category.name][category]):
+            yield self._map[start][category.name][category][end]
 
     def get_node_set(self, node):
         category = node.category
-        name_id = id(category.name)
+        name = category.name
         start = node.start
         if (start in self._map and
-                name_id in self._map[start] and
-                category in self._map[start][name_id] and
-                node.end in self._map[start][name_id][category]):
-            return self._map[start][name_id][category][node.end]
+                name in self._map[start] and
+                category in self._map[start][name] and
+                node.end in self._map[start][name][category]):
+            return self._map[start][name][category][node.end]
         else:
             return None
 
@@ -584,11 +584,11 @@ class Parser:
                         component_candidates.add(subtree)
                         break
         else:
-            cat_name_ids = {id(category.name)
-                            for category in rule.subcategory_sets[index if index < rule.head_index else index + 1]}
+            cat_names = {category.name
+                         for category in rule.subcategory_sets[index if index < rule.head_index else index + 1]}
             for candidate in component_head_candidates:
                 for subtree in subtrees[candidate]:
-                    if id(subtree.category.name) in cat_name_ids:
+                    if subtree.category.name in cat_names:
                         good = False
                         cat_index = (index if index < rule.head_index else index + 1)
                         for category in rule.subcategory_sets[cat_index]:
@@ -608,11 +608,15 @@ class Parser:
             self._scoring_measures_path = path
         scores = {}
         with open(path, 'r') as save_file:
+            # # Fudge the class constructors temporarily for the sake of eval()
+            # Category = CategoryClass.get
+            # Property = PropertyClass.get
             for line in save_file:
                 rule_str, measure_str, score_str, accuracy_str = line.strip().split('\t')
                 if rule_str not in scores:
                     scores[rule_str] = set()
                 scores[rule_str].add((eval(measure_str), float(score_str), float(accuracy_str)))
+                assert '<Uninitialized' not in str(eval(measure_str))
             for rule in self._primary_leaf_rules | self._secondary_leaf_rules | self._branch_rules:
                 rule_str = repr(str(rule))
                 if rule_str not in scores:
