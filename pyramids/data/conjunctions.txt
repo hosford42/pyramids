@@ -19,7 +19,7 @@
 #
 # =============================================================================
 
-# I'm letting *anything* match as third person. This is overgeneral, but some
+# I'm letting *anything* match as third person. This is overly general, but some
 # people actually talk this way, and we need to be able to parse it even if
 # it's not technically correct.
 subject(third,plural,-singular,-nor,-but,-not,-either,-neither):
@@ -46,7 +46,7 @@ subject(or,third,singular,-plural,-and,-nor,-but,-not,-either,-neither):
 nor_subject(nor,third,plural,-singular,-and,-or,-but,-not,-either,-neither):
     [compound(delimited)]                       # compound leadups must be delimited in order to match
     first[any_term(first)]                      # the conjunctive phrase has the "first" property iff at least one term does
-    second[any_term(second)]                    # the conjunctive phrase has the "scond" property iff at least one term does
+    second[any_term(second)]                    # the conjunctive phrase has the "second" property iff at least one term does
     
     # [<positive noun phrase>, ...,] <positive noun phrase>[,] nor <positive noun phrase>
     +subject(-negative) <EXCEPTION *conjunction(nor) EXCEPTION> subject(-negative,-delimited)
@@ -129,7 +129,7 @@ subject(not,-and,-or,-nor,-but,-either,-neither):
 
 
 
-# I'm letting *anything* match as third person. This is overgeneral, but some
+# I'm letting *anything* match as third person. This is overly general, but some
 # people actually talk this way, and we need to be able to parse it even if
 # it's not technically correct.
 object(third,plural,-singular,-nor,-but,-not,-either,-neither):
@@ -137,7 +137,7 @@ object(third,plural,-singular,-nor,-but,-not,-either,-neither):
     and[head(and)]                              # the conjunctive phrase has the "and" property iff its head does
     or[head(or)]                                # the conjunctive phrase has the "or" property iff its head does
     first[any_term(first)]                      # the conjunctive phrase has the "first" property iff at least one term does
-    second[any_term(second)]                    # the conjunctive phrase has the "scond" property iff at least one term does
+    second[any_term(second)]                    # the conjunctive phrase has the "second" property iff at least one term does
     
     # [<noun phrase>, ...,] <noun phrase>[,] and/or <noun phrase>
     +object <CASE *conjunction(and)|conjunction(or) CASE> object(-delimited) # You and me are...
@@ -154,7 +154,7 @@ object(or,third,singular,-plural,-and,-nor,-but,-not,-either,-neither):
 nor_object(nor,third,plural,-singular,-and,-or,-but,-not,-either,-neither):
     [compound(delimited)]                       # compound leadups must be delimited in order to match
     first[any_term(first)]                      # the conjunctive phrase has the "first" property iff at least one term does
-    second[any_term(second)]                    # the conjunctive phrase has the "scond" property iff at least one term does
+    second[any_term(second)]                    # the conjunctive phrase has the "second" property iff at least one term does
     
     # [<positive noun phrase>, ...,] <positive noun phrase>[,] nor <positive noun phrase>
     +object(-negative) <EXCEPTION *conjunction(nor) EXCEPTION> object(-negative,-delimited)
@@ -230,7 +230,7 @@ object(not,-and,-or,-nor,-but,-either,-neither):
 
 
 
-# I'm letting *anything* match as third person. This is overgeneral, but some
+# I'm letting *anything* match as third person. This is overly general, but some
 # people actually talk this way, and we need to be able to parse it even if
 # it's not technically correct.
 target(third,plural,-singular,-nor,-but,-not,-either,-neither):
@@ -238,7 +238,7 @@ target(third,plural,-singular,-nor,-but,-not,-either,-neither):
     and[head(and)]                              # the conjunctive phrase has the "and" property iff its head does
     or[head(or)]                                # the conjunctive phrase has the "or" property iff its head does
     first[any_term(first)]                      # the conjunctive phrase has the "first" property iff at least one term does
-    second[any_term(second)]                    # the conjunctive phrase has the "scond" property iff at least one term does
+    second[any_term(second)]                    # the conjunctive phrase has the "second" property iff at least one term does
     
     # [<noun phrase>, ...,] <noun phrase>[,] and/or <noun phrase>
     +target <CASE *conjunction(and)|conjunction(or) CASE> target(-delimited) # You and me are...
@@ -255,7 +255,7 @@ target(or,third,singular,-plural,-and,-nor,-but,-not,-either,-neither):
 nor_target(nor,third,plural,-singular,-and,-or,-but,-not,-either,-neither):
     [compound(delimited)]                       # compound leadups must be delimited in order to match
     first[any_term(first)]                      # the conjunctive phrase has the "first" property iff at least one term does
-    second[any_term(second)]                    # the conjunctive phrase has the "scond" property iff at least one term does
+    second[any_term(second)]                    # the conjunctive phrase has the "second" property iff at least one term does
     
     # [<positive noun phrase>, ...,] <positive noun phrase>[,] nor <positive noun phrase>
     +target(-negative) <EXCEPTION *conjunction(nor) EXCEPTION> target(-negative,-delimited)
