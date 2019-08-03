@@ -84,10 +84,7 @@ class Benchmark:
                 failures.append((input_val, first, target))
             if callback:
                 callback(input_val, first, self._samples[input_val])
-        score = (
-            (len(self._samples) - len(failures)) /
-            float(len(self._samples))
-        )
+        score = (len(self._samples) - len(failures)) / len(self._samples)
         return failures, score
 
     def score(self, function, callback=None):

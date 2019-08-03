@@ -1,3 +1,4 @@
+import ast
 import logging
 import time
 from itertools import product
@@ -617,8 +618,8 @@ class Parser:
                 rule_str, measure_str, score_str, accuracy_str = line.strip().split('\t')
                 if rule_str not in scores:
                     scores[rule_str] = set()
-                scores[rule_str].add((eval(measure_str), float(score_str), float(accuracy_str)))
-                assert '<Uninitialized' not in str(eval(measure_str))
+                measure = ast.literal_eval(measure_str)
+                scores[rule_str].add((measure, float(score_str), float(accuracy_str)))
             for rule in self._primary_leaf_rules | self._secondary_leaf_rules | self._branch_rules:
                 rule_str = repr(str(rule))
                 if rule_str not in scores:
@@ -637,4 +638,6 @@ class Parser:
             for rule in sorted(self._primary_leaf_rules | self._secondary_leaf_rules | self._branch_rules, key=str):
                 for measure in rule.iter_all_scoring_measures():
                     score, accuracy = rule.get_score(measure)
+                    if isinstance(measure, ScoringMeasure):
+                        measure = measure.value
                     save_file.write('\t'.join(repr(item) for item in (str(rule), measure, score, accuracy)) + '\n')

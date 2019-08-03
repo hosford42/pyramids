@@ -2,6 +2,7 @@ import bisect
 import cmd
 import configparser
 import os
+import sys
 import time
 import traceback
 import warnings
@@ -1034,7 +1035,10 @@ class ParserCmd(cmd.Cmd):
     @staticmethod
     def do_cls(line):
         """Clears the screen."""
-        os.system('cls')
+        if sys.platform == 'nt':
+            os.system('cls')
+        else:
+            os.system('clear')
 
     def do_standardize(self, line):
         """Standardizes the parser's files."""
@@ -1697,6 +1701,14 @@ class ParserCmd(cmd.Cmd):
         self._benchmark_update_time = time.time()
         failures, score = self._benchmark.test_and_score(self._benchmark_output, self._report_benchmark_progress)
         print("")
+        if failures:
+            print('')
+            print("Failures:")
+            for input_val, output_val, target in failures:
+                print(input_val)
+                print(output_val)
+                print(target)
+                print('')
         print("Score: " + str(round(100 * score, 1)) + "%")
         print("Average Parse Time: " + str(round(self._benchmark_time / float(len(self._benchmark.samples)), 1)) +
               ' seconds per parse')
@@ -1708,14 +1720,6 @@ class ParserCmd(cmd.Cmd):
               str(round(100 * self._benchmark_parse_timeouts / float(len(self._benchmark.samples)), 1)) + '%)')
         print("Disambiguation Timeouts: " + str(self._benchmark_disambiguation_timeouts) + " (" +
               str(round(100 * self._benchmark_disambiguation_timeouts / float(len(self._benchmark.samples)), 1)) + '%)')
-        if failures:
-            print('')
-            print("Failures:")
-            for input_val, output_val, target in failures:
-                print(input_val)
-                print(output_val)
-                print(target)
-                print('')
 
     # def do_failures(self, line):
     #     if line:
@@ -1735,15 +1739,14 @@ class ParserCmd(cmd.Cmd):
             self._parses[self._parse_index].adjust_score(target)
 
     def _training_iterator(self, text):
+        print(text)
         start_time = time.time()
-        emergency_disambig, parse_timed_out, disambig_timed_out =\
-            self._do_parse(text, start_time + self._timeout_interval)
+        emergency_disambig, parse_timed_out, disambig_timed_out = self._do_parse(text,
+                                                                                 start_time + self._timeout_interval)
         end_time = time.time()
-        self._benchmark_emergency_disambiguations += int(
-            emergency_disambig)
+        self._benchmark_emergency_disambiguations += int(emergency_disambig)
         self._benchmark_parse_timeouts += int(parse_timed_out)
-        self._benchmark_disambiguation_timeouts += int(
-            disambig_timed_out)
+        self._benchmark_disambiguation_timeouts += int(disambig_timed_out)
         self._benchmark_time += end_time - start_time
         if self.parses_available:
             while self._parse_index <= self.max_parse_index:
@@ -1775,6 +1778,14 @@ class ParserCmd(cmd.Cmd):
         self._benchmark_update_time = time.time()
         failures, score = self._benchmark.train(self._training_iterator, self._report_benchmark_progress)
         print("")
+        if failures:
+            print('')
+            print("Failures:")
+            for input_val, output_val, target in failures:
+                print(input_val)
+                print(output_val)
+                print(target)
+                print('')
         print("Score: " + str(round(100 * score, 1)) + "%")
         print("Average Parse Time: " + str(round(self._benchmark_time / float(len(self._benchmark.samples)), 1)) +
               ' seconds per parse')
@@ -1786,14 +1797,6 @@ class ParserCmd(cmd.Cmd):
               str(round(100 * self._benchmark_parse_timeouts / float(len(self._benchmark.samples)), 1)) + '%)')
         print("Disambiguation Timeouts: " + str(self._benchmark_disambiguation_timeouts) + " (" +
               str(round(100 * self._benchmark_disambiguation_timeouts / float(len(self._benchmark.samples)), 1)) + '%)')
-        if failures:
-            print('')
-            print("Failures:")
-            for input_val, output_val, target in failures:
-                print(input_val)
-                print(output_val)
-                print(target)
-                print('')
 
     def do_training(self, line):
         """Repeatedly train and save until user hits Ctrl-C."""

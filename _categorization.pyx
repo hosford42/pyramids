@@ -93,7 +93,7 @@ cdef class Property(InternedString):
             return _property_interner.intern(name)
 
     def __repr__(self) -> str:
-        return 'Property(%r)' % self.value
+        return 'Property.get(%r)' % self.value
 
 #    def __getstate__(self) -> str:
 #        return self.value

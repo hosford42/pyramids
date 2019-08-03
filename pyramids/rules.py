@@ -190,9 +190,11 @@ class LeafRule(ParseRule):
 
     def iter_scoring_measures(self, parse_node):
         # CAREFUL!!! Scoring measures must be perfectly recoverable via eval(repr(measure))
-        yield scoring.ScoringMeasure(tuple(parse_node.tokens[parse_node.start:parse_node.end]))
-        for index in range(parse_node.start, parse_node.end):
-            yield scoring.ScoringMeasure((index - parse_node.start, parse_node.tokens[index]))
+
+        head_cat = str(parse_node.category.name)
+        yield scoring.ScoringMeasure(('head spelling', (head_cat, parse_node.head_token)))
+        for prop in parse_node.category.positive_properties:
+            yield scoring.ScoringMeasure(('head properties', (head_cat, str(prop))))
 
 
 class SetRule(LeafRule):
@@ -326,25 +328,25 @@ class BranchRule(ParseRule):
     def iter_scoring_measures(self, parse_node):
         # CAREFUL!!! Scoring measures must be perfectly recoverable via eval(repr(measure))
 
-        # TODO: These are basic scoring measures. We could conceivably add
-        #       much more sophisticated measures that would allow the
-        #       parser to further adjust score based on finer-grained
-        #       details of the parse tree node's surrounding details. For
-        #       example, we could score separately based on individual
-        #       properties and all combinations thereof. Preferably, we
-        #       would keep an index of which ones provided the most
-        #       accurate scoring contributions and only maintain scores for
-        #       those particular measures, as in XCS. We could then have
-        #       each rule evolve its own maximally accurate scoring
-        #       measures. I have changed the call into this method below to
-        #       expect it to belong to the rule instead of being in this
-        #       class. This allows each rule to identify its own optimal
-        #       set of scoring measures independently of the others. That
-        #       makes each rule into a unique classifier system.
-        yield scoring.ScoringMeasure(tuple([component.category for component in parse_node.components]))
-        for index in range(len(parse_node.components)):
-            yield scoring.ScoringMeasure((index, parse_node.components[index].category))
-        yield scoring.ScoringMeasure(('head', parse_node.head_token))
+        # Possible Head Features: category name, property names, token spelling
+        # Component Features: category name, ordering, token spelling, property names
+
+        # We have to look not at individual features, but at specific combinations thereof which might affect
+        # the quality of the parse.
+
+        head_cat = str(parse_node.category.name)
+        yield scoring.ScoringMeasure(('head spelling', (head_cat, parse_node.head_token)))
+        for prop in parse_node.category.positive_properties:
+            yield scoring.ScoringMeasure(('head properties', (head_cat, str(prop))))
+        for index, component in enumerate(parse_node.components):
+            component_cat = str(component.category.name)
+            yield scoring.ScoringMeasure(('body category', (head_cat, component_cat)))
+            # yield scoring.ScoringMeasure(('body spelling', (head_cat, component.head_token)))
+            for other_component in parse_node.components[index + 1:]:
+                # yield scoring.ScoringMeasure(('body spelling sequence', (head_cat, component.head_token,
+                #                                                          other_component.head_token)))
+                yield scoring.ScoringMeasure(('body category sequence', (head_cat, component_cat,
+                                                                         str(other_component.category.name))))
 
 
 class SequenceRule(BranchRule):

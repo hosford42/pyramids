@@ -10,7 +10,7 @@ the same token span and top-level category. This structure serves to reduce
 the combinatorics inherent to the parsing process, by allowing us to treat
 a whole family of sub-trees as if they were a single entity.
 """
-
+from collections import deque
 from functools import reduce
 import math
 import time
@@ -39,6 +39,8 @@ class ParseTreeNode:
         self._head_index = int(head_index)
         self._rule = rule
 
+        self._parents = None
+
         if isinstance(index_or_components, int):
             self._start = index_or_components
             self._end = self._start + 1
@@ -61,7 +63,6 @@ class ParseTreeNode:
                       hash(self._end) ^ hash(self._components))
         self._score = None
         self._raw_score = None
-        self._parents = None
         self.update_weighted_score()
 
     def __hash__(self):
@@ -174,6 +175,10 @@ class ParseTreeNode:
     def head_token_start(self):
         return self._start if self.is_leaf() else self._components[self._head_index].best.head_token_start
 
+    def iter_parents(self):
+        if self._parents:
+            yield from self._parents
+
     def is_leaf(self):
         return self._components is None
 
@@ -210,7 +215,7 @@ class ParseTreeNode:
     def get_score_data(self):
         return self._raw_score
 
-    def update_weighted_score(self):
+    def update_weighted_score(self, recurse=True):
         total_weighted_score, total_weight = self.rule.calculate_weighted_score(self)
         if self.is_leaf():
             depth = 1
@@ -226,9 +231,8 @@ class ParseTreeNode:
                 depth += component_depth * weight
             depth /= total_weight
 
-            # TODO: At each level, divide both values by the number of
-            #       values summed. This way we have a usable confidence
-            #       score between 0 and 1 that comes out at the top.
+            # TODO: At each level, divide both values by the number of values summed. This way we have a usable
+            #       confidence score between 0 and 1 that comes out at the top.
             # self._score = total_weighted_score, total_weight
 
         # return self._score
@@ -236,7 +240,7 @@ class ParseTreeNode:
         self._raw_score = (depth, total_weighted_score, total_weight)
         self._score = (total_weighted_score / math.log(1 + depth, 2), total_weight)
 
-        if self._parents:
+        if recurse and self._parents:
             for parent in self._parents:
                 parent.update_weighted_score()
 
@@ -248,18 +252,26 @@ class ParseTreeNode:
         # self._score = None
         # self.update_weighted_score()
 
-    def recursive_score_update(self):
+    def iter_leaves(self):
         if self.is_leaf():
-            self.update_weighted_score()
+            yield self
         else:
             for component in self.components:
-                component.recursive_score_update()
+                yield from component.iter_leaves()
 
     def add_parent(self, parent):
+        assert not parent.has_ancestor(self)
         if self._parents is None:
             self._parents = [parent]
         else:
             self._parents.append(parent)
+
+    def has_ancestor(self, ancestor):
+        if ancestor is self:
+            return True
+        if not self._parents:
+            return False
+        return any(parent.has_ancestor(ancestor) for parent in self._parents)
 
     def visit(self, handler, is_root=False):
         """Visit this node with a LanguageContentHandler."""
@@ -659,9 +671,12 @@ class ParseTreeNodeSet:
 
     @property
     def head_token(self):
-        if self._best_node is None:
-            print(self._unique)
+        assert self._best_node is not None, self._unique
         return self._best_node.head_token
+
+    def iter_parents(self):
+        if self._parents:
+            yield from self._parents
 
     def is_compatible(self, node_or_set):
         if not isinstance(node_or_set, (ParseTreeNode, ParseTreeNodeSet)):
@@ -688,7 +703,7 @@ class ParseTreeNodeSet:
     def get_score_data(self):
         return self._best_node.get_score_data() if self._best_node else None
 
-    def update_weighted_score(self, affected_node=None):
+    def update_weighted_score(self, affected_node=None, recurse=True):
         assert self._best_node is not None
         if affected_node is None or affected_node is self._best_node:
             best_score = None
@@ -699,12 +714,12 @@ class ParseTreeNodeSet:
                     best_score = score
                     best_node = node
             self._best_node = best_node
-            if self._parents:
+            if recurse and self._parents:
                 for parent in self._parents:
                     parent.update_weighted_score()
         elif self._best_node.get_weighted_score() < affected_node.get_weighted_score():
             self._best_node = affected_node
-            if self._parents:
+            if recurse and self._parents:
                 for parent in self._parents:
                     parent.update_weighted_score()
         assert self._best_node is not None
@@ -716,16 +731,23 @@ class ParseTreeNodeSet:
         #     for parent in self._parents:
         #         parent.update_weighted_score()
 
-    def recursive_score_update(self):
+    def iter_leaves(self):
         for node in self._unique:
-            node.recursive_score_update()
-        assert self._best_node is not None
+            yield from node.iter_leaves()
 
     def add_parent(self, parent):
+        assert not parent.has_ancestor(self)
         if self._parents is None:
             self._parents = [parent]
         else:
             self._parents.append(parent)
+
+    def has_ancestor(self, ancestor):
+        if ancestor is self:
+            return True
+        if not self._parents:
+            return False
+        return any(parent.has_ancestor(ancestor) for parent in self._parents)
 
     def to_str(self, simplify=False):
         return self._best_node.to_str(simplify)
@@ -848,7 +870,16 @@ class ParseTree:
 
     def adjust_score(self, target):
         self.root.adjust_score(target)
-        self.root.recursive_score_update()
+
+        queue = deque(self.root.iter_leaves())
+        visited = set()
+        while queue:
+            item = queue.popleft()
+            if item in visited:
+                continue
+            item.update_weighted_score(recurse=False)
+            visited.add(item)
+            queue.extend(item.iter_parents())
 
     def visit(self, handler):
         # TODO: Make sure the return value is empty. If not, it's a bad
