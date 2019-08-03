@@ -1,9 +1,11 @@
 import logging
 import time
+from itertools import product
 from sys import intern
 
-from pyramids import (categorization, graphs, parserules, parsetrees,
-                      tokenization, utility)
+from sortedcontainers import SortedSet
+
+from pyramids import categorization, graphs, parserules, parsetrees, tokenization
 
 # These are used during pickle reconstruction. Do not remove them.
 # noinspection PyUnresolvedReferences
@@ -163,14 +165,15 @@ class ParserState:
     #       quality for the worst token? That is, for each token that is
     #       covered, how much did the maximum parse quality for that token
     #       improve?
-    def _insertion_key(self, node):
+    @staticmethod
+    def _insertion_key(node):
         # width = node.end - node.start
         score, confidence = node.get_weighted_score()
 
-        same_rule_count = 0
-        for item in self._insertion_queue:
-            if item.rule is node.rule:
-                same_rule_count += 1
+        # same_rule_count = 0
+        # for item in self._insertion_queue:
+        #     if item.rule is node.rule:
+        #         same_rule_count += 1
 
         # no_predecessor = node.start > 0 and not self._category_map.has_range(0, node.start)
         # no_successor = (
@@ -185,7 +188,7 @@ class ParserState:
 
         # TODO: Decide what's best to use here, to maximize the odds of
         #       finding the best parse when parsing times out.
-        return same_rule_count - score, -confidence
+        return -score, -confidence
 
     def __init__(self, parser):
         if not isinstance(parser, Parser):
@@ -194,7 +197,7 @@ class ParserState:
         self._tokens = []
         self._token_sequence = None
         self._category_map = CategoryMap()
-        self._insertion_queue = utility.PrioritySet(key=self._insertion_key)
+        self._insertion_queue = SortedSet(key=self._insertion_key)
         self._node_set_ids = set()
         self._roots = set()
 
@@ -236,7 +239,7 @@ class ParserState:
 
     def add_node(self, node):
         """Add a new parse tree node to the insertion queue."""
-        self._insertion_queue.push(node)
+        self._insertion_queue.add(node)
 
     def add_token(self, token, start=None, end=None):
         """Add a new token to the token sequence."""
@@ -256,9 +259,8 @@ class ParserState:
         makes an original contribution to the parse. If any is found,
         process it. Return a boolean indicating whether there are more
         nodes to process."""
-        while (self._insertion_queue and
-               (timeout is None or time.time() < timeout)):
-            node = self._insertion_queue.pop()
+        while self._insertion_queue and (timeout is None or time.time() < timeout):
+            node = self._insertion_queue.pop(index=0)
             if not self._category_map.add(node):
                 # Drop it and continue on to the next one. "We've already got one!"
                 continue
@@ -525,7 +527,7 @@ class Parser:
                 if failed:
                     continue
                 possible_components.insert(rule.head_index, {head_tree})
-                for component_combination in utility.iter_combinations(possible_components):
+                for component_combination in product(*possible_components):
                     covered = set()
                     for component in component_combination:
                         if component.node_coverage & covered:

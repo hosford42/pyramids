@@ -7,6 +7,7 @@ import traceback
 import warnings
 
 try:
+    # noinspection PyPep8Naming
     import cProfile as profile
 except ImportError:
     import profile
@@ -18,8 +19,7 @@ except ImportError:
     warnings.warn("The pyramids_categories package was not found. "
                   "The pre-compiled category files will not be available.")
 
-from pyramids import (benchmarking, categorization, exceptions, graphs,
-                      parsing, parserules, tokenization)
+from pyramids import benchmarking, categorization, exceptions, graphs, parsing, parserules, tokenization
 
 
 __author__ = 'Aaron Hosford'

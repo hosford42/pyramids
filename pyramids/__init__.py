@@ -58,6 +58,9 @@ __all__ = [
     'parse',
     'get_parse_graphs',
     'main',
+    '__author__',
+    '__license__',
+    '__version__'
 ]
 
 
