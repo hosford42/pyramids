@@ -73,7 +73,7 @@ class Benchmark:
                 output_structure = output_val[split_index:]
                 if first is None:
                     first = output_val
-                #if target == output_val:
+                # if target == output_val:
                 if output_category in target_category and target_structure == output_structure:
                     feedback_receiver(True)
                     break

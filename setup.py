@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# TODO: Update to build cython extension package.
+
+
 """Setup script for Pyramids Parser"""
 
 from setuptools import setup

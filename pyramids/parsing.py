@@ -5,13 +5,13 @@ from sys import intern
 
 from sortedcontainers import SortedSet
 
-from pyramids import categorization, graphs, parserules, parsetrees, tokenization
+from pyramids import categorization, graphs, rules, trees, tokenization
 
 # These are used during pickle reconstruction. Do not remove them.
 # noinspection PyUnresolvedReferences
 from pyramids.scoring import ScoringMeasure
 # noinspection PyUnresolvedReferences
-from pyramids.categorization import Category, Property
+from pyramids.categorization import Category, Property, make_property_set
 
 __author__ = 'Aaron Hosford'
 __all__ = [
@@ -59,16 +59,16 @@ class CategoryMap:
         end = node.end
 
         if start not in self._map:
-            node_set = parsetrees.ParseTreeNodeSet(node)
+            node_set = trees.ParseTreeNodeSet(node)
             self._map[start] = {name: {cat: {end: node_set}}}
         elif name not in self._map[start]:
-            node_set = parsetrees.ParseTreeNodeSet(node)
+            node_set = trees.ParseTreeNodeSet(node)
             self._map[start][name] = {cat: {end: node_set}}
         elif cat not in self._map[start][name]:
-            node_set = parsetrees.ParseTreeNodeSet(node)
+            node_set = trees.ParseTreeNodeSet(node)
             self._map[start][name][cat] = {end: node_set}
         elif end not in self._map[start][name][cat]:
-            node_set = parsetrees.ParseTreeNodeSet(node)
+            node_set = trees.ParseTreeNodeSet(node)
             self._map[start][name][cat][end] = node_set
         elif node not in self._map[start][name][cat][end]:
             self._map[start][name][cat][end].add(node)
@@ -301,7 +301,7 @@ class ParserState:
         """Create a tree for each node that doesn't get included as a
         component to some other one. Then it make a Parse instance with
         those trees."""
-        return parsetrees.Parse(self.tokens, [parsetrees.ParseTree(self.tokens, node) for node in self._roots])
+        return trees.Parse(self.tokens, [trees.ParseTree(self.tokens, node) for node in self._roots])
 
 
 class Parser:
@@ -317,8 +317,8 @@ class Parser:
         self._secondary_leaf_rules = frozenset(secondary_leaf_rules)
         self._branch_rules = frozenset(branch_rules)
         self._tokenizer = tokenizer
-        self._any_promoted_properties = frozenset(any_promoted_properties)
-        self._all_promoted_properties = frozenset(all_promoted_properties)
+        self._any_promoted_properties = make_property_set(any_promoted_properties)
+        self._all_promoted_properties = make_property_set(all_promoted_properties)
         self._property_inheritance_rules = frozenset(property_inheritance_rules)
         self._config_info = config_info
         self._score_file_path = None
@@ -328,7 +328,7 @@ class Parser:
         # TODO: Right now this only works for SequenceRules, not
         #       ConjunctionRules, hence the conditional thrown in here.
         for rule in self._branch_rules:
-            if not isinstance(rule, parserules.SequenceRule):
+            if not isinstance(rule, rules.SequenceRule):
                 continue
             for index in range(len(rule.link_type_sets)):
                 for link_type, left, right in rule.link_type_sets[index]:
@@ -452,13 +452,13 @@ class Parser:
 
         # Find all leaves for the head node
         subtrees[head_node] = set()
-        positive_case_properties, negative_case_properties = parserules.LeafRule.discover_case_properties(head_spelling)
+        positive_case_properties, negative_case_properties = rules.LeafRule.discover_case_properties(head_spelling)
         for rule in self._primary_leaf_rules:
             if head_spelling in rule:
                 category = rule.category.promote_properties(positive_case_properties, negative_case_properties)
                 category = self.extend_properties(category)
                 if category in head_category:
-                    tree = parsetrees.BuildTreeNode(rule, category, head_spelling, head_node)
+                    tree = trees.BuildTreeNode(rule, category, head_spelling, head_node)
                     subtrees[head_node].add(tree)
         if not subtrees[head_node]:
             for rule in self._secondary_leaf_rules:
@@ -466,7 +466,7 @@ class Parser:
                     category = rule.category.promote_properties(positive_case_properties, negative_case_properties)
                     category = self.extend_properties(category)
                     if category in head_category:
-                        tree = parsetrees.BuildTreeNode(rule, category, head_spelling, head_node)
+                        tree = trees.BuildTreeNode(rule, category, head_spelling, head_node)
                         subtrees[head_node].add(tree)
 
         results = set()
@@ -536,8 +536,8 @@ class Parser:
                     else:
                         category = rule.get_category(self, [component.category for component in component_combination])
                         if rule.is_non_recursive(category, head_tree.category):
-                            new_tree = parsetrees.BuildTreeNode(rule, category, head_tree.head_spelling,
-                                                                head_tree.head_index, component_combination)
+                            new_tree = trees.BuildTreeNode(rule, category, head_tree.head_spelling,
+                                                           head_tree.head_index, component_combination)
                             if new_tree not in results:
                                 if subnodes <= new_tree.node_coverage:
                                     if new_tree.head_index != sentence.root_index or category in sentence.root_category:
@@ -575,7 +575,7 @@ class Parser:
         if not component_head_candidates:
             return None
         component_candidates = set()
-        if isinstance(rule, parserules.ConjunctionRule):
+        if isinstance(rule, rules.ConjunctionRule):
             for candidate in component_head_candidates:
                 for subtree in subtrees[candidate]:
                     if subtree.category in head_category:

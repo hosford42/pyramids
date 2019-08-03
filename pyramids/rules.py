@@ -1,7 +1,7 @@
 from sys import intern
 
-from pyramids import categorization, parsetrees, scoring
-from pyramids.categorization import Category, CATEGORY_WILDCARD
+from pyramids import categorization, trees, scoring
+from pyramids.categorization import Category, CATEGORY_WILDCARD, make_property_set, Property
 
 __author__ = 'Aaron Hosford'
 __all__ = [
@@ -23,12 +23,24 @@ __all__ = [
 ]
 
 
+CASE_FREE = Property.get("case_free")
+MIXED_CASE = Property.get("mixed_case")
+TITLE_CASE = Property.get("title_case")
+UPPER_CASE = Property.get("upper_case")
+LOWER_CASE = Property.get("lower_case")
+
+CONJUNCTION_PROPERTY = Property.get("conjunction")
+COMPOUND_PROPERTY = Property.get("compound")
+SIMPLE_PROPERTY = Property.get("simple")
+SINGLE_PROPERTY = Property.get("single")
+
+
 class PropertyInheritanceRule:
 
     def __init__(self, category, positive_additions, negative_additions):
         self._category = category
-        self._positive_additions = frozenset(intern(prop) for prop in positive_additions)
-        self._negative_additions = frozenset(intern(prop) for prop in negative_additions)
+        self._positive_additions = make_property_set(positive_additions)
+        self._negative_additions = make_property_set(negative_additions)
 
     def __call__(self, category_name, positive, negative):
         category = Category(category_name, positive, negative)
@@ -121,6 +133,7 @@ class ParseRule:
             raise ValueError("Score must be in the interval [0, 1].")
         if not 0 <= accuracy <= 1:
             raise ValueError("Accuracy must be in the interval [0, 1].")
+        # noinspection PyTypeChecker
         self._scoring_measures[measure] = (score, accuracy)
 
     def iter_all_scoring_measures(self):
@@ -150,33 +163,33 @@ class LeafRule(ParseRule):
             positive, negative = self.discover_case_properties(new_token)
             category = self._category.promote_properties(positive, negative)
             category = parser_state.extend_properties(category)
-            parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self, index, category, index))
+            parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self, index, category, index))
             return True
         else:
             return False
 
     @classmethod
-    def discover_case_properties(cls, token):
+    def discover_case_properties(cls, token: str):
+        token_uppered = token.upper()
         token_lowered = token.lower()
         positive = set()
-        if token_lowered.upper() == token_lowered:
-            positive.add("case_free")
+        if token_uppered == token_lowered:
+            positive.add(CASE_FREE)
         elif token == token_lowered:
-            positive.add("lower_case")
+            positive.add(LOWER_CASE)
         else:
-            if token == token.upper():
-                positive.add("upper_case")
+            if token == token_uppered:
+                positive.add(UPPER_CASE)
             if token == token.title():
-                positive.add("title_case")
-                positive.add("mixed_case")
+                positive.add(TITLE_CASE)
+                positive.add(MIXED_CASE)
         if not positive:
-            positive.add("mixed_case")
-        negative = {"case_free", "lower_case", "upper_case", "title_case", "mixed_case"} - positive
+            positive.add(MIXED_CASE)
+        negative = {CASE_FREE, LOWER_CASE, UPPER_CASE, TITLE_CASE, MIXED_CASE} - positive
         return positive, negative
 
     def iter_scoring_measures(self, parse_node):
-        # CAREFUL!!! Scoring measures must be perfectly recoverable via
-        # eval(repr(measure))
+        # CAREFUL!!! Scoring measures must be perfectly recoverable via eval(repr(measure))
         yield scoring.ScoringMeasure(tuple(parse_node.tokens[parse_node.start:parse_node.end]))
         for index in range(parse_node.start, parse_node.end):
             yield scoring.ScoringMeasure((index - parse_node.start, parse_node.tokens[index]))
@@ -186,7 +199,7 @@ class SetRule(LeafRule):
 
     def __init__(self, category, tokens):
         super().__init__(category)
-        self._tokens = frozenset([intern(token.lower()) for token in tokens])
+        self._tokens = frozenset(intern(token.lower()) for token in tokens)
         self._hash = hash(self._category) ^ hash(self._tokens)
 
     def __hash__(self):
@@ -265,7 +278,8 @@ class SuffixRule(LeafRule):
 class CaseRule(LeafRule):
 
     def __init__(self, category, case):
-        assert case in ("case_free", "lower_case", "upper_case", "title_case", "mixed_case")
+        case = Property.get(case)
+        assert case in (CASE_FREE, LOWER_CASE, UPPER_CASE, TITLE_CASE, MIXED_CASE)
         super().__init__(category)
         self._case = case
         self._hash = hash(self._category) ^ hash(self._case)
@@ -293,7 +307,7 @@ class CaseRule(LeafRule):
         return self._case in positive
 
     def __repr__(self):
-        return type(self).__name__ + repr((self.category, self.case))
+        return type(self).__name__ + repr((self.category, str(self.case)))
 
     def __str__(self):
         return self.case + '->' + str(self.category)
@@ -384,8 +398,8 @@ class SequenceRule(BranchRule):
                     subtrees = backward_half + [new_node_set] + forward_half
                     category = self.get_category(parser_state.parser, [subtree.category for subtree in subtrees])
                     if self.is_non_recursive(category, subtrees[self._head_index].category):
-                        parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self, self._head_index,
-                                                                       category, subtrees))
+                        parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self, self._head_index,
+                                                                  category, subtrees))
 
     def __call__(self, parser_state, new_node_set):
         if not (self._has_wildcard or new_node_set.category.name in self._references):
@@ -512,8 +526,8 @@ class SequenceRule(BranchRule):
 class SubtreeMatchRule:
 
     def __init__(self, positive_properties, negative_properties):
-        self._positive_properties = frozenset(positive_properties)
-        self._negative_properties = frozenset(negative_properties)
+        self._positive_properties = make_property_set(positive_properties)
+        self._negative_properties = make_property_set(negative_properties)
 
     @property
     def positive_properties(self):
@@ -640,10 +654,10 @@ class LastTermMatchRule(SubtreeMatchRule):
                 not (self._negative_properties & category_list[-1].positive_properties))
 
 
-# TODO: Define properties in the .ini that are used to indicate compound,
-#       simple, and single conjunctions. These properties should be added
-#       automatically by conjunction rules unless overridden in the
-#       properties of the conjunction's category.
+# TODO: This class is eating up more than 2/3 of the parse time, all by itself. It's broken. Rewrite it.
+# TODO: Define properties in the .ini that are used to indicate compound, simple, and single conjunctions. These
+#       properties should be added automatically by conjunction rules unless overridden in the properties of the
+#       conjunction's category.
 class ConjunctionRule(BranchRule):
 
     def __init__(self, category, match_rules, property_rules, leadup_categories, conjunction_categories,
@@ -654,12 +668,10 @@ class ConjunctionRule(BranchRule):
 
         self._category = category
 
-        # TODO: Do something with this... This is the list of conditions
-        #       that must be met for the rule to match.
+        # TODO: Do something with this... This is the list of conditions that must be met for the rule to match.
         self._match_rules = tuple(match_rules)
 
-        # TODO: Do something with this... This is the list of conditions
-        #       that must be met for
+        # TODO: Do something with this... This is the list of conditions that must be met for
         self._property_rules = tuple(property_rules)
 
         self._leadup_categories = frozenset(leadup_categories or ())
@@ -731,12 +743,10 @@ class ConjunctionRule(BranchRule):
             raise Exception("Unexpected state: " + repr(state))
 
     def _find_matches(self, parser_state, state, new_node_set):
-        """Given a starting state (-1 for leadup, 0 for conjunction, 1 for
-        followup), attempt to find and add all parse node sequences in the
-        parser state that can contain the new node in that state."""
-        # Check forward halves first, because they're less likely, and if
-        # we don't find any, we won't even need to bother looking for
-        # backward halves.
+        """Given a starting state (-1 for leadup, 0 for conjunction, 1 for followup), attempt to find and add all parse
+        node sequences in the parser state that can contain the new node in that state."""
+        # Check forward halves first, because they're less likely, and if we don't find any, we won't even need to
+        # bother looking for backward halves.
         forward_halves = list(self._iter_forward_halves(parser_state.category_map, state, new_node_set.start))
         if forward_halves:
             if state == -1:  # Leadup case/exception
@@ -746,8 +756,8 @@ class ConjunctionRule(BranchRule):
                     if self._can_match(subtree_categories, head_offset):
                         category = self.get_category(parser_state.parser, subtree_categories, head_offset)
                         if self.is_non_recursive(category, forward_half[head_offset].category):
-                            parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self, head_offset,
-                                                                           category, forward_half))
+                            parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self, head_offset,
+                                                                      category, forward_half))
                 if self._compound:
                     for backward_half in self._iter_backward_halves(parser_state.category_map, -1, new_node_set.start):
                         for forward_half in forward_halves:
@@ -757,8 +767,8 @@ class ConjunctionRule(BranchRule):
                             if self._can_match(subtree_categories, head_offset):
                                 category = self.get_category(parser_state.parser, subtree_categories, head_offset)
                                 if self.is_non_recursive(category, subtrees[head_offset].category):
-                                    parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self,
-                                                                                   head_offset, category, subtrees))
+                                    parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self,
+                                                                              head_offset, category, subtrees))
             elif state == 0:  # Conjunction
                 if self._single:
                     for forward_half in forward_halves:
@@ -767,8 +777,8 @@ class ConjunctionRule(BranchRule):
                         if self._can_match(subtree_categories, head_offset):
                             category = self.get_category(parser_state.parser, subtree_categories, head_offset)
                             if self.is_non_recursive(category, forward_half[head_offset].category):
-                                parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self, head_offset,
-                                                                               category, forward_half))
+                                parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self, head_offset,
+                                                                          category, forward_half))
                 for backward_half in self._iter_backward_halves(parser_state.category_map, -1, new_node_set.start):
                     for forward_half in forward_halves:
                         subtrees = backward_half + forward_half
@@ -777,8 +787,8 @@ class ConjunctionRule(BranchRule):
                         if self._can_match(subtree_categories, head_offset):
                             category = self.get_category(parser_state.parser, subtree_categories, head_offset)
                             if self.is_non_recursive(category, subtrees[head_offset].category):
-                                parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self, head_offset,
-                                                                               category, subtrees))
+                                parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self, head_offset,
+                                                                          category, subtrees))
             elif state == 1:  # Followup case/exception
                 for backward_half in self._iter_backward_halves(parser_state.category_map, 0, new_node_set.start):
                     for forward_half in forward_halves:
@@ -788,16 +798,14 @@ class ConjunctionRule(BranchRule):
                         if self._can_match(subtree_categories, head_offset):
                             category = self.get_category(parser_state.parser, subtree_categories, head_offset)
                             if self.is_non_recursive(category, subtrees[head_offset].category):
-                                parser_state.add_node(parsetrees.ParseTreeNode(parser_state.tokens, self, head_offset,
-                                                                               category, subtrees))
+                                parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self, head_offset,
+                                                                          category, subtrees))
             else:
                 raise Exception("Unexpected state: " + repr(state))
 
-    # TODO: Think about it really hard: Why does this method (or
-    #       SequenceRule's) consider anything other than the final state/
-    #       index? Maybe there is a good reason, but shouldn't we skip that
-    #       if we're strictly appending new tokens? This may be an
-    #       opportunity for an extreme speedup.
+    # TODO: Think about it really hard: Why does this method (or SequenceRule's) consider anything other than the final
+    #       state/index? Maybe there is a good reason, but shouldn't we skip that if we're strictly appending new
+    #       tokens? This may be an opportunity for an extreme speedup.
     def __call__(self, parser_state, new_node_set):
         if not (self._has_wildcard or new_node_set.category.name in self._references):
             return
@@ -966,33 +974,29 @@ class ConjunctionRule(BranchRule):
 
         # Add the standard properties
         # TODO: Load these from the .ini instead of hard-coding them.
-        conjunction_property = categorization.Property.get("conjunction")
-        compound_property = categorization.Property.get("compound")
-        simple_property = categorization.Property.get("simple")
-        single_property = categorization.Property.get("single")
-        positive.add(conjunction_property)
-        negative.discard(conjunction_property)
+        positive.add(CONJUNCTION_PROPERTY)
+        negative.discard(CONJUNCTION_PROPERTY)
         if len(subtree_categories) > 3:
-            positive.add(compound_property)
-            negative.discard(compound_property)
-            negative.add(simple_property)
-            positive.discard(simple_property)
-            negative.add(single_property)
-            positive.discard(single_property)
+            positive.add(COMPOUND_PROPERTY)
+            negative.discard(COMPOUND_PROPERTY)
+            negative.add(SIMPLE_PROPERTY)
+            positive.discard(SIMPLE_PROPERTY)
+            negative.add(SINGLE_PROPERTY)
+            positive.discard(SINGLE_PROPERTY)
         elif len(subtree_categories) < 3:
-            negative.add(simple_property)
-            positive.discard(simple_property)
-            negative.add(compound_property)
-            positive.discard(compound_property)
-            positive.add(single_property)
-            negative.discard(single_property)
+            negative.add(SIMPLE_PROPERTY)
+            positive.discard(SIMPLE_PROPERTY)
+            negative.add(COMPOUND_PROPERTY)
+            positive.discard(COMPOUND_PROPERTY)
+            positive.add(SINGLE_PROPERTY)
+            negative.discard(SINGLE_PROPERTY)
         else:
-            negative.add(compound_property)
-            positive.discard(compound_property)
-            positive.add(simple_property)
-            negative.discard(simple_property)
-            negative.add(single_property)
-            positive.discard(single_property)
+            negative.add(COMPOUND_PROPERTY)
+            positive.discard(COMPOUND_PROPERTY)
+            positive.add(SIMPLE_PROPERTY)
+            negative.discard(SIMPLE_PROPERTY)
+            negative.add(SINGLE_PROPERTY)
+            positive.discard(SINGLE_PROPERTY)
 
         # And finally, apply property rules specific to this parse rule
         for properties, property_rules in self._property_rules:

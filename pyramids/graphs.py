@@ -56,29 +56,15 @@ class ParseGraph:
         self._links = tuple({sink: frozenset(labels)
                              for sink, labels in dict(sink_map).items()}
                             for sink_map in links)
-        self._phrases = tuple(
-            tuple(
-                (
-                    category,
-                    frozenset(
-                        (source, sink)
-                        for source, sink in phrase_links
-                    )
-                )
-                for category, phrase_links in phrase_stack
-            )
-            for phrase_stack in phrases
-        )
+        self._phrases = tuple(tuple((category, frozenset((source, sink) for source, sink in phrase_links))
+                                    for category, phrase_links in phrase_stack)
+                              for phrase_stack in phrases)
         assert self._phrases and self._phrases[-1]
 
-        self._reversed_links = tuple(
-            {
-                source: self._links[source][sink]
-                for source in range(len(self._tokens))
-                if sink in self._links[source]
-            }
-            for sink in range(len(self._tokens))
-        )
+        self._reversed_links = tuple({source: self._links[source][sink]
+                                      for source in range(len(self._tokens))
+                                      if sink in self._links[source]}
+                                     for sink in range(len(self._tokens)))
 
     @property
     def root_index(self):
@@ -97,10 +83,7 @@ class ParseGraph:
             result += self._tokens[index][1] + ':'
             for sink, labels in sorted(self._links[index].items()):
                 labels = '|'.join(sorted(str(label) for label in labels))
-                result += (
-                    '\n    ' + labels + ': ' +
-                    self._tokens[sink][1]
-                )
+                result += '\n    ' + labels + ': ' + self._tokens[sink][1]
         return result
 
     def __getitem__(self, index):
@@ -145,8 +128,7 @@ class ParseGraph:
     def get_phrase_text(self, head):
         assert 0 <= head <= len(self._tokens)
         phrase = ''
-        for index, spelling, span, category in \
-                self.get_phrase_tokens(head):
+        for index, spelling, span, category in self.get_phrase_tokens(head):
             start, end = span
             assert len(spelling) == end - start
             assert not phrase[start:end].strip()
@@ -183,12 +165,7 @@ class ParseGraphBuilder(LanguageContentHandler):
         assert self._root is not None
         assert not self._phrase_stack
 
-        graph = ParseGraph(
-            self._root,
-            self._tokens,
-            self._links,
-            self._phrases
-        )
+        graph = ParseGraph(self._root, self._tokens, self._links, self._phrases)
 
         self._graphs.append(graph)
 

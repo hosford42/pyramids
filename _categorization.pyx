@@ -102,7 +102,7 @@ cdef class Property(InternedString):
 #        self.value = _property_interner.intern(state).value
 
 
-cdef frozenset make_property_set(properties):
+cpdef frozenset make_property_set(properties):
     cdef Property prop
     cdef list props
 

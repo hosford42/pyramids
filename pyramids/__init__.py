@@ -36,7 +36,7 @@ resembling those it produces.
 import os
 import time
 
-from pyramids.parsetrees import Parse
+from pyramids.trees import Parse
 from pyramids.control import ParserCmd, ParserConfigInfo, ParserLoader
 from pyramids.graphs import ParseGraphBuilder, ParseGraph
 

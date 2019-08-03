@@ -1,5 +1,5 @@
 """
-pyramids.parsetrees: Parse tree-related classes.
+pyramids.trees: Parse tree-related classes.
 
 Parse trees in Pyramids are represented a bit unusually. They do not
 represent ordinary trees, but are rather hierarchically grouped unions of
@@ -32,7 +32,7 @@ class ParseTreeNode:
     """Represents a branch or leaf node in a parse tree during parsing."""
 
     def __init__(self, tokens, rule, head_index, category, index_or_components):
-        # assert isinstance(rule, parserules.ParseRule)
+        # assert isinstance(rule, rules.ParseRule)
         assert isinstance(category, categorization.Category)
 
         self._tokens = tokens
@@ -57,14 +57,8 @@ class ParseTreeNode:
                     raise ValueError("Discontinuity in component coverage.")
                 self._end = component.end
         self._category = category
-        self._hash = (
-            hash(self._rule) ^
-            hash(self._head_index) ^
-            hash(self._category) ^
-            hash(self._start) ^
-            hash(self._end) ^
-            hash(self._components)
-        )
+        self._hash = (hash(self._rule) ^ hash(self._head_index) ^ hash(self._category) ^ hash(self._start) ^
+                      hash(self._end) ^ hash(self._components))
         self._score = None
         self._raw_score = None
         self._parents = None
@@ -76,15 +70,10 @@ class ParseTreeNode:
     def __eq__(self, other):
         if not isinstance(other, ParseTreeNode):
             return NotImplemented
-        return self is other or (
-            self._hash == other._hash and
-            self._start == other._start and
-            self._end == other._end and
-            self._head_index == other._head_index and
-            self._category == other._category and
-            self._rule == other._rule and
-            self._components == other._components
-        )
+        return self is other or (self._hash == other._hash and self._start == other._start and
+                                 self._end == other._end and self._head_index == other._head_index and
+                                 self._category == other._category and self._rule == other._rule and
+                                 self._components == other._components)
 
     def __ne__(self, other):
         if not isinstance(other, ParseTreeNode):
@@ -134,17 +123,9 @@ class ParseTreeNode:
     def __repr__(self):
         # TODO: Update this
         if self.is_leaf():
-            return (
-                type(self).__name__ + "(" +
-                repr(self._rule) + ", " +
-                repr(self.span) + ")"
-            )
+            return type(self).__name__ + "(" + repr(self._rule) + ", " + repr(self.span) + ")"
         else:
-            return (
-                type(self).__name__ + "(" +
-                repr(self._rule) + ", " +
-                repr(self.components) + ")"
-            )
+            return type(self).__name__ + "(" + repr(self._rule) + ", " + repr(self.components) + ")"
 
     def __str__(self):
         return self.to_str()
@@ -183,27 +164,15 @@ class ParseTreeNode:
 
     @property
     def coverage(self):
-        return (
-            1
-            if self.is_leaf()
-            else reduce(lambda a, b: a * b.coverage, self.components, 1)
-        )
+        return 1 if self.is_leaf() else reduce(lambda a, b: a * b.coverage, self.components, 1)
 
     @property
     def head_token(self):
-        return (
-            self.tokens[self._start]
-            if self.is_leaf()
-            else self._components[self._head_index].head_token
-        )
+        return self.tokens[self._start] if self.is_leaf() else self._components[self._head_index].head_token
 
     @property
     def head_token_start(self):
-        return (
-            self._start
-            if self.is_leaf()
-            else self._components[self._head_index].best.head_token_start
-        )
+        return self._start if self.is_leaf() else self._components[self._head_index].best.head_token_start
 
     def is_leaf(self):
         return self._components is None
@@ -308,12 +277,8 @@ class ParseTreeNode:
             if is_root:
                 handler.handle_root()
 
-            handler.handle_token(
-                self.tokens[self.start],
-                self._category,
-                self.head_token_start,
-                self.tokens.spans[self.start]
-            )
+            handler.handle_token(self.tokens[self.start], self._category, self.head_token_start,
+                                 self.tokens.spans[self.start])
 
             need_sources = {}
             for prop in self.category.positive_properties:
@@ -347,11 +312,9 @@ class ParseTreeNode:
                 #         self.category.positive_properties):
                 #     continue
                 if property_name in need_sources:
-                    need_sources[property_name] |= \
-                        component_need_sources[property_name]
+                    need_sources[property_name] |= component_need_sources[property_name]
                 else:
-                    need_sources[property_name] = \
-                        component_need_sources[property_name]
+                    need_sources[property_name] = component_need_sources[property_name]
 
             if index == self._head_index:
                 head_need_sources = component_need_sources
@@ -372,15 +335,11 @@ class ParseTreeNode:
             for label, left, right in links:
                 if left:
                     if label.lower() in head_need_sources:
-                            # and not (
-                            # Property('needs_' + label.lower()) in
-                            # self.category.positive_properties or
-                            # Property('takes_' + label.lower()) in
-                            # self.category.positive_properties):
+                        #     and not (Property.get('needs_' + label.lower()) in self.category.positive_properties or
+                        #              Property.get('takes_' + label.lower()) in self.category.positive_properties):
                         for node in need_sources[label.lower()]:
                             handler.handle_link(node, left_side, label)
-                    elif (label[-3:].lower() == '_of' and
-                            label[:-3].lower() in head_need_sources):
+                    elif label[-3:].lower() == '_of' and label[:-3].lower() in head_need_sources:
                         for node in need_sources[label[:-3].lower()]:
                             handler.handle_link(left_side, node, label)
                     else:
@@ -388,15 +347,11 @@ class ParseTreeNode:
 
                 if right:
                     if label.lower() in head_need_sources:
-                            # and not (
-                            # Property('needs_' + label.lower()) in
-                            # self.category.positive_properties or
-                            # Property('takes_' + label.lower()) in
-                            # self.category.positive_properties):
+                        #     and not (Property.get('needs_' + label.lower()) in self.category.positive_properties or
+                        #              Property.get('takes_' + label.lower()) in self.category.positive_properties):
                         for node in need_sources[label.lower()]:
                             handler.handle_link(node, right_side, label)
-                    elif (label[-3:].lower() == '_of' and
-                            label[:-3].lower() in head_need_sources):
+                    elif label[-3:].lower() == '_of' and label[:-3].lower() in head_need_sources:
                         for node in need_sources[label[:-3].lower()]:
                             handler.handle_link(right_side, node, label)
                     else:
@@ -436,72 +391,41 @@ class BuildTreeNode:
         self._rule = rule
         self._category = category
         self._head_node = (head_spelling, head_index)
-        self._components = (
-            None
-            if components is None
-            else tuple(components)
-        )
-        self._nodes = (
-            (self._head_node,)
-            if components is None
-            else sum((component.nodes for component in components), ())
-        )
-        self._node_coverage = frozenset(index
-                                        for spelling, index in self._nodes)
+        self._components = None if components is None else tuple(components)
+        self._nodes = ((self._head_node,)
+                       if components is None
+                       else sum((component.nodes for component in components), ()))
+        self._node_coverage = frozenset(index for spelling, index in self._nodes)
         self._tokens = tuple(spelling for spelling, index in self._nodes)
         self._hash = None
 
     def __repr__(self):
         if self.is_leaf():
-            return (
-                type(self).__name__ + "(" +
-                repr(self._rule) + ", " +
-                repr(self.category) + ", " +
-                repr(self._head_node[0]) + ", " +
-                repr(self._head_node[1]) + ")"
-            )
+            return (type(self).__name__ + "(" + repr(self._rule) + ", " + repr(self.category) + ", " +
+                    repr(self._head_node[0]) + ", " + repr(self._head_node[1]) + ")")
         else:
-            return (
-                type(self).__name__ + "(" +
-                repr(self._rule) + ", " +
-                repr(self.category) + ", " +
-                repr(self._head_node[0]) + ", " +
-                repr(self._head_node[1]) + ", " +
-                repr(self.components) + ")"
-            )
+            return (type(self).__name__ + "(" + repr(self._rule) + ", " + repr(self.category) + ", " +
+                    repr(self._head_node[0]) + ", " + repr(self._head_node[1]) + ", " + repr(self.components) + ")")
 
     def __str__(self):
         return self.to_str()
 
     def __hash__(self):
         if self._hash is None:
-            self._hash = (
-                hash(self._rule) ^
-                hash(self._category) ^
-                hash(self._head_node) ^
-                hash(self._components)
-            )
+            self._hash = hash(self._rule) ^ hash(self._category) ^ hash(self._head_node) ^ hash(self._components)
         return self._hash
 
     def __eq__(self, other):
         if not isinstance(other, BuildTreeNode):
             return NotImplemented
-        return (
-            self._rule == other._rule and
-            self._category == other._category and
-            self._head_node == other._head_node and
-            self._components == other._components
-        )
+        return (self._rule == other._rule and self._category == other._category and
+                self._head_node == other._head_node and self._components == other._components)
 
     def __ne__(self, other):
         if not isinstance(other, BuildTreeNode):
             return NotImplemented
-        return (
-            self._rule != other._rule or
-            self._category != other._category or
-            self._head_node != other._head_node or
-            self._components != other._components
-        )
+        return (self._rule != other._rule or self._category != other._category or self._head_node != other._head_node or
+                self._components != other._components)
 
     def __le__(self, other):
         if not isinstance(other, BuildTreeNode):
@@ -591,10 +515,7 @@ class BuildTreeNode:
             if not simplify:
                 result += ' [' + str(self.rule) + ']'
             for component in self.components:
-                result += (
-                    '\n    ' +
-                    component.to_str(simplify).replace('\n', '\n    ')
-                )
+                result += '\n    ' + component.to_str(simplify).replace('\n', '\n    ')
         return result
 
 
@@ -673,12 +594,8 @@ class ParseTreeNodeSet:
     def __eq__(self, other):
         if not isinstance(other, ParseTreeNodeSet):
             return NotImplemented
-        return self is other or (
-            self._hash == other._hash and
-            self._start == other._start and
-            self._end == other._end and
-            self._category == other._category
-        )
+        return self is other or (self._hash == other._hash and self._start == other._start and
+                                 self._end == other._end and self._category == other._category)
 
     def __ne__(self, other):
         if not isinstance(other, ParseTreeNodeSet):
@@ -749,8 +666,7 @@ class ParseTreeNodeSet:
     def is_compatible(self, node_or_set):
         if not isinstance(node_or_set, (ParseTreeNode, ParseTreeNodeSet)):
             raise TypeError(node_or_set, (ParseTreeNode, ParseTreeNodeSet))
-        return (node_or_set.start == self._start and
-                node_or_set.end == self._end and
+        return (node_or_set.start == self._start and node_or_set.end == self._end and
                 node_or_set.category == self._category)
 
     def add(self, node):
@@ -852,10 +768,7 @@ class ParseTree:
     def __eq__(self, other):
         if not isinstance(other, ParseTree):
             return NotImplemented
-        return self is other or (
-            self._tokens == other._tokens and
-            self._root == other._root
-        )
+        return self is other or (self._tokens == other._tokens and self._root == other._root)
 
     def __ne__(self, other):
         if not isinstance(other, ParseTree):
@@ -969,10 +882,7 @@ class Parse:
     def __eq__(self, other):
         if not isinstance(other, Parse):
             return NotImplemented
-        return self is other or (
-            self._tokens == other._tokens and
-            self._parse_trees == other._parse_trees
-        )
+        return self is other or (self._tokens == other._tokens and self._parse_trees == other._parse_trees)
 
     def __ne__(self, other):
         if not isinstance(other, Parse):
@@ -983,8 +893,7 @@ class Parse:
         return self.to_str()
 
     def __repr__(self):
-        return type(self).__name__ + "(" + repr(
-            self._tokens) + ", " + repr(self._parse_trees) + ")"
+        return type(self).__name__ + "(" + repr(self._tokens) + ", " + repr(self._parse_trees) + ")"
 
     @property
     def tokens(self):
@@ -996,11 +905,10 @@ class Parse:
 
     @property
     def coverage(self):
-        return sum([tree.coverage for tree in self._parse_trees])
+        return sum(tree.coverage for tree in self._parse_trees)
 
     def to_str(self, simplify=True):
-        return '\n'.join(
-            [tree.to_str(simplify) for tree in sorted(self._parse_trees)])
+        return '\n'.join(tree.to_str(simplify) for tree in sorted(self._parse_trees))
 
     def get_rank(self):
         score, weight = self.get_weighted_score()
@@ -1075,30 +983,15 @@ class Parse:
                 if tree.start == index:
                     if nearest_end is None or tree.end < nearest_end:
                         nearest_end = tree.end
-                    for tail in self._iter_disambiguation_tails(
-                            tree.end,
-                            max_index,
-                            gaps,
-                            pieces - 1,
-                            timeout):
+                    for tail in self._iter_disambiguation_tails(tree.end, max_index, gaps, pieces - 1, timeout):
                         yield [tree] + tail
             if nearest_end is None:
                 if gaps > 0:
-                    for tail in self._iter_disambiguation_tails(
-                            index + 1,
-                            max_index,
-                            gaps - 1,
-                            pieces,
-                            timeout):
+                    for tail in self._iter_disambiguation_tails(index + 1, max_index, gaps - 1, pieces, timeout):
                         yield tail
             else:
                 for overlap_index in range(index + 1, nearest_end):
-                    for tail in self._iter_disambiguation_tails(
-                            overlap_index,
-                            nearest_end,
-                            gaps,
-                            pieces,
-                            timeout):
+                    for tail in self._iter_disambiguation_tails(overlap_index, nearest_end, gaps, pieces, timeout):
                         yield tail
 
     # TODO: This fails if we have a partial parse in the *middle* of the
@@ -1109,17 +1002,14 @@ class Parse:
         else:
             gaps_seq = [gaps] if gaps >= self.total_gap_size() else []
         if pieces is None:
-            pieces_seq = range(self.min_disambiguation_size(),
-                               len(self._tokens) + 1)
+            pieces_seq = range(self.min_disambiguation_size(), len(self._tokens) + 1)
         else:
-            pieces_seq = [
-                pieces] if pieces >= self.min_disambiguation_size() else []
+            pieces_seq = [pieces] if pieces >= self.min_disambiguation_size() else []
         try:
             success = False
             for gaps in gaps_seq:
                 for pieces in pieces_seq:
-                    for tail in self._iter_disambiguation_tails(0, len(
-                            self._tokens), gaps, pieces, timeout):
+                    for tail in self._iter_disambiguation_tails(0, len(self._tokens), gaps, pieces, timeout):
                         yield type(self)(self._tokens, tail)
                         success = True
                     if success:
@@ -1137,18 +1027,13 @@ class Parse:
     def get_ranked_disambiguations(self, gaps=None, pieces=None,
                                    timeout=None):
         ranks = {}
-        for disambiguation in self.get_disambiguations(gaps, pieces,
-                                                       timeout):
+        for disambiguation in self.get_disambiguations(gaps, pieces, timeout):
             ranks[disambiguation] = disambiguation.get_rank()
         return ranks
 
-    def get_sorted_disambiguations(self, gaps=None, pieces=None,
-                                   timeout=None):
+    def get_sorted_disambiguations(self, gaps=None, pieces=None, timeout=None):
         ranks = self.get_ranked_disambiguations(gaps, pieces, timeout)
-        return [
-            (disambiguation, ranks[disambiguation])
-            for disambiguation in sorted(ranks, key=ranks.get)
-        ]
+        return [(disambiguation, ranks[disambiguation]) for disambiguation in sorted(ranks, key=ranks.get)]
 
     def iter_gaps(self):
         gap_start = None
@@ -1192,15 +1077,9 @@ class Parse:
         return int(math.floor(len(self._tokens) / float(max_width)))
 
     def visit(self, handler):
-        scores = {tree: tree.get_weighted_score()
-                  for tree in self._parse_trees}
+        scores = {tree: tree.get_weighted_score() for tree in self._parse_trees}
 
-        for tree in sorted(
-                self._parse_trees,
-                key=lambda tree: (
-                    tree.start,
-                    -tree.end,
-                    -scores[tree][0],
-                    -scores[tree][1])):
+        for tree in sorted(self._parse_trees,
+                           key=lambda tree: (tree.start, -tree.end, -scores[tree][0], -scores[tree][1])):
             tree.visit(handler)
             handler.handle_tree_end()

@@ -19,7 +19,7 @@ except ImportError:
     warnings.warn("The pyramids_categories package was not found. "
                   "The pre-compiled category files will not be available.")
 
-from pyramids import benchmarking, categorization, exceptions, graphs, parsing, parserules, tokenization
+from pyramids import benchmarking, categorization, exceptions, graphs, parsing, rules, tokenization
 
 
 __author__ = 'Aaron Hosford'
@@ -196,37 +196,21 @@ class ParserLoader:
         definition = definition.strip()
         if '(' in definition:
             if not definition.endswith(')'):
-                raise exceptions.GrammarSyntaxError(
-                    "Expected: ')' in category definition",
-                    offset=offset + len(definition)
-                )
+                raise exceptions.GrammarSyntaxError("Expected: ')' in category definition",
+                                                    offset=offset + len(definition))
             if definition.count('(') > 1:
-                raise exceptions.GrammarSyntaxError(
-                    "Unexpected: '(' in category definition",
-                    offset=offset + definition.find(
-                        "(",
-                        definition.find("(") + 1
-                    )
-                )
+                raise exceptions.GrammarSyntaxError("Unexpected: '(' in category definition",
+                                                    offset=offset + definition.find("(", definition.find("(") + 1))
             if definition.count(')') > 1:
-                raise exceptions.GrammarSyntaxError(
-                    "Unexpected: ')' in category definition",
-                    offset=offset + definition.find(
-                        ")",
-                        definition.find(")") + 1
-                    )
-                )
+                raise exceptions.GrammarSyntaxError("Unexpected: ')' in category definition",
+                                                    offset=offset + definition.find(")", definition.find(")") + 1))
             name, properties = definition[:-1].split('(')
             if ',' in name:
-                raise exceptions.GrammarSyntaxError(
-                    "Unexpected: ',' in category definition",
-                    offset=offset + definition.find(",")
-                )
+                raise exceptions.GrammarSyntaxError("Unexpected: ',' in category definition",
+                                                    offset=offset + definition.find(","))
             if len(name.split()) > 1:
-                raise exceptions.GrammarSyntaxError(
-                    "Unexpected: white space in category definition",
-                    offset=offset + len(name) + 1
-                )
+                raise exceptions.GrammarSyntaxError("Unexpected: white space in category definition",
+                                                    offset=offset + len(name) + 1)
             properties = [prop.strip() for prop in properties.split(',')]
             for prop in properties:
                 if not prop.strip():
@@ -257,20 +241,14 @@ class ParserLoader:
             )
         else:
             if ')' in definition:
-                raise exceptions.GrammarSyntaxError(
-                    "Unexpected: ')' in category definition",
-                    offset=offset + definition.find(")")
-                )
+                raise exceptions.GrammarSyntaxError("Unexpected: ')' in category definition",
+                                                    offset=offset + definition.find(")"))
             if ',' in definition:
-                raise exceptions.GrammarSyntaxError(
-                    "Unexpected: ',' in category definition",
-                    offset=offset + definition.find(",")
-                )
+                raise exceptions.GrammarSyntaxError("Unexpected: ',' in category definition",
+                                                    offset=offset + definition.find(","))
             if len(definition.split()) > 1:
-                raise exceptions.GrammarSyntaxError(
-                    "Unexpected: white space in category definition",
-                    offset=offset + len(definition.split()[0]) + 1
-                )
+                raise exceptions.GrammarSyntaxError("Unexpected: white space in category definition",
+                                                    offset=offset + len(definition.split()[0]) + 1)
             if not definition:
                 raise exceptions.GrammarSyntaxError("Expected: category definition", offset=offset)
             return categorization.Category(definition)
@@ -282,10 +260,7 @@ class ParserLoader:
             offset += 1
             is_head = True
             if '*' in term:
-                raise exceptions.GrammarSyntaxError(
-                    "Unexpected: '*'",
-                    offset=offset + term.find('*')
-                )
+                raise exceptions.GrammarSyntaxError("Unexpected: '*'", offset=offset + term.find('*'))
         subcategories = []
         subcategory_definitions = term.split('|')
         for definition in subcategory_definitions:
@@ -293,24 +268,15 @@ class ParserLoader:
             subcategories.append(subcategory)
             offset += len(definition) + 1
         if not subcategories:
-            raise exceptions.GrammarSyntaxError(
-                "Expected: category",
-                offset=offset
-            )
+            raise exceptions.GrammarSyntaxError("Expected: category", offset=offset)
         return is_head, subcategories
 
     @staticmethod
     def parse_branch_rule_link_type(term, offset=1):
         if '<' in term[1:]:
-            raise exceptions.GrammarSyntaxError(
-                "Unexpected: '<'",
-                offset=offset + term.find('<', term.find('<') + 1)
-            )
+            raise exceptions.GrammarSyntaxError("Unexpected: '<'", offset=offset + term.find('<', term.find('<') + 1))
         if '>' in term[:-1]:
-            raise exceptions.GrammarSyntaxError(
-                "Unexpected: '<'",
-                offset=offset + term.find('>')
-            )
+            raise exceptions.GrammarSyntaxError("Unexpected: '<'", offset=offset + term.find('>'))
         left = term.startswith('<')
         right = term.endswith('>')
         if left:
@@ -318,10 +284,7 @@ class ParserLoader:
         if right:
             term = term[:-1]
         if not term:
-            raise exceptions.GrammarSyntaxError(
-                "Expected: link type",
-                offset=offset + left
-            )
+            raise exceptions.GrammarSyntaxError("Expected: link type", offset=offset + left)
         return term, left, right
 
     def parse_branch_rule(self, category, definition, offset=1):
@@ -337,41 +300,21 @@ class ParserLoader:
                     continue
                 if '>' in term or '<' in term:
                     if not subcategory_sets:
-                        raise exceptions.GrammarSyntaxError(
-                            "Unexpected: link type",
-                            offset=offset + term_start
-                        )
-                    link_type, left, right = \
-                        self.parse_branch_rule_link_type(
-                            term,
-                            offset + term_start
-                        )
+                        raise exceptions.GrammarSyntaxError("Unexpected: link type", offset=offset + term_start)
+                    link_type, left, right = self.parse_branch_rule_link_type(term, offset + term_start)
                     if head_index is None:
                         if right:
-                            raise exceptions.GrammarSyntaxError(
-                                "Unexpected: right link",
-                                offset=offset + term_start
-                            )
+                            raise exceptions.GrammarSyntaxError("Unexpected: right link", offset=offset + term_start)
                     else:
                         if left:
-                            raise exceptions.GrammarSyntaxError(
-                                "Unexpected: left link",
-                                offset=offset + term_start
-                            )
+                            raise exceptions.GrammarSyntaxError("Unexpected: left link", offset=offset + term_start)
                     link_types[-1].add((link_type, left, right))
                 else:
-                    is_head, subcategories = self.parse_branch_rule_term(
-                        term,
-                        offset=offset + term_start
-                    )
+                    is_head, subcategories = self.parse_branch_rule_term(term, offset=offset + term_start)
                     if is_head:
                         if head_index is not None:
-                            raise exceptions.GrammarSyntaxError(
-                                "Unexpected: '*'",
-                                offset=(offset +
-                                        term_start +
-                                        term.find('*'))
-                            )
+                            raise exceptions.GrammarSyntaxError("Unexpected: '*'",
+                                                                offset=(offset + term_start + term.find('*')))
                         head_index = len(subcategory_sets)
                     subcategory_sets.append(subcategories)
                     link_types.append(set())
@@ -381,43 +324,23 @@ class ParserLoader:
                     term_start = index
                 term += char
         if term:
-            is_head, subcategories = self.parse_branch_rule_term(
-                term,
-                offset=offset + term_start
-            )
+            is_head, subcategories = self.parse_branch_rule_term(term, offset=offset + term_start)
             if is_head:
                 if head_index is not None:
-                    raise exceptions.GrammarSyntaxError(
-                        "Unexpected: '*'",
-                        offset=offset + term_start + term.find('*')
-                    )
+                    raise exceptions.GrammarSyntaxError("Unexpected: '*'", offset=offset + term_start + term.find('*'))
                 head_index = len(subcategory_sets)
             subcategory_sets.append(subcategories)
             link_types.append(set())
         if not subcategory_sets:
-            raise exceptions.GrammarSyntaxError(
-                "Expected: category",
-                offset=offset
-            )
+            raise exceptions.GrammarSyntaxError("Expected: category", offset=offset)
         if link_types[-1]:
-            raise exceptions.GrammarSyntaxError(
-                "Expected: category",
-                offset=offset + term_start + len(term)
-            )
+            raise exceptions.GrammarSyntaxError("Expected: category", offset=offset + term_start + len(term))
         link_types = link_types[:-1]
         if head_index is None:
             if len(subcategory_sets) != 1:
-                raise exceptions.GrammarSyntaxError(
-                    "Expected: '*'",
-                    offset=offset + term_start
-                )
+                raise exceptions.GrammarSyntaxError("Expected: '*'", offset=offset + term_start)
             head_index = 0
-        return parserules.SequenceRule(
-            category,
-            subcategory_sets,
-            head_index,
-            link_types
-        )
+        return rules.SequenceRule(category, subcategory_sets, head_index, link_types)
 
     def parse_grammar_definition_file(self, path):
         branch_rules = []
@@ -433,49 +356,26 @@ class ParserLoader:
                         continue
                     if line[:1].isspace():
                         if ':' in line:
-                            raise exceptions.GrammarSyntaxError(
-                                "Unexpected: ':'",
-                                offset=1 + line.find(':')
-                            )
+                            raise exceptions.GrammarSyntaxError("Unexpected: ':'", offset=1 + line.find(':'))
                         if not category:
-                            raise exceptions.GrammarSyntaxError(
-                                "Expected: category header",
-                                offset=1 + line.find(line.strip())
-                            )
+                            raise exceptions.GrammarSyntaxError("Expected: category header",
+                                                                offset=1 + line.find(line.strip()))
                         branch_rules.append(
-                            self.parse_branch_rule(
-                                category,
-                                line.lstrip(),
-                                offset=1 + line.find(line.lstrip())
-                            )
-                        )
+                            self.parse_branch_rule(category, line.lstrip(), offset=1 + line.find(line.lstrip())))
                         sequence_found = True
                     else:
                         if category is not None and not sequence_found:
-                            raise exceptions.GrammarSyntaxError(
-                                "Expected: category sequence",
-                                offset=1
-                            )
+                            raise exceptions.GrammarSyntaxError("Expected: category sequence", offset=1)
                         if ':' not in line:
-                            raise exceptions.GrammarSyntaxError(
-                                "Expected: ':'",
-                                offset=1 + len(line)
-                            )
+                            raise exceptions.GrammarSyntaxError("Expected: ':'", offset=1 + len(line))
                         if line.count(':') > 1:
-                            raise exceptions.GrammarSyntaxError(
-                                "Unexpected: ':'",
-                                offset=1 + line.find(':', line.find(':') + 1)
-                            )
+                            raise exceptions.GrammarSyntaxError("Unexpected: ':'",
+                                                                offset=1 + line.find(':', line.find(':') + 1))
                         header, sequence = line.split(':')
                         category = self.parse_category(header)
                         if sequence.strip():
-                            branch_rules.append(
-                                self.parse_branch_rule(
-                                    category,
-                                    sequence.lstrip(),
-                                    offset=1 + sequence.find(sequence.lstrip())
-                                )
-                            )
+                            branch_rules.append(self.parse_branch_rule(category, sequence.lstrip(),
+                                                                       offset=1 + sequence.find(sequence.lstrip())))
                             sequence_found = True
                         else:
                             sequence_found = False
@@ -488,29 +388,20 @@ class ParserLoader:
 
     def parse_match_rule(self, definition, offset=1):
         if not definition.startswith('['):
-            raise exceptions.GrammarSyntaxError(
-                "Expected: '['",
-                offset
-            )
+            raise exceptions.GrammarSyntaxError("Expected: '['", offset)
         if not definition.endswith(']'):
-            raise exceptions.GrammarSyntaxError(
-                "Expected: ']'",
-                offset + len(definition) - 1
-            )
+            raise exceptions.GrammarSyntaxError("Expected: ']'", offset + len(definition) - 1)
         generator_map = {
-            'any_term': parserules.AnyTermMatchRule,
-            'all_terms': parserules.AllTermsMatchRule,
-            'compound': parserules.CompoundMatchRule,
-            'head': parserules.HeadMatchRule,
-            'one_term': parserules.OneTermMatchRule,
-            'last_term': parserules.LastTermMatchRule,
+            'any_term': rules.AnyTermMatchRule,
+            'all_terms': rules.AllTermsMatchRule,
+            'compound': rules.CompoundMatchRule,
+            'head': rules.HeadMatchRule,
+            'one_term': rules.OneTermMatchRule,
+            'last_term': rules.LastTermMatchRule,
         }
         rule_list = []
         for category_definition in definition[1:-1].split():
-            category = self.parse_category(
-                category_definition,
-                offset=1 + definition.find(category_definition)
-            )
+            category = self.parse_category(category_definition, offset=1 + definition.find(category_definition))
             generator = generator_map.get(str(category.name), None)
             if generator is None:
                 raise exceptions.GrammarSyntaxError("Unexpected: " + repr(category),
@@ -529,17 +420,11 @@ class ParserLoader:
         while definition[:1] in ('+', '-'):
             if definition[0] == '+':
                 if compound:
-                    raise exceptions.GrammarSyntaxError(
-                        "Unexpected: '+'",
-                        offset=offset
-                    )
+                    raise exceptions.GrammarSyntaxError("Unexpected: '+'", offset=offset)
                 compound = True
             else:
                 if single:
-                    raise exceptions.GrammarSyntaxError(
-                        "Unexpected: '-'",
-                        offset=offset
-                    )
+                    raise exceptions.GrammarSyntaxError("Unexpected: '-'", offset=offset)
                 single = True
             definition = definition[1:]
             offset += 1
@@ -558,39 +443,21 @@ class ParserLoader:
                     continue
                 if '>' in term or '<' in term:
                     if not subcategory_sets:
-                        raise exceptions.GrammarSyntaxError(
-                            "Unexpected: link type",
-                            offset=offset + term_start
-                        )
-                    link_type, left, right = \
-                        self.parse_branch_rule_link_type(
-                            term,
-                            offset + term_start
-                        )
+                        raise exceptions.GrammarSyntaxError("Unexpected: link type", offset=offset + term_start)
+                    link_type, left, right = self.parse_branch_rule_link_type(term, offset + term_start)
                     if head_index is None:
                         if right:
-                            raise exceptions.GrammarSyntaxError(
-                                "Unexpected: right link",
-                                offset=offset + term_start
-                            )
+                            raise exceptions.GrammarSyntaxError("Unexpected: right link", offset=offset + term_start)
                     else:
                         if left:
-                            raise exceptions.GrammarSyntaxError(
-                                "Unexpected: left link",
-                                offset=offset + term_start
-                            )
+                            raise exceptions.GrammarSyntaxError("Unexpected: left link", offset=offset + term_start)
                     link_types[-1].add((link_type, left, right))
                 else:
-                    is_head, subcategories = self.parse_branch_rule_term(
-                        term,
-                        offset=offset + term_start
-                    )
+                    is_head, subcategories = self.parse_branch_rule_term(term, offset=offset + term_start)
                     if is_head:
                         if head_index is not None:
-                            raise exceptions.GrammarSyntaxError(
-                                "Unexpected: '*'",
-                                offset=offset + term_start + term.find('*')
-                            )
+                            raise exceptions.GrammarSyntaxError("Unexpected: '*'",
+                                                                offset=offset + term_start + term.find('*'))
                         head_index = len(subcategory_sets)
                     subcategory_sets.append(subcategories)
                     link_types.append(set())
@@ -600,58 +467,35 @@ class ParserLoader:
                     term_start = index
                 term += char
         if term:
-            is_head, subcategories = self.parse_branch_rule_term(
-                term,
-                offset=offset + term_start
-            )
+            is_head, subcategories = self.parse_branch_rule_term(term, offset=offset + term_start)
             if is_head:
                 if head_index is not None:
-                    raise exceptions.GrammarSyntaxError(
-                        "Unexpected: '*'",
-                        offset=offset + term_start + term.find('*')
-                    )
+                    raise exceptions.GrammarSyntaxError("Unexpected: '*'", offset=offset + term_start + term.find('*'))
                 head_index = len(subcategory_sets)
             subcategory_sets.append(subcategories)
             link_types.append(set())
         if not subcategory_sets:
-            raise exceptions.GrammarSyntaxError(
-                "Expected: category",
-                offset=offset
-            )
+            raise exceptions.GrammarSyntaxError("Expected: category", offset=offset)
         if link_types[-1]:
-            raise exceptions.GrammarSyntaxError(
-                "Expected: category",
-                offset=offset + term_start + len(term)
-            )
+            raise exceptions.GrammarSyntaxError("Expected: category", offset=offset + term_start + len(term))
         link_types = link_types[:-1]
         if head_index is None:
             if len(subcategory_sets) != 1:
-                raise exceptions.GrammarSyntaxError(
-                    "Expected: '*'",
-                    offset=offset + term_start
-                )
+                raise exceptions.GrammarSyntaxError("Expected: '*'", offset=offset + term_start)
             head_index = 0
         # TODO: Specify offsets for these errors.
         if len(subcategory_sets) > 3:
-            raise exceptions.GrammarSyntaxError(
-                "Unexpected: category"
-            )
+            raise exceptions.GrammarSyntaxError("Unexpected: category")
         elif len(subcategory_sets) < 2:
-            raise exceptions.GrammarSyntaxError(
-                "Expected: category"
-            )
+            raise exceptions.GrammarSyntaxError("Expected: category")
         elif len(subcategory_sets) == 3:
             if head_index != 1:
-                raise exceptions.GrammarSyntaxError(
-                    "Unexpected: category"
-                )
+                raise exceptions.GrammarSyntaxError("Unexpected: category")
             leadup_cats, conjunction_cats, followup_cats = subcategory_sets
             leadup_link_types, followup_link_types = link_types
         else:  # if len(subcategory_sets) == 2:
             if head_index != 0:
-                raise exceptions.GrammarSyntaxError(
-                    "Expected: category"
-                )
+                raise exceptions.GrammarSyntaxError("Expected: category")
             leadup_cats = None
             conjunction_cats, followup_cats = subcategory_sets
             # TODO: While these are sets, ConjunctionRule expects
@@ -659,18 +503,8 @@ class ParserLoader:
             leadup_link_types = set()
 
             followup_link_types = link_types[0]
-        return parserules.ConjunctionRule(
-            category,
-            match_rules,
-            property_rules,
-            leadup_cats,
-            conjunction_cats,
-            followup_cats,
-            leadup_link_types,
-            followup_link_types,
-            single,
-            compound
-        )
+        return rules.ConjunctionRule(category, match_rules, property_rules, leadup_cats, conjunction_cats,
+                                     followup_cats, leadup_link_types, followup_link_types, single, compound)
 
     def parse_conjunctions_file(self, path):
         branch_rules = []
@@ -690,40 +524,24 @@ class ParserLoader:
                         continue
                     if line[:1].isspace():
                         if ':' in line:
-                            raise exceptions.GrammarSyntaxError(
-                                "Unexpected: ':'",
-                                offset=1 + line.find(':')
-                            )
+                            raise exceptions.GrammarSyntaxError("Unexpected: ':'", offset=1 + line.find(':'))
                         if not category:
-                            raise exceptions.GrammarSyntaxError(
-                                "Expected: category header",
-                                offset=1 + line.find(line.strip())
-                            )
+                            raise exceptions.GrammarSyntaxError("Expected: category header",
+                                                                offset=1 + line.find(line.strip()))
                         if line.endswith(']') and '[' in line:
                             if line.lstrip().startswith('['):
                                 if match_rules_closed:
-                                    raise exceptions.GrammarSyntaxError(
-                                        "Unexpected: matching rule"
-                                        # TODO: offset?
-                                    )
-                                match_rules.append(
-                                    self.parse_match_rule(
-                                        line.lstrip(),
-                                        offset=1 + line.find(line.lstrip())
-                                    )
-                                )
+                                    # TODO: offset?
+                                    raise exceptions.GrammarSyntaxError("Unexpected: matching rule")
+                                match_rules.append(self.parse_match_rule(line.lstrip(),
+                                                                         offset=1 + line.find(line.lstrip())))
                             else:
                                 if property_rules_closed:
-                                    raise exceptions.GrammarSyntaxError(
-                                        "Unexpected: property rule"
-                                        # TODO: offset?
-                                    )
+                                    # TODO: offset?
+                                    raise exceptions.GrammarSyntaxError("Unexpected: property rule")
                                 match_rules_closed = True
                                 left_bracket_index = line.index('[')
-                                property_names = \
-                                    line[:left_bracket_index].strip().split(
-                                        ','
-                                    )
+                                property_names = line[:left_bracket_index].strip().split(',')
                                 properties = set()
                                 for property_name in property_names:
                                     if property_name.startswith('-'):
@@ -732,51 +550,28 @@ class ParserLoader:
                                         properties.add((categorization.Property.get(property_name), True))
                                 line_remainder = line[left_bracket_index:]
                                 property_rules.append(
-                                    (
-                                        frozenset(properties),
-                                        self.parse_match_rule(line_remainder.lstrip(),
-                                                              offset=1 + line.find(line_remainder.strip()))
-                                    )
-                                )
+                                    (frozenset(properties),
+                                     self.parse_match_rule(line_remainder.lstrip(),
+                                                           offset=1 + line.find(line_remainder.strip()))))
                         else:
                             match_rules_closed = True
                             property_rules_closed = True
                             if '[' in line:
-                                raise exceptions.GrammarSyntaxError(
-                                    "Unexpected: '['",
-                                    offset=1 + line.find('[')
-                                )
+                                raise exceptions.GrammarSyntaxError("Unexpected: '['", offset=1 + line.find('['))
                             if ']' in line:
-                                raise exceptions.GrammarSyntaxError(
-                                    "Unexpected: ']'",
-                                    offset=1 + line.find(']')
-                                )
-                            branch_rules.append(
-                                self.parse_conjunction_rule(
-                                    category,
-                                    match_rules,
-                                    property_rules,
-                                    line.lstrip(),
-                                    offset=1 + line.find(line.lstrip())
-                                )
-                            )
+                                raise exceptions.GrammarSyntaxError("Unexpected: ']'", offset=1 + line.find(']'))
+                            branch_rules.append(self.parse_conjunction_rule(category, match_rules, property_rules,
+                                                                            line.lstrip(),
+                                                                            offset=1 + line.find(line.lstrip())))
                             sequence_found = True
                     else:
                         if category is not None and not sequence_found:
-                            raise exceptions.GrammarSyntaxError(
-                                "Expected: category sequence",
-                                offset=1
-                            )
+                            raise exceptions.GrammarSyntaxError("Expected: category sequence", offset=1)
                         if ':' not in line:
-                            raise exceptions.GrammarSyntaxError(
-                                "Expected: ':'",
-                                offset=1 + len(line)
-                            )
+                            raise exceptions.GrammarSyntaxError("Expected: ':'", offset=1 + len(line))
                         if line.count(':') > 1:
-                            raise exceptions.GrammarSyntaxError(
-                                "Unexpected: ':'",
-                                offset=1 + line.find(':', line.find(':') + 1)
-                            )
+                            raise exceptions.GrammarSyntaxError("Unexpected: ':'",
+                                                                offset=1 + line.find(':', line.find(':') + 1))
                         header, sequence = line.split(':')
                         category = self.parse_category(header)
                         match_rules = []
@@ -785,16 +580,8 @@ class ParserLoader:
                         property_rules_closed = False
                         if sequence.strip():
                             branch_rules.append(
-                                self.parse_conjunction_rule(
-                                    category,
-                                    match_rules,
-                                    property_rules,
-                                    sequence.lstrip(),
-                                    offset=1 + sequence.find(
-                                        sequence.lstrip()
-                                    )
-                                )
-                            )
+                                self.parse_conjunction_rule(category, match_rules, property_rules, sequence.lstrip(),
+                                                            offset=1 + sequence.find(sequence.lstrip())))
                             sequence_found = True
                         else:
                             sequence_found = False
@@ -802,13 +589,7 @@ class ParserLoader:
                     error.set_info(path, line_number, None, raw_line)
                     raise error
                 except Exception as original_exception:
-                    raise exceptions.GrammarParserError(
-                        None,
-                        path,
-                        line_number,
-                        None,
-                        raw_line
-                    ) from original_exception
+                    raise exceptions.GrammarParserError(None, path, line_number, None, raw_line) from original_exception
         return branch_rules
 
     def parse_suffix_file(self, path):
@@ -822,24 +603,12 @@ class ParserLoader:
                     if not line:
                         continue
                     if ':' not in line:
-                        raise exceptions.GrammarSyntaxError(
-                            "Expected: ':'",
-                            filename=path,
-                            lineno=line_number,
-                            offset=1 + len(line),
-                            text=raw_line
-                        )
+                        raise exceptions.GrammarSyntaxError("Expected: ':'", filename=path, lineno=line_number,
+                                                            offset=1 + len(line), text=raw_line)
                     if line.count(':') > 1:
-                        raise exceptions.GrammarSyntaxError(
-                            "Unexpected: ':'",
-                            filename=path,
-                            lineno=line_number,
-                            offset=1 + line.find(
-                                ':',
-                                line.find(':') + 1
-                            ),
-                            text=raw_line
-                        )
+                        raise exceptions.GrammarSyntaxError("Unexpected: ':'", filename=path, lineno=line_number,
+                                                            offset=1 + line.find(':', line.find(':') + 1),
+                                                            text=raw_line)
                     definition, suffixes = line.split(':')
                     try:
                         category = self.parse_category(definition)
@@ -847,39 +616,21 @@ class ParserLoader:
                         error.set_info(path, line_number, None, line)
                         raise error
                     except Exception as original_exception:
-                        raise exceptions.GrammarParserError(
-                            None,
-                            path,
-                            line_number,
-                            None,
-                            line
-                        ) from original_exception
+                        raise exceptions.GrammarParserError(None, path, line_number, None, line) from original_exception
                     suffixes = suffixes.split()
                     if not suffixes or suffixes[0] not in ('+', '-'):
-                        raise exceptions.GrammarSyntaxError(
-                            "Expected: '+' or '-'",
-                            filename=path,
-                            lineno=line_number,
-                            offset=1 + line.find(':') + 1, text=raw_line
-                        )
+                        raise exceptions.GrammarSyntaxError("Expected: '+' or '-'", filename=path, lineno=line_number,
+                                                            offset=1 + line.find(':') + 1, text=raw_line)
                     positive = suffixes.pop(0) == '+'
                     suffixes = frozenset(suffixes)
                     if not suffixes:
                         suffixes = frozenset([''])
-                    leaf_rules.append(
-                        parserules.SuffixRule(category, suffixes, positive)
-                    )
+                    leaf_rules.append(rules.SuffixRule(category, suffixes, positive))
                 except exceptions.GrammarParserError as error:
                     error.set_info(path, line_number, text=raw_line)
                     raise error
                 except Exception as original_exception:
-                    raise exceptions.GrammarParserError(
-                        None,
-                        path,
-                        line_number,
-                        None,
-                        raw_line
-                    ) from original_exception
+                    raise exceptions.GrammarParserError(None, path, line_number, None, raw_line) from original_exception
         return leaf_rules
 
     def parse_special_words_file(self, path):
@@ -893,13 +644,8 @@ class ParserLoader:
                     if not line:
                         continue
                     if ':' not in line:
-                        raise exceptions.GrammarSyntaxError(
-                            "Expected: ':'",
-                            filename=path,
-                            lineno=line_number,
-                            offset=1 + len(line),
-                            text=raw_line
-                        )
+                        raise exceptions.GrammarSyntaxError("Expected: ':'", filename=path, lineno=line_number,
+                                                            offset=1 + len(line), text=raw_line)
                     line = line.split(':')
                     definition = line.pop(0)
                     token_str = ':'.join(line)
@@ -909,26 +655,14 @@ class ParserLoader:
                         error.set_info(path, line_number, None, line)
                         raise error
                     except Exception as original_exception:
-                        raise exceptions.GrammarParserError(
-                            None,
-                            path,
-                            line_number,
-                            None,
-                            line
-                        ) from original_exception
+                        raise exceptions.GrammarParserError(None, path, line_number, None, line) from original_exception
                     token_set = frozenset(token_str.split())
-                    leaf_rules.append(parserules.SetRule(category, token_set))
+                    leaf_rules.append(rules.SetRule(category, token_set))
                 except exceptions.GrammarParserError as error:
                     error.set_info(path, line_number, text=raw_line)
                     raise error
                 except Exception as original_exception:
-                    raise exceptions.GrammarParserError(
-                        None,
-                        path,
-                        line_number,
-                        None,
-                        raw_line
-                    ) from original_exception
+                    raise exceptions.GrammarParserError(None, path, line_number, None, raw_line) from original_exception
         return leaf_rules
 
     def load_word_set(self, file_path):
@@ -939,26 +673,20 @@ class ParserLoader:
         except exceptions.GrammarSyntaxError:
             raise IOError("Badly named word set file: " + file_path)
         if self.verbose:
-            print(
-                "Loading category",
-                str(category),
-                "from",
-                file_path,
-                "..."
-            )
+            print("Loading category", str(category), "from", file_path, "...")
         with open(file_path) as token_file:
             token_set = token_file.read().split()
-        return parserules.SetRule(category, token_set)
+        return rules.SetRule(category, token_set)
 
     def load_word_sets_folder(self, folder):
         # TODO: Should this do a directory walk instead?
         leaf_rules = []
-        for filename in os.listdir(folder):
-            filepath = os.path.join(folder, filename)
-            if os.path.splitext(filename)[-1].lower() == '.ctg':
-                leaf_rules.append(self.load_word_set(filepath))
+        for file_name in os.listdir(folder):
+            file_path = os.path.join(folder, file_name)
+            if os.path.splitext(file_name)[-1].lower() == '.ctg':
+                leaf_rules.append(self.load_word_set(file_path))
             elif self.verbose:
-                print("Skipping file " + filepath + "...")
+                print("Skipping file " + file_path + "...")
         return leaf_rules
 
     # TODO: Write a parser for a file that defines property inheritance;
@@ -1009,21 +737,12 @@ class ParserLoader:
                     if not line:
                         continue
                     if ':' not in line:
-                        raise exceptions.GrammarSyntaxError(
-                            "Expected: ':'",
-                            filename=path,
-                            lineno=line_number,
-                            offset=1 + len(line),
-                            text=raw_line
-                        )
+                        raise exceptions.GrammarSyntaxError("Expected: ':'", filename=path, lineno=line_number,
+                                                            offset=1 + len(line), text=raw_line)
                     if line.count(':') > 1:
-                        raise exceptions.GrammarSyntaxError(
-                            "Unexpected: ':'",
-                            filename=path,
-                            lineno=line_number,
-                            offset=1 + line.find(':', line.find(':') + 1),
-                            text=raw_line
-                        )
+                        raise exceptions.GrammarSyntaxError("Unexpected: ':'", filename=path, lineno=line_number,
+                                                            offset=1 + line.find(':', line.find(':') + 1),
+                                                            text=raw_line)
                     definition, additions = line.split(':')
                     try:
                         category = self.parse_category(definition)
@@ -1031,57 +750,23 @@ class ParserLoader:
                         error.set_info(path, line_number, None, line)
                         raise error
                     except Exception as original_exception:
-                        raise exceptions.GrammarParserError(
-                            None,
-                            path,
-                            line_number,
-                            None,
-                            line
-                        ) from original_exception
+                        raise exceptions.GrammarParserError(None, path, line_number, None, line) from original_exception
                     additions = additions.split()
                     if not additions:
-                        raise exceptions.GrammarSyntaxError(
-                            "Expected: property",
-                            filename=path,
-                            lineno=line_number,
-                            offset=1 + line.find(':') + 1,
-                            text=raw_line
-                        )
-                    positive_additions = [
-                        addition
-                        for addition in additions
-                        if not addition.startswith('-')
-                    ]
-                    negative_additions = [
-                        addition[1:]
-                        for addition in additions
-                        if addition.startswith('-')
-                    ]
+                        raise exceptions.GrammarSyntaxError("Expected: property", filename=path, lineno=line_number,
+                                                            offset=1 + line.find(':') + 1, text=raw_line)
+                    positive_additions = [addition for addition in additions if not addition.startswith('-')]
+                    negative_additions = [addition[1:] for addition in additions if addition.startswith('-')]
                     # TODO: Check negative additions for a double '-'
                     # TODO: Check that positive & negative additions don't
                     #       conflict
-                    inheritance_rules.append(
-                        parserules.PropertyInheritanceRule(
-                            category,
-                            positive_additions,
-                            negative_additions
-                        )
-                    )
+                    inheritance_rules.append(rules.PropertyInheritanceRule(category, positive_additions,
+                                                                           negative_additions))
                 except exceptions.GrammarParserError as error:
-                    exceptions.GrammarSyntaxError.set_info(
-                        path,
-                        line_number,
-                        text=raw_line
-                    )
+                    exceptions.GrammarSyntaxError.set_info(path, line_number, text=raw_line)
                     raise error
                 except Exception as original_exception:
-                    raise exceptions.GrammarParserError(
-                        None,
-                        path,
-                        line_number,
-                        None,
-                        raw_line
-                    ) from original_exception
+                    raise exceptions.GrammarParserError(None, path, line_number, None, raw_line) from original_exception
         return inheritance_rules
 
     def load_parser(self, config_info):
@@ -1113,18 +798,11 @@ class ParserLoader:
         for path in config_info.special_words_files:
             primary_leaf_rules.extend(self.parse_special_words_file(path))
         for case in config_info.name_cases:
-            secondary_leaf_rules.append(parserules.CaseRule(categorization.Category('name'), case))
+            secondary_leaf_rules.append(rules.CaseRule(categorization.Category('name'), case))
 
-        parser = parsing.Parser(
-            primary_leaf_rules,
-            secondary_leaf_rules,
-            branch_rules,
-            tokenizer,
-            config_info.any_promoted_properties,
-            config_info.all_promoted_properties,
-            property_inheritance_rules,
-            config_info
-        )
+        parser = parsing.Parser(primary_leaf_rules, secondary_leaf_rules, branch_rules, tokenizer,
+                                config_info.any_promoted_properties, config_info.all_promoted_properties,
+                                property_inheritance_rules, config_info)
 
         # Scoring
         if self.verbose:
@@ -1139,27 +817,24 @@ class ParserLoader:
 
         return parser
 
-    def standardize_word_set_file(self, filepath):
-        with open(filepath) as word_set_file:
+    def standardize_word_set_file(self, file_path):
+        with open(file_path) as word_set_file:
             original_data = word_set_file.read()
         data = '\n'.join(sorted(set(original_data.split())))
         if data != original_data:
-            with open(filepath, 'w') as word_set_file:
+            with open(file_path, 'w') as word_set_file:
                 word_set_file.write(data)
-        folder = os.path.dirname(filepath)
-        filename = os.path.basename(filepath)
-        category = self.parse_category(os.path.splitext(filename)[0])
-        if str(category) + '.ctg' != filename:
-            os.rename(
-                filepath,
-                os.path.join(folder, str(category) + '.ctg')
-            )
+        folder = os.path.dirname(file_path)
+        file_name = os.path.basename(file_path)
+        category = self.parse_category(os.path.splitext(file_name)[0])
+        if str(category) + '.ctg' != file_name:
+            os.rename(file_path, os.path.join(folder, str(category) + '.ctg'))
 
     def standardize_word_sets_folder(self, folder):
-        for filename in os.listdir(folder):
-            filepath = os.path.join(folder, filename)
-            if filepath.endswith('.ctg'):
-                self.standardize_word_set_file(filepath)
+        for file_name in os.listdir(folder):
+            file_path = os.path.join(folder, file_name)
+            if file_path.endswith('.ctg'):
+                self.standardize_word_set_file(file_path)
 
     def standardize_parser(self, config_info):
         for folder in config_info.word_sets_folders:
@@ -1168,21 +843,21 @@ class ParserLoader:
     def get_word_set_categories(self, config_info):
         categories = set()
         for folder_path in config_info.word_sets_folders:
-            for filename in os.listdir(folder_path):
-                if not filename.lower().endswith('.ctg'):
+            for file_name in os.listdir(folder_path):
+                if not file_name.lower().endswith('.ctg'):
                     continue
-                category = self.parse_category(filename[:-4])
+                category = self.parse_category(file_name[:-4])
                 categories.add(category)
         return categories
 
     def find_word_set_path(self, config_info, category):
         for folder_path in config_info.word_sets_folders:
-            for filename in os.listdir(folder_path):
-                if not filename.lower().endswith('.ctg'):
+            for file_name in os.listdir(folder_path):
+                if not file_name.lower().endswith('.ctg'):
                     continue
-                file_category = self.parse_category(filename[:-4])
+                file_category = self.parse_category(file_name[:-4])
                 if file_category == category:
-                    return os.path.join(folder_path, filename)
+                    return os.path.join(folder_path, file_name)
         for folder_path in config_info.word_sets_folders:
             return os.path.join(folder_path, str(category) + '.ctg')
         raise IOError("Could not find a word sets folder.")
@@ -1281,13 +956,14 @@ class ParserCmd(cmd.Cmd):
         return self._last_input_text
 
     def onecmd(self, line):
+        # noinspection PyBroadException
         try:
             return cmd.Cmd.onecmd(self, line)
-        except:
+        except Exception:
             traceback.print_exc()
 
     def precmd(self, line):
-        # Preprocesses command lines before they are executed.
+        # Pre-processes command lines before they are executed.
         line = line.strip()
         if not line:
             return line
@@ -1303,7 +979,7 @@ class ParserCmd(cmd.Cmd):
         return line
 
     def postcmd(self, stop, line):
-        # Postprocesses command results before they are passed back to the
+        # Post-processes command results before they are passed back to the
         # command interpreter.
         print('')  # Print a blank line for clarity
         return stop
@@ -1354,6 +1030,7 @@ class ParserCmd(cmd.Cmd):
             return
         return self.do_quit(line)
 
+    # noinspection PyUnusedLocal
     @staticmethod
     def do_cls(line):
         """Clears the screen."""
@@ -1372,8 +1049,7 @@ class ParserCmd(cmd.Cmd):
         self._parser_loader.standardize_parser(config_info)
 
     def do_short(self, line):
-        """Causes parses to be printed in short form instead of long form.
-        """
+        """Causes parses to be printed in short form instead of long form."""
         if line:
             print("'short' command does not accept arguments.")
             return
@@ -1387,27 +1063,19 @@ class ParserCmd(cmd.Cmd):
             print("'broken' command does not accept arguments.")
             return
         self._show_broken = True
-        print(
-            "Parses with more pieces or gaps than necessary will now be "
-            "listed."
-        )
+        print("Parses with more pieces or gaps than necessary will now be listed.")
 
     def do_whole(self, line):
-        """Causes only parses that have no more pieces or gaps than
-        necessary to be listed."""
+        """Causes only parses that have no more pieces or gaps than necessary to be listed."""
         if line:
             print("'whole' command does not accept arguments.")
             return
         self._show_broken = False
         self._parse_index = min(self._parse_index, self.max_parse_index)
-        print(
-            "Only parses with no more pieces or gaps than necessary will "
-            "now be listed."
-        )
+        print("Only parses with no more pieces or gaps than necessary will now be listed.")
 
     def do_long(self, line):
-        """Causes parses to be printed in long form instead of short form.
-        """
+        """Causes parses to be printed in long form instead of short form."""
         if line:
             print("'long' command does not accept arguments.")
             return
@@ -1423,20 +1091,15 @@ class ParserCmd(cmd.Cmd):
         print("Parsing will now stop as soon as a single parse is found.")
 
     def do_complete(self, line):
-        """Causes parsing to continue until all parses have been
-        identified."""
+        """Causes parsing to continue until all parses have been identified."""
         if line:
             print("'complete' command does not accept arguments.")
             return
         self._fast = False
-        print(
-            "Parsing will now continue until all parses have been "
-            "identified."
-        )
+        print("Parsing will now continue until all parses have been identified.")
 
     def do_load(self, line=''):
-        """Save scoring measures and load a parser from the given
-        configuration file."""
+        """Save scoring measures and load a parser from the given configuration file."""
         self.do_save()
         if not line:
             line = os.path.abspath('data/pyramids.ini')
@@ -1447,25 +1110,20 @@ class ParserCmd(cmd.Cmd):
             return
         config_info = ParserConfigInfo(line)
         self._parser = self._parser_loader.load_parser(config_info)
-        self._benchmark = (
-            benchmarking.Benchmark.load(config_info.benchmark_file)
-            if os.path.isfile(config_info.benchmark_file) 
-            else benchmarking.Benchmark()
-        )
+        self._benchmark = (benchmarking.Benchmark.load(config_info.benchmark_file)
+                           if os.path.isfile(config_info.benchmark_file)
+                           else benchmarking.Benchmark())
         self._benchmark_dirty = False
 
     def do_reload(self, line=''):
-        """Save scoring measures and reload the last configuration file
-        provided."""
+        """Save scoring measures and reload the last configuration file provided."""
         if line:
             print("'reload' command does not accept arguments.")
             return
         self.do_save()
-        self.do_load(
-            self._parser.config_info.config_file_path
-            if self._parser and self._parser.config_info
-            else ''
-        )
+        self.do_load(self._parser.config_info.config_file_path
+                     if self._parser and self._parser.config_info
+                     else '')
 
     def do_save(self, line=''):
         """Save scoring measures."""
@@ -1495,10 +1153,8 @@ class ParserCmd(cmd.Cmd):
         self._benchmark_dirty = False
 
     def do_compare(self, line):
-        """Compare two categories to determine if either contains the
-        other."""
-        definitions = [definition for definition in line.split() if
-                       definition]
+        """Compare two categories to determine if either contains the other."""
+        definitions = [definition for definition in line.split() if definition]
         if len(definitions) == 0:
             print("Nothing to compare.")
             return
@@ -1507,33 +1163,18 @@ class ParserCmd(cmd.Cmd):
             return
         categories = set()
         for definition in definitions:
-            categories.add(
-                self._parser_loader.parse_category(
-                    definition,
-                    offset=line.find(definition) + 1
-                )
-            )
+            categories.add(self._parser_loader.parse_category(definition, offset=line.find(definition) + 1))
         categories = sorted(categories, key=lambda category: str(category))
         for category1 in categories:
             for category2 in categories:
                 if category1 is not category2:
-                    contains_phrase = [
-                        " does not contain ",
-                        " contains "
-                    ][category2 in category1]
-                    print(
-                        str(category1) +
-                        contains_phrase +
-                        str(category2)
-                    )
+                    contains_phrase = [" does not contain ", " contains "][category2 in category1]
+                    print(str(category1) + contains_phrase + str(category2))
 
     def do_timeout(self, line):
         """Set (or display) the timeout duration for parsing."""
         if not line:
-            print(
-                "Parsing timeout duration is currently " +
-                str(self._timeout_interval) + " seconds"
-            )
+            print("Parsing timeout duration is currently " + str(self._timeout_interval) + " seconds")
             return
         try:
             try:
@@ -1545,13 +1186,9 @@ class ParserCmd(cmd.Cmd):
         except ValueError:
             print("Timeout duration could not be set to this value.")
         else:
-            print(
-                "Set parsing timeout duration to " +
-                str(self._timeout_interval) + " seconds."
-            )
+            print("Set parsing timeout duration to " + str(self._timeout_interval) + " seconds.")
 
-    def _do_parse(self, line, timeout, new_parser_state=True,
-                  restriction_category=None, fast=None):
+    def _do_parse(self, line, timeout, new_parser_state=True, restriction_category=None, fast=None):
         if fast is None:
             fast = self._fast
         if new_parser_state:
@@ -1561,33 +1198,19 @@ class ParserCmd(cmd.Cmd):
         emergency_disambiguation = False
         if restriction_category:
             parse = parse.restrict(restriction_category)
-        self._parses = [
-            disambiguation
-            for (disambiguation, rank) in parse.get_sorted_disambiguations(
-                None,
-                None,
-                timeout
-            )
-        ]
+        self._parses = [disambiguation
+                        for (disambiguation, rank) in parse.get_sorted_disambiguations(None, None, timeout)]
         if not self._parses:
             emergency_disambiguation = True
             self._parses = [parse.disambiguate()]
         disambiguation_timed_out = time.time() >= timeout
-        self._whole_parses = len([
-            disambiguation
-            for disambiguation in self._parses
-            if ((len(disambiguation.parse_trees) ==
-                 len(self._parses[0].parse_trees)) and
-                (disambiguation.total_gap_size() ==
-                 self._parses[0].total_gap_size()))
-        ])
+        self._whole_parses = len([disambiguation
+                                  for disambiguation in self._parses
+                                  if ((len(disambiguation.parse_trees) == len(self._parses[0].parse_trees)) and
+                                      (disambiguation.total_gap_size() == self._parses[0].total_gap_size()))])
         self._parse_index = 0
         self._last_input_text = line
-        return (
-            emergency_disambiguation,
-            parse_timed_out,
-            disambiguation_timed_out
-        )
+        return emergency_disambiguation, parse_timed_out, disambiguation_timed_out
 
     def _handle_parse(self, line, new_parser_state=True,
                       restriction_category=None, fast=None):
@@ -1597,14 +1220,8 @@ class ParserCmd(cmd.Cmd):
             return
         start_time = time.time()
         timeout = start_time + self._timeout_interval
-        emergency_disambig, parse_timed_out, disambig_timed_out = \
-            self._do_parse(
-                line,
-                timeout,
-                new_parser_state,
-                restriction_category,
-                fast
-            )
+        emergency_disambig, parse_timed_out, disambig_timed_out = self._do_parse(line, timeout, new_parser_state,
+                                                                                 restriction_category, fast)
         end_time = time.time()
         print('')
         if parse_timed_out:
@@ -1622,13 +1239,11 @@ class ParserCmd(cmd.Cmd):
         self.do_current()
 
     def do_parse(self, line):
-        """Parse an input string and print the highest-scoring parse for
-        it."""
+        """Parse an input string and print the highest-scoring parse for it."""
         self._handle_parse(line)
 
     def do_as(self, line):
-        """Parse an input string as a particular category and print the
-        highest-scoring parse for it."""
+        """Parse an input string as a particular category and print the highest-scoring parse for it."""
         if not line:
             print("No category specified.")
             return
@@ -1638,8 +1253,8 @@ class ParserCmd(cmd.Cmd):
         self._handle_parse(line, restriction_category=category)
 
     def do_extend(self, line):
-        """Extend the previous input string with additional text and print
-         the highest-scoring parse for the combined input strings."""
+        """Extend the previous input string with additional text and print the highest-scoring parse for the combined
+        input strings."""
         self._handle_parse(line, new_parser_state=False)
 
     def do_files(self, line):
@@ -1651,13 +1266,9 @@ class ParserCmd(cmd.Cmd):
             print("Expected only one word.")
             return
         w = line.strip()
-        config_info = (
-            self._parser.config_info
-            if self._parser and self._parser.config_info
-            else ParserConfigInfo(
-                os.path.abspath('pyramids.ini')
-            )
-        )
+        config_info = (self._parser.config_info
+                       if self._parser and self._parser.config_info
+                       else ParserConfigInfo(os.path.abspath('pyramids.ini')))
         found = False
         for folder_path in config_info.word_sets_folders:
             for filename in os.listdir(folder_path):
@@ -1679,26 +1290,19 @@ class ParserCmd(cmd.Cmd):
             return
         category_definition = line.split()[0]
         category = self._parser_loader.parse_category(category_definition)
-        words_to_add = sorted(
-            set(line[len(category_definition):].strip().split()))
+        words_to_add = sorted(set(line[len(category_definition):].strip().split()))
         if not words_to_add:
             print("No words specified.")
             return
-        config_info = (
-            self._parser.config_info
-            if self._parser and self._parser.config_info
-            else ParserConfigInfo(
-                os.path.abspath('pyramids.ini')
-            )
-        )
+        config_info = (self._parser.config_info
+                       if self._parser and self._parser.config_info
+                       else ParserConfigInfo(os.path.abspath('pyramids.ini')))
         found = False
         for folder_path in config_info.word_sets_folders:
             for filename in os.listdir(folder_path):
                 if not filename.lower().endswith('.ctg'):
                     continue
-                file_category = self._parser_loader.parse_category(
-                    filename[:-4]
-                )
+                file_category = self._parser_loader.parse_category(filename[:-4])
                 if file_category != category:
                     continue
                 file_path = os.path.join(folder_path, filename)
@@ -1706,23 +1310,16 @@ class ParserCmd(cmd.Cmd):
                     words = set(word_set_file.read().split())
                 for w in words_to_add:
                     if w in words:
-                        print(
-                            repr(w) + " was already in " + file_path + "."
-                        )
+                        print(repr(w) + " was already in " + file_path + ".")
                     else:
-                        print(
-                            "Adding " + repr(w) + " to " + file_path + "."
-                        )
+                        print("Adding " + repr(w) + " to " + file_path + ".")
                         words.add(w)
                 with open(file_path, 'w') as word_set_file:
                     word_set_file.write('\n'.join(sorted(words)))
                 found = True
         if not found:
             for folder_path in config_info.word_sets_folders:
-                file_path = os.path.join(
-                    folder_path,
-                    str(category) + '.ctg'
-                )
+                file_path = os.path.join(folder_path, str(category) + '.ctg')
                 print("Creating " + file_path + ".")
                 with open(file_path, 'w') as word_set_file:
                     word_set_file.write('\n'.join(sorted(words_to_add)))
@@ -1738,26 +1335,20 @@ class ParserCmd(cmd.Cmd):
             print("No category specified.")
             return
         category_definition = line.split()[0]
-        words_to_remove =\
-            set(line[len(category_definition):].strip().split())
+        words_to_remove = set(line[len(category_definition):].strip().split())
         if not words_to_remove:
             print("No words specified.")
             return
         category = self._parser_loader.parse_category(category_definition)
-        config_info = (
-            self._parser.config_info
-            if self._parser and self._parser.config_info
-            else ParserConfigInfo(
-                os.path.abspath('pyramids.ini')
-            )
-        )
+        config_info = (self._parser.config_info
+                       if self._parser and self._parser.config_info
+                       else ParserConfigInfo(os.path.abspath('pyramids.ini')))
         found = set()
         for folder_path in config_info.word_sets_folders:
             for filename in os.listdir(folder_path):
                 if not filename.lower().endswith('.ctg'):
                     continue
-                file_category = self._parser_loader.parse_category(
-                    filename[:-4])
+                file_category = self._parser_loader.parse_category(filename[:-4])
                 if file_category != category:
                     continue
                 file_path = os.path.join(folder_path, filename)
@@ -1765,10 +1356,7 @@ class ParserCmd(cmd.Cmd):
                     words = set(words_file.read().split())
                 for w in sorted(words_to_remove):
                     if w in words:
-                        print(
-                            "Removing " + repr(w) + " from " +
-                            file_path + "."
-                        )
+                        print("Removing " + repr(w) + " from " + file_path + ".")
                         words.remove(w)
                         found.add(w)
                     else:
@@ -1777,38 +1365,32 @@ class ParserCmd(cmd.Cmd):
                     with open(file_path, 'w') as words_file:
                         words_file.write('\n'.join(sorted(words)))
                 else:
-                    print(
-                        "Deleting empty word list file " + file_path + "."
-                    )
+                    print("Deleting empty word list file " + file_path + ".")
                     os.remove(file_path)
         if words_to_remove - found:
-            print(
-                "No file(s) found containing the following words: " +
-                ' '.join(
-                    repr(word)
-                    for word in sorted(words_to_remove - found)
-                ) + "."
-            )
+            print("No file(s) found containing the following words: " +
+                  ' '.join(repr(word) for word in sorted(words_to_remove - found)) + ".")
             return
         self.do_reload()
 
     def do_profile(self, line):
-        """Profiles the execution of a command, printing the profile
-        statistics."""
+        """Profiles the execution of a command, printing the profile statistics."""
 
         # Only a function at the module level can be profiled. To get
         # around this limitation, we define a temporary module-level
         # function that calls the method we want to profile.
+        # noinspection PyGlobalUndefined
         global foo
 
-        def foo():
+        def _foo():
             self.onecmd(line)
+
+        foo = _foo
 
         profile.run('foo()')
 
     def do_analyze(self, line):
-        """Analyzes the last parse and prints statistics useful for
-        debugging."""
+        """Analyzes the last parse and prints statistics useful for debugging."""
         if line:
             print("'analyze' command does not accept arguments.")
             return
@@ -1828,9 +1410,7 @@ class ParserCmd(cmd.Cmd):
         counter = 0
         for rule in sorted(rule_counts, key=rule_counts.get, reverse=True):
             print(str(rule) + " (" + str(rule_counts[rule]) + " nodes)")
-            for node_str in sorted(
-                    node.to_str(True)
-                    for node in rule_nodes[rule]):
+            for node_str in sorted(node.to_str(True) for node in rule_nodes[rule]):
                 print('    ' + node_str.replace('\n', '\n    '))
                 counter += node_str.count('\n') + 1
             if counter >= 100:
@@ -1858,8 +1438,7 @@ class ParserCmd(cmd.Cmd):
             print("No parses found.")
 
     def do_reverse(self, line):
-        """Display token sequences that produce the same semantic net links
-        as the current parse."""
+        """Display token sequences that produce the same semantic net links as the current parse."""
         if line:
             print("'reverse' command does not accept arguments.")
             return
@@ -1869,10 +1448,7 @@ class ParserCmd(cmd.Cmd):
             start_time = time.time()
             parse.visit(graph_builder)
             sentences = list(graph_builder.get_graphs())
-            results = [
-                self._parser.generate(sentence)
-                for sentence in sentences
-            ]
+            results = [self._parser.generate(sentence) for sentence in sentences]
             end_time = time.time()
             for sentence, result in zip(sentences, results):
                 print(sentence)
@@ -1888,8 +1464,7 @@ class ParserCmd(cmd.Cmd):
                     print(tree)
                     print('')
                 print('')
-                print("Total time: " + str(end_time - start_time) +
-                      " seconds")
+                print("Total time: " + str(end_time - start_time) + " seconds")
                 print('')
         else:
             print("No parses found.")
@@ -1904,8 +1479,7 @@ class ParserCmd(cmd.Cmd):
             gaps = parse.total_gap_size()
             size = len(parse.parse_trees)
             score, confidence = parse.get_weighted_score()
-            print("Parses #" + str(self._parse_index + 1) + " of " +
-                  str(self.max_parse_index + 1) + ":")
+            print("Parses #" + str(self._parse_index + 1) + " of " + str(self.max_parse_index + 1) + ":")
             print(parse.to_str(self._simple))
             print("Gaps: " + str(gaps))
             print("Size: " + str(size))
@@ -1965,10 +1539,7 @@ class ParserCmd(cmd.Cmd):
         except ValueError:
             print("'show' command requires a single integer argument.")
             return
-        if not (index and
-                (-(self.parses_available + 1) <=
-                 index <=
-                 self.parses_available + 1)):
+        if not (index and (-(self.parses_available + 1) <= index <= self.parses_available + 1)):
             print("Index out of range.")
             return
         if index < 0:
@@ -1987,8 +1558,7 @@ class ParserCmd(cmd.Cmd):
             parse = self._parses[self._parse_index]
             print("Gaps: " + str(parse.total_gap_size()))
             for start, end in parse.iter_gaps():
-                print('  ' + str(start) + ' to ' + str(
-                    end) + ': ' + ' '.join(parse.tokens[start:end]))
+                print('  ' + str(start) + ' to ' + str(end) + ': ' + ' '.join(parse.tokens[start:end]))
         else:
             print("No parses found.")
 
@@ -2011,10 +1581,8 @@ class ParserCmd(cmd.Cmd):
             self._parses.sort(key=ranks.get, reverse=True)
             self._parse_index = [id(parse) for parse in self._parses].index(id(best_parse))
             if (self._parses[0] is best_parse or
-                    len(self._parses[self._parse_index - 1].parse_trees) !=
-                    len(best_parse.parse_trees) or
-                    self._parses[self._parse_index - 1].total_gap_size() !=
-                    best_parse.total_gap_size()):
+                    len(self._parses[self._parse_index - 1].parse_trees) != len(best_parse.parse_trees) or
+                    self._parses[self._parse_index - 1].total_gap_size() != best_parse.total_gap_size()):
                 break
         if self._parse_index == 0:
             print("Successfully made this parse the highest ranked.")
@@ -2038,13 +1606,10 @@ class ParserCmd(cmd.Cmd):
             for parse in self._parses:
                 ranks[parse] = parse.get_rank()
             self._parses.sort(key=ranks.get, reverse=True)
-            self._parse_index = [id(parse) for parse in
-                                 self._parses].index(id(worst_parse))
+            self._parse_index = [id(parse) for parse in self._parses].index(id(worst_parse))
             if (self._parses[-1] is worst_parse or
-                    len(self._parses[self._parse_index + 1].parse_trees) !=
-                    len(worst_parse.parse_trees) or
-                    self._parses[self._parse_index + 1].total_gap_size() !=
-                    worst_parse.total_gap_size()):
+                    len(self._parses[self._parse_index + 1].parse_trees) != len(worst_parse.parse_trees) or
+                    self._parses[self._parse_index + 1].total_gap_size() != worst_parse.total_gap_size()):
                 break
         if self._parse_index == self.max_parse_index:
             print("Successfully made this parse the lowest ranked.")
@@ -2091,8 +1656,7 @@ class ParserCmd(cmd.Cmd):
             print("No parses available.")
             return
         assert self._benchmark is not None
-        self._benchmark.samples[self.last_input_text] = \
-            self._get_benchmark_target()
+        self._benchmark.samples[self.last_input_text] = self._get_benchmark_target()
         self._benchmark_dirty = True
 
     def _benchmark_output(self, text):
@@ -2100,14 +1664,13 @@ class ParserCmd(cmd.Cmd):
         emergency_disambig, parse_timed_out, disambig_timed_out = \
             self._do_parse(text, start_time + self._timeout_interval)
         end_time = time.time()
-        self._benchmark_emergency_disambiguations += \
-            int(emergency_disambig)
+        self._benchmark_emergency_disambiguations += int(emergency_disambig)
         self._benchmark_parse_timeouts += int(parse_timed_out)
-        self._benchmark_disambiguation_timeouts += \
-            int(disambig_timed_out)
+        self._benchmark_disambiguation_timeouts += int(disambig_timed_out)
         self._benchmark_time += end_time - start_time
         return self._get_benchmark_target()
 
+    # noinspection PyUnusedLocal
     def _report_benchmark_progress(self, input_val, output_val, target):
         assert self._benchmark is not None
 
@@ -2119,8 +1682,7 @@ class ParserCmd(cmd.Cmd):
             self._benchmark_update_time = time.time()
 
     def do_benchmark(self, line):
-        """Parse all benchmark samples and report statistics on them as a
-        batch."""
+        """Parse all benchmark samples and report statistics on them as a batch."""
         if line:
             print("'benchmark' command does not accept arguments.")
             return
@@ -2169,13 +1731,12 @@ class ParserCmd(cmd.Cmd):
         #       occur if the first try gives the right answer and
         #       the score is already >= .9; otherwise, it will
         #       throw off the relative scoring of other parses.
-        if (not target or self._parse_index or
-                (self._parses[self._parse_index].get_weighted_score()[0] < .9)):
+        if not target or self._parse_index or (self._parses[self._parse_index].get_weighted_score()[0] < .9):
             self._parses[self._parse_index].adjust_score(target)
 
     def _training_iterator(self, text):
         start_time = time.time()
-        emergency_disambig, parse_timed_out, disambig_timed_out = \
+        emergency_disambig, parse_timed_out, disambig_timed_out =\
             self._do_parse(text, start_time + self._timeout_interval)
         end_time = time.time()
         self._benchmark_emergency_disambiguations += int(
@@ -2187,10 +1748,7 @@ class ParserCmd(cmd.Cmd):
         if self.parses_available:
             while self._parse_index <= self.max_parse_index:
                 # (benchmark target, scoring function)
-                yield (
-                    self._get_benchmark_target(),
-                    self._scoring_function
-                )
+                yield (self._get_benchmark_target(), self._scoring_function)
                 self._parse_index += 1
 
     def do_train(self, line):
@@ -2215,37 +1773,19 @@ class ParserCmd(cmd.Cmd):
         self._benchmark_time = 0.0
         self._benchmark_tests_completed = 0
         self._benchmark_update_time = time.time()
-        failures, score = self._benchmark.train(
-            self._training_iterator,
-            self._report_benchmark_progress
-        )
+        failures, score = self._benchmark.train(self._training_iterator, self._report_benchmark_progress)
         print("")
         print("Score: " + str(round(100 * score, 1)) + "%")
-        print(
-            "Average Parse Time: " +
-            str(round(self._benchmark_time /
-                      float(len(self._benchmark.samples)), 1)) +
-            ' seconds per parse'
-        )
+        print("Average Parse Time: " + str(round(self._benchmark_time / float(len(self._benchmark.samples)), 1)) +
+              ' seconds per parse')
         print("Samples Evaluated: " + str(len(self._benchmark.samples)))
-        print(
-            "Emergency Disambiguations: " +
-            str(self._benchmark_emergency_disambiguations) + " (" +
-            str(round(100 * self._benchmark_emergency_disambiguations /
-                      float(len(self._benchmark.samples)), 1)) + '%)'
-        )
-        print(
-            "Parse Timeouts: " +
-            str(self._benchmark_parse_timeouts) + " (" +
-            str(round(100 * self._benchmark_parse_timeouts /
-                      float(len(self._benchmark.samples)), 1)) + '%)'
-        )
-        print(
-            "Disambiguation Timeouts: " +
-            str(self._benchmark_disambiguation_timeouts) + " (" +
-            str(round(100 * self._benchmark_disambiguation_timeouts /
-                      float(len(self._benchmark.samples)), 1)) + '%)'
-        )
+        print("Emergency Disambiguations: " + str(self._benchmark_emergency_disambiguations) + " (" +
+              str(round(100 * self._benchmark_emergency_disambiguations / float(len(self._benchmark.samples)), 1)) +
+              '%)')
+        print("Parse Timeouts: " + str(self._benchmark_parse_timeouts) + " (" +
+              str(round(100 * self._benchmark_parse_timeouts / float(len(self._benchmark.samples)), 1)) + '%)')
+        print("Disambiguation Timeouts: " + str(self._benchmark_disambiguation_timeouts) + " (" +
+              str(round(100 * self._benchmark_disambiguation_timeouts / float(len(self._benchmark.samples)), 1)) + '%)')
         if failures:
             print('')
             print("Failures:")
@@ -2294,14 +1834,12 @@ class ParserCmd(cmd.Cmd):
                 max_tokens = count
         print('')
         print("Longest benchmark sample: " + str(max_tokens) + " tokens")
-        print("Average benchmark sample length: " + str(
-            round(total_tokens / float(len(self._benchmark.samples)),
-                  1)) + " tokens")
+        print("Average benchmark sample length: " + str(round(total_tokens / float(len(self._benchmark.samples)), 1)) +
+              " tokens")
 
 
 def load_parser(path=None):
-    """Load a parser. If no path is specified, the default parser is
-    loaded."""
+    """Load a parser. If no path is specified, the default parser is loaded."""
     if path is None:
         path = 'pyramids.ini'
     parser_path = os.path.abspath(path)

@@ -12,8 +12,7 @@ class Timeout(Exception):
 
 class GrammarParserError(Exception):
 
-    def __init__(self, msg=None, filename=None, lineno=1, offset=1,
-                 text=None):
+    def __init__(self, msg=None, filename=None, lineno=1, offset=1, text=None):
         super().__init__(msg, (filename, lineno, offset, text))
         self.msg = msg
         self.args = (msg, (filename, lineno, offset, text))
@@ -24,15 +23,7 @@ class GrammarParserError(Exception):
         self.text = text
 
     def __repr__(self):
-        return (
-            type(self).__name__ +
-            repr(
-                (
-                    self.msg,
-                    (self.filename, self.lineno, self.offset, self.text)
-                )
-            )
-        )
+        return type(self).__name__ + repr((self.msg, (self.filename, self.lineno, self.offset, self.text)))
 
     def set_info(self, filename=None, lineno=None, offset=None, text=None):
         if filename is not None:
@@ -43,10 +34,7 @@ class GrammarParserError(Exception):
             self.offset = offset
         if text is not None:
             self.text = text
-        self.args = (
-            self.msg,
-            (self.filename, self.lineno, self.offset, self.text)
-        )
+        self.args = (self.msg, (self.filename, self.lineno, self.offset, self.text))
 
 
 class GrammarSyntaxError(GrammarParserError, SyntaxError):
