@@ -1040,6 +1040,15 @@ class ParserCmd(cmd.Cmd):
         else:
             os.system('clear')
 
+    # noinspection PyUnusedLocal
+    @staticmethod
+    def do_clear(line):
+        """Clears the screen."""
+        if sys.platform == 'nt':
+            os.system('cls')
+        else:
+            os.system('clear')
+
     def do_standardize(self, line):
         """Standardizes the parser's files."""
         if not line:
