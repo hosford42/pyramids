@@ -1,4 +1,7 @@
+# TODO: Convert this into a sub-package.
+
 from sys import intern
+from typing import Tuple
 
 from pyramids import categorization, trees, scoring
 from pyramids.categorization import Category, CATEGORY_WILDCARD, make_property_set, Property
@@ -84,18 +87,18 @@ class ParseRule:
             default_score = .5
         if default_accuracy is None:
             default_accuracy = 0.001
-        self._scoring_measures = {None: (default_score, default_accuracy)}
+        self._scoring_measures = {None: (default_score, default_accuracy, 0)}
 
     # def __str__(self):
     #     raise NotImplementedError()
 
     def calculate_weighted_score(self, parse_node):
-        default_score, default_weight = self._scoring_measures[None]
+        default_score, default_weight, count = self._scoring_measures[None]
         total_score = default_score * default_weight
         total_weight = default_weight
         for measure in self.iter_scoring_measures(parse_node):
-            if measure in self._scoring_measures:
-                score, weight = self._scoring_measures[measure]
+            if measure is not None and measure in self._scoring_measures:
+                score, weight, count = self._scoring_measures[measure]
                 total_score += score * weight
                 total_weight += weight
         return total_score, total_weight
@@ -103,29 +106,33 @@ class ParseRule:
     def adjust_score(self, parse_node, target):
         if not 0 <= target <= 1:
             raise ValueError("Score target must be in the interval [0, 1].")
-        default_score, default_weight = self._scoring_measures[None]
+        default_score, default_weight, count = self._scoring_measures[None]
+        count += 1
         error = (target - default_score) ** 2
         weight_target = 1 - error
-        default_score += (target - default_score) * .1
-        default_weight += (weight_target - default_weight) * .1
-        self._scoring_measures[None] = (default_score, default_weight)
+        default_score += (target - default_score) / count
+        default_weight += (weight_target - default_weight) / count
+        self._scoring_measures[None] = (default_score, default_weight, count)
         for measure in self.iter_scoring_measures(parse_node):
-            if measure not in self._scoring_measures:
-                self._scoring_measures[measure] = self._scoring_measures[None]
-            score, weight = self._scoring_measures[measure]
+            if measure in self._scoring_measures:
+                score, weight, count = self._scoring_measures[measure]
+                count += 1
+            else:
+                score, weight, _ = self._scoring_measures[None]
+                count = 2  # Default is counted as 1, plus one new measurement
             error = (target - score) ** 2
             weight_target = 1 - error
-            score += (target - score) * .1
-            weight += (weight_target - weight) * 1
-            self._scoring_measures[measure] = (score, weight)
+            score += (target - score) / count
+            weight += (weight_target - weight) / count
+            self._scoring_measures[measure] = (score, weight, count)
 
-    def get_score(self, measure):
+    def get_score(self, measure) -> Tuple[float, float, int]:
         if measure in self._scoring_measures:
             return self._scoring_measures[measure]
         else:
-            return self._scoring_measures[None]
+            return 0, 0, 0
 
-    def set_score(self, measure, score, accuracy):
+    def set_score(self, measure, score, accuracy, count):
         if not isinstance(measure, scoring.ScoringMeasure):
             measure = scoring.ScoringMeasure(measure)
         score = float(score)
@@ -134,8 +141,10 @@ class ParseRule:
             raise ValueError("Score must be in the interval [0, 1].")
         if not 0 <= accuracy <= 1:
             raise ValueError("Accuracy must be in the interval [0, 1].")
+        if count < 0:
+            raise ValueError("Count must be non-negative.")
         # noinspection PyTypeChecker
-        self._scoring_measures[measure] = (score, accuracy)
+        self._scoring_measures[measure] = (score, accuracy, count)
 
     def iter_all_scoring_measures(self):
         return iter(self._scoring_measures)

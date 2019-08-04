@@ -1,3 +1,5 @@
+# TODO: This thing is a beast! Refactor.
+
 import cmd
 import os
 import sys
@@ -14,7 +16,7 @@ except ImportError:
 
 from pyramids import benchmarking, graphs
 from pyramids.config import ModelConfig
-from pyramids.model_loader import ModelLoader
+from pyramids.loader import ModelLoader
 
 __author__ = 'Aaron Hosford'
 __all__ = [

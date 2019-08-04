@@ -749,21 +749,18 @@ class ModelLoader:
             path = model.config_info.scoring_measures_file
         scores = {}
         with open(path, 'r') as save_file:
-            # # Fudge the class constructors temporarily for the sake of eval()
-            # Category = CategoryClass.get
-            # Property = PropertyClass.get
             for line in save_file:
-                rule_str, measure_str, score_str, accuracy_str = line.strip().split('\t')
+                rule_str, measure_str, score_str, accuracy_str, count_str = line.strip().split('\t')
                 if rule_str not in scores:
-                    scores[rule_str] = set()
+                    scores[rule_str] = {}
                 measure = ast.literal_eval(measure_str)
-                scores[rule_str].add((measure, float(score_str), float(accuracy_str)))
+                scores[rule_str][measure] = (float(score_str), float(accuracy_str), int(count_str))
             for rule in model.primary_leaf_rules | model.secondary_leaf_rules | model.branch_rules:
                 rule_str = repr(str(rule))
                 if rule_str not in scores:
                     continue
-                for measure, score, accuracy in scores[rule_str]:
-                    rule.set_score(measure, score, accuracy)
+                for measure, (score, accuracy, count) in scores[rule_str].items():
+                    rule.set_score(measure, score, accuracy, count)
 
     @staticmethod
     def save_scoring_measures(model: Model, path=None):
@@ -772,10 +769,13 @@ class ModelLoader:
         with open(path, 'w') as save_file:
             for rule in sorted(model.primary_leaf_rules | model.secondary_leaf_rules | model.branch_rules, key=str):
                 for measure in rule.iter_all_scoring_measures():
-                    score, accuracy = rule.get_score(measure)
+                    score, accuracy, count = rule.get_score(measure)
                     if isinstance(measure, ScoringMeasure):
                         measure = measure.value
-                    save_file.write('\t'.join(repr(item) for item in (str(rule), measure, score, accuracy)) + '\n')
+                    if not count:
+                        continue
+                    save_file.write('\t'.join(repr(item) for item in (str(rule), measure, score, accuracy, count)))
+                    save_file.write('\n')
 
     # def load(self, path=None, verbose=False):
     #     config_info = self.load_parser_config(path)

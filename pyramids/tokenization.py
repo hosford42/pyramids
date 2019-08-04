@@ -11,12 +11,14 @@ __all__ = [
 ]
 
 
+# TODO: Make this an abstract interface.
 class Tokenizer:
 
     def tokenize(self, text):
         raise NotImplementedError()
 
 
+# TODO: Rename this to EnglishTokenizer and move it to pyramids_english.
 class StandardTokenizer(Tokenizer):
 
     def __init__(self, discard_spaces=True):

@@ -21,16 +21,6 @@ the parser can also be run in reverse to generate sentences from semantic graphs
 resembling those it produces.
 """
 
-# =========================================================================
-# Modification History:
-#
-#   7/14/2011:
-#     - Created this module using basic_parser.py as a template.
-#   8/4/2015:
-#     - Python 2.7 => Python 3.4
-#
-# =========================================================================
-
 
 __author__ = 'Aaron Hosford'
 __copyright__ = """
@@ -44,10 +34,6 @@ __maintainer__ = 'Aaron Hosford'
 __email__ = 'hosford42@gmail.com'
 __status__ = 'Prototype'
 __all__ = [
-    # 'load_parser',
-    # 'clear_parser_state',
-    # 'parse',
-    # 'main',
     '__author__',
     '__license__',
     '__version__'
@@ -67,7 +53,7 @@ __all__ = [
 
 # TODO: Add a precedence system to the grammar, allowing us to indicate
 #       just how desperate the parser has to be before it even tries a
-#       particular rule. Then we can implement the above TODO by having
+#       particular rule. Then we can implement the above to-do by having
 #       property-free versions automatically generated for each rule, with
 #       last-ditch priority. It should also significantly reduce parsing
 #       time for certain situations if we make less common usage have
@@ -79,118 +65,3 @@ __all__ = [
 #       be considered. Or it could compare the score of each new parse tree
 #       to be considered against its direct competitors instead of the
 #       parse as a whole, so we save time even when a parse fails.
-
-# TODO: Where should the data folder go? Is it in the standard place?
-
-
-# _quiet_loader = ModelLoader()
-#
-# _default_parser = None
-# _parser_state = None
-#
-#
-# def load_parser_config(path=None):
-#     if path:
-#         if not os.path.isfile(path):
-#             raise FileNotFoundError(path)
-#     else:
-#         for path in (os.path.abspath('pyramids.ini'),
-#                      os.path.abspath('data/pyramids.ini'),
-#                      os.path.join(os.path.dirname(__file__),
-#                                   'data/pyramids.ini')):
-#             if os.path.isfile(path):
-#                 break
-#         else:
-#             raise FileNotFoundError('pyramids.ini')
-#
-#     return ModelConfig(path)
-#
-#
-# def load_parser(path=None, verbose=False):
-#     global _default_parser, _parser_state
-#
-#     config_info = load_parser_config(path)
-#     parser_loader = ModelLoader(verbose)
-#     _default_parser = parser_loader.load_model(config_info)
-#     _parser_state = _default_parser.new_parser_state()
-#     return _default_parser
-#
-#
-# def save_parser(path=None):
-#     global _default_parser
-#     if not _default_parser:
-#         return  # Nothing to save.
-#
-#     config_info = load_parser_config(path)
-#     _default_parser.save_scoring_measures(config_info.scoring_measures_file)
-#
-#
-# def clear_parser_state():
-#     global _parser_state
-#     if _default_parser:
-#         _parser_state = _default_parser.new_parser_state()
-#
-#
-# # TODO: Fix this so it returns an empty list, rather than a list containing
-# #       an empty parse, if the text could not be parsed.
-# def parse(text, category=None, fast=False, timeout=None, fresh=True):
-#     if isinstance(category, str):
-#         category = _quiet_loader.parse_category(category)
-#
-#     if fresh and _default_parser:
-#         clear_parser_state()
-#
-#     if not _default_parser:
-#         load_parser()
-#
-#     result = _default_parser.parse(text, _parser_state, fast, timeout)
-#
-#     if timeout:
-#         parse_timed_out = time.time() >= timeout
-#     else:
-#         parse_timed_out = False
-#
-#     if category:
-#         result = result.restrict(category)
-#
-#     forests = [
-#         disambiguation
-#         for (disambiguation, rank) in result.get_sorted_disambiguations(
-#             None,
-#             None,
-#             timeout
-#         )
-#     ]
-#
-#     if forests:
-#         emergency_disambiguation = False
-#     else:
-#         emergency_disambiguation = True
-#         forests = [result.disambiguate()]
-#
-#     if timeout:
-#         disambiguation_timed_out = time.time() > timeout
-#     else:
-#         disambiguation_timed_out = False
-#
-#     return (
-#         forests,
-#         emergency_disambiguation,
-#         parse_timed_out,
-#         disambiguation_timed_out
-#     )
-
-
-# def get_parse_trees(graph):
-#     assert isinstance(graph, ParseGraph)
-#
-#     if not _default_parser:
-#         load_parser()
-#
-#     return _default_parser.generate(graph)
-#
-#
-# def main():
-#     parser_cmd = ParserCmd()
-#     print('')
-#     parser_cmd.cmdloop()

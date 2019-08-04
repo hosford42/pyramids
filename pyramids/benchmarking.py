@@ -3,9 +3,6 @@
 pyramids.benchmarking: Benchmarking of parser accuracy
 """
 
-
-import pyramids.config
-
 __author__ = 'Aaron Hosford'
 __all__ = [
     'Benchmark',

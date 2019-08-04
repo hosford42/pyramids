@@ -1,3 +1,5 @@
+# TODO: There's too much stuff going on in this one file. Split it out into separate modules.
+
 import logging
 import time
 from itertools import product
@@ -7,7 +9,7 @@ from sortedcontainers import SortedSet
 
 from pyramids import graphs, rules, trees, tokenization
 from pyramids.model import Model
-from pyramids.model_loader import ModelLoader
+from pyramids.loader import ModelLoader
 from pyramids.utils import extend_properties
 
 __author__ = 'Aaron Hosford'

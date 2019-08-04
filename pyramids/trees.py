@@ -1,3 +1,4 @@
+# TODO: Separate data from algorithms.
 """
 pyramids.trees: Parse tree-related classes.
 
