@@ -778,8 +778,7 @@ class ParseTree:
         self._root = root
 
     def __repr__(self):
-        return type(self).__name__ + "(" + repr(
-            self._tokens) + ", " + repr(self._root) + ")"
+        return type(self).__name__ + "(" + repr(self._tokens) + ", " + repr(self._root) + ")"
 
     def __str__(self):
         return self.to_str()
