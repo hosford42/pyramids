@@ -286,12 +286,16 @@ _(terminated,question):
 # Examples:
 #   Oh yeah, he's really "working" hard!
 #   The "consequences" will be dire!
-_(quoted): punctuation(open,quote) <DELIMITER *_ DELIMITER> punctuation(close,quote)
+_(quoted,double_quoted): punctuation(open,double,quote) <DELIMITER *_(-double_quoted) DELIMITER> punctuation(close,double,quote)
+_(quoted,single_quoted): punctuation(open,single,quote) <DELIMITER *_(-single_quoted) DELIMITER> punctuation(close,single,quote)
 
 # For quotes that function as objects of indirect reference. (Speech quotes, word names, etc.)
-quoted_literal:
-    *punctuation(open,quote) QUOTED> _ DELIMITER> punctuation(close,quote)
-    punctuation(comma)|punctuation(colon) <DELIMITER *punctuation(open,quote) QUOTED> _ punctuation(close,quote)
+quoted_literal(double_quoted):
+    *punctuation(open,double,quote) QUOTED> _(-double_quoted) DELIMITER> punctuation(close,double,quote)
+    punctuation(comma)|punctuation(colon) <DELIMITER *punctuation(open,double,quote) QUOTED> _(-double_quoted) punctuation(close,double,quote)
+quoted_literal(single_quoted):
+    *punctuation(open,single,quote) QUOTED> _(-single_quoted) DELIMITER> punctuation(close,single,quote)
+    punctuation(comma)|punctuation(colon) <DELIMITER *punctuation(open,single,quote) QUOTED> _(-single_quoted) punctuation(close,single,quote)
 
 
 # -------------------------------- CONJUNCTIONS -------------------------------
@@ -814,12 +818,12 @@ noun_phrase(has_restriction,-delimited):
     *noun_phrase(arguments_complete,time,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) TIME_OF> restriction(finished_restriction,needs_time,-delimited)
     *noun_phrase(arguments_complete,place,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) PLACE_OF> restriction(finished_restriction,needs_place,-delimited)
 	*noun_phrase(arguments_complete,possession,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) POSSESSION_OF> restriction(finished_restriction,needs_possession,-delimited)
-    *noun_phrase(arguments_complete,object,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) SUBJECT_OF> restriction(finished_restriction,needs_subject,-delimited)
-    *noun_phrase(arguments_complete,object,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) OBJECT_OF> restriction(finished_restriction,needs_object,-insubordinable,-delimited)
-    *noun_phrase(arguments_complete,object,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) TARGET_OF> restriction(finished_restriction,needs_target,-insubordinable,-delimited)
+    *noun_phrase(arguments_complete,object,-intention,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) SUBJECT_OF> restriction(finished_restriction,needs_subject,-delimited)
+    *noun_phrase(arguments_complete,object,-intention,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) OBJECT_OF> restriction(finished_restriction,needs_object,-insubordinable,-delimited)
+    *noun_phrase(arguments_complete,object,-intention,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) TARGET_OF> restriction(finished_restriction,needs_target,-insubordinable,-delimited)
     *noun_phrase(arguments_complete,action,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) CAST_OF> restriction(finished_restriction,needs_cast,-delimited)
     *noun_phrase(arguments_complete,style,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) STYLE_OF> restriction(finished_restriction,needs_style,-delimited)
-    *noun_phrase(arguments_complete,object,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) COMPLEMENT_OF> restriction(finished_restriction,needs_complement,-delimited)
+    *noun_phrase(arguments_complete,object,-intention,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) COMPLEMENT_OF> restriction(finished_restriction,needs_complement,-delimited)
 
 noun_phrase(has_restriction,insubordinable,-delimited):
     *noun_phrase(arguments_complete,object,-finished_noun_phrase,-has_pronoun,-has_restriction,-delimited) OBJECT_OF> restriction(finished_restriction,needs_object,insubordinable,-delimited)
@@ -888,7 +892,7 @@ subject(-is_preposition,-object):
 
 object(is_noun_phrase,-is_preposition,-object):
     noun_phrase(finished_noun_phrase,finished_number)
-    noun_phrase(finished_noun_phrase,object,-insubordinable)
+    noun_phrase(finished_noun_phrase,object,-takes_complement,-insubordinable)
     noun_phrase(finished_noun_phrase,cause)
     noun_phrase(finished_noun_phrase,time)
     
@@ -1433,8 +1437,8 @@ sentence(has_selection,-takes_selection,-needs_selection,-question): selection(i
 sentence(has_purpose,-takes_purpose,-needs_purpose,-question): purpose(is_preposition,has_complement,-question,-needs_complement,-needs_cast) <PURPOSE *sentence(-has_purpose,complete,-terse,-delimited,-terminated)
 
 sentence(paired):
-    sentence(delimited,-complete,delimited,-terminated,-paired) <LEADUP *sentence(-has_leadup,-complete,-delimited,-terminated,-paired)
-    sentence(delimited,complete,delimited,-terminated,-paired) <LEADUP *sentence(-has_leadup,complete,-delimited,-terminated,-paired)
+    sentence(delimited,-complete,delimited,-terminated,-paired) <LEADUP *sentence(-conjunction,-has_leadup,-complete,-delimited,-terminated,-paired)
+    sentence(delimited,complete,delimited,-terminated,-paired) <LEADUP *sentence(-conjunction,-has_leadup,complete,-delimited,-terminated,-paired)
 
 
 # --------------------------------- PARAGRAPH ---------------------------------

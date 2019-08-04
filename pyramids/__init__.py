@@ -37,7 +37,8 @@ import os
 import time
 
 from pyramids.trees import Parse
-from pyramids.control import ParserCmd, ParserConfigInfo, ParserLoader
+from pyramids.config import ParserConfig, ParserFactory
+from pyramids.repl import ParserCmd
 from pyramids.graphs import ParseGraphBuilder, ParseGraph
 
 
@@ -93,7 +94,7 @@ __all__ = [
 # TODO: Where should the data folder go? Is it in the standard place?
 
 
-_quiet_loader = ParserLoader()
+_quiet_loader = ParserFactory()
 
 _default_parser = None
 _parser_state = None
@@ -113,14 +114,14 @@ def load_parser_config(path=None):
         else:
             raise FileNotFoundError('pyramids.ini')
 
-    return ParserConfigInfo(path)
+    return ParserConfig(path)
 
 
 def load_parser(path=None, verbose=False):
     global _default_parser, _parser_state
 
     config_info = load_parser_config(path)
-    parser_loader = ParserLoader(verbose)
+    parser_loader = ParserFactory(verbose)
     _default_parser = parser_loader.load_parser(config_info)
     _parser_state = _default_parser.new_parser_state()
     return _default_parser

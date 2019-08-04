@@ -30,8 +30,8 @@ subject(third,plural,-singular,-nor,-but,-not,-either,-neither):
     second[any_term(second)]                    # the conjunctive phrase has the "second" property iff at least one term does
     
     # [<noun phrase>, ...,] <noun phrase>[,] and/or <noun phrase>
-    +subject <CASE *conjunction(and)|conjunction(or) CASE> subject(-delimited) # You and I are...
-    +object <CASE *conjunction(and)|conjunction(or) CASE> object(-delimited) # You and me are...
+    +subject(-described) <CASE *conjunction(and)|conjunction(or) CASE> subject(-delimited) # You and I are...
+    +object(-described) <CASE *conjunction(and)|conjunction(or) CASE> object(-delimited) # You and me are...
 
 subject(or,third,singular,-plural,-and,-nor,-but,-not,-either,-neither):
     [compound(delimited) any_term(singular)]    # compound leadups must be delimited and at least one term must be singular to match
@@ -39,8 +39,8 @@ subject(or,third,singular,-plural,-and,-nor,-but,-not,-either,-neither):
     second[any_term(second,singular)]           # the conjunctive phrase has the "second" property iff at least one term has both the "second" and "singular" properties
     
     # [<noun phrase>, ...,] <noun phrase>[,] or <noun phrase>
-    +subject <CASE *conjunction(or) CASE> subject(-delimited)
-    +object <CASE *conjunction(or) CASE> object(-delimited)
+    +subject(-described) <CASE *conjunction(or) CASE> subject(-delimited)
+    +object(-described) <CASE *conjunction(or) CASE> object(-delimited)
 
 # "nor" requires the presence of other negatives
 nor_subject(nor,third,plural,-singular,-and,-or,-but,-not,-either,-neither):
@@ -49,8 +49,8 @@ nor_subject(nor,third,plural,-singular,-and,-or,-but,-not,-either,-neither):
     second[any_term(second)]                    # the conjunctive phrase has the "second" property iff at least one term does
     
     # [<positive noun phrase>, ...,] <positive noun phrase>[,] nor <positive noun phrase>
-    +subject(-negative) <EXCEPTION *conjunction(nor) EXCEPTION> subject(-negative,-delimited)
-    +object(-negative) <EXCEPTION *conjunction(nor) EXCEPTION> object(-negative,-delimited)
+    +subject(-described,-negative) <EXCEPTION *conjunction(nor) EXCEPTION> subject(-negative,-delimited)
+    +object(-described,-negative) <EXCEPTION *conjunction(nor) EXCEPTION> object(-negative,-delimited)
 
 nor_subject(nor,third,singular,-plural,-and,-or,-but,-not,-either,-neither):
     [compound(delimited) any_term(singular)]    # compound leadups must be delimited and at least one term must be singular to match
@@ -58,8 +58,8 @@ nor_subject(nor,third,singular,-plural,-and,-or,-but,-not,-either,-neither):
     second[any_term(second,singular)]           # the conjunctive phrase has the "second" property iff at least one term has both the "second" and "singular" properties
     
     # [<positive noun phrase>, ...,] <positive noun phrase>[,] nor <positive noun phrase>
-    +subject <EXCEPTION *conjunction(nor) EXCEPTION> subject(-delimited)
-    +object <EXCEPTION *conjunction(nor) EXCEPTION> object(-delimited)
+    +subject(-described) <EXCEPTION *conjunction(nor) EXCEPTION> subject(-delimited)
+    +object(-described) <EXCEPTION *conjunction(nor) EXCEPTION> object(-delimited)
     
 #subject(nor,-and,-or,-but,-neither):
 #    not[head(not)]
@@ -83,8 +83,8 @@ subject(nor,-and,-or,-but,-either,-neither):
     second,singular[any_term(second,singular)]
     third,singular[any_term(third,singular)]
     
-    +subject(not,-but) <CASE *conjunction(nor) EXCEPTION> subject(-not,-but,-delimited)
-    +subject(not,-but) <CASE *conjunction(nor) EXCEPTION> object(-not,-but,-delimited)
+    +subject(not,-described,-but) <CASE *conjunction(nor) EXCEPTION> subject(-not,-but,-delimited)
+    +subject(not,-described,-but) <CASE *conjunction(nor) EXCEPTION> object(-not,-but,-delimited)
 
 # We use CASE instead of EXCEPTION for "but" because we require a "not" phrase
 # to designate which is the exception, and it comes with its own EXCEPTION
@@ -99,8 +99,8 @@ subject(but,-and,-or,-nor,-not,-either,-neither):
     second,singular[any_term(second,singular)]
     third,singular[any_term(third,singular)]
     
-    subject(-delimited)|object(-delimited) <CASE *conjunction(but) CASE> subject(-delimited)|object(-delimited)
-    subject(delimited)|object(delimited) <CASE *conjunction(but) CASE> subject(delimited)|object(delimited)
+    subject(-described,-delimited)|object(-delimited) <CASE *conjunction(but) CASE> subject(-delimited)|object(-delimited)
+    subject(-described,delimited)|object(delimited) <CASE *conjunction(but) CASE> subject(delimited)|object(delimited)
 
 subject(not,-and,-or,-nor,-but,-either,-neither):
     first,plural[any_term(first,plural)]        # the conjunctive phrase has the "first" and "plural" properties iff at least one term has them both
@@ -110,10 +110,10 @@ subject(not,-and,-or,-nor,-but,-either,-neither):
     second,singular[any_term(second,singular)]
     third,singular[any_term(third,singular)]
     
-    -subject(-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> subject(-not,-but,-delimited)
-    -object(-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> object(-not,-but,-delimited)
-    subject(-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> subject(-not,-but,delimited)
-    object(-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> object(-not,-but,delimited)
+    -subject(-described,-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> subject(-not,-but,-delimited)
+    -object(-described,-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> object(-not,-but,-delimited)
+    subject(-described,-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> subject(-not,-but,delimited)
+    object(-described,-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> object(-not,-but,delimited)
 
 
    
@@ -140,7 +140,7 @@ object(third,plural,-singular,-nor,-but,-not,-either,-neither):
     second[any_term(second)]                    # the conjunctive phrase has the "second" property iff at least one term does
     
     # [<noun phrase>, ...,] <noun phrase>[,] and/or <noun phrase>
-    +object <CASE *conjunction(and)|conjunction(or) CASE> object(-delimited) # You and me are...
+    +object(-described) <CASE *conjunction(and)|conjunction(or) CASE> object(-delimited) # You and me are...
 
 object(or,third,singular,-plural,-and,-nor,-but,-not,-either,-neither):
     [compound(delimited) any_term(singular)]    # compound leadups must be delimited and at least one term must be singular to match
@@ -148,7 +148,7 @@ object(or,third,singular,-plural,-and,-nor,-but,-not,-either,-neither):
     second[any_term(second,singular)]           # the conjunctive phrase has the "second" property iff at least one term has both the "second" and "singular" properties
     
     # [<noun phrase>, ...,] <noun phrase>[,] or <noun phrase>
-    +object <CASE *conjunction(or) CASE> object(-delimited)
+    +object(-described) <CASE *conjunction(or) CASE> object(-delimited)
 
 # "nor" requires the presence of other negatives
 nor_object(nor,third,plural,-singular,-and,-or,-but,-not,-either,-neither):
@@ -157,7 +157,7 @@ nor_object(nor,third,plural,-singular,-and,-or,-but,-not,-either,-neither):
     second[any_term(second)]                    # the conjunctive phrase has the "second" property iff at least one term does
     
     # [<positive noun phrase>, ...,] <positive noun phrase>[,] nor <positive noun phrase>
-    +object(-negative) <EXCEPTION *conjunction(nor) EXCEPTION> object(-negative,-delimited)
+    +object(-described,-negative) <EXCEPTION *conjunction(nor) EXCEPTION> object(-negative,-delimited)
 
 nor_object(nor,third,singular,-plural,-and,-or,-but,-not,-either,-neither):
     [compound(delimited) any_term(singular)]    # compound leadups must be delimited and at least one term must be singular to match
@@ -165,7 +165,7 @@ nor_object(nor,third,singular,-plural,-and,-or,-but,-not,-either,-neither):
     second[any_term(second,singular)]           # the conjunctive phrase has the "second" property iff at least one term has both the "second" and "singular" properties
     
     # [<positive noun phrase>, ...,] <positive noun phrase>[,] nor <positive noun phrase>
-    +object <EXCEPTION *conjunction(nor) EXCEPTION> object(-delimited)
+    +object(-described) <EXCEPTION *conjunction(nor) EXCEPTION> object(-delimited)
     
 #object(nor,-and,-or,-but,-neither):
 #    not[head(not)]
@@ -178,7 +178,7 @@ nor_object(nor,third,singular,-plural,-and,-or,-but,-not,-either,-neither):
 #    third,singular[any_term(third,singular)]
 #    
 #    # [<positive noun phrase>
-#    -object(-not,-but,-delimited) <CASE *conjunction(not) CASE> nor_object(nor,-not,-but,-delimited)
+#    -object(-described,-not,-but,-delimited) <CASE *conjunction(not) CASE> nor_object(nor,-not,-but,-delimited)
 
 object(nor,-and,-or,-but,-either,-neither):
     [compound(delimited)]
@@ -189,7 +189,7 @@ object(nor,-and,-or,-but,-either,-neither):
     second,singular[any_term(second,singular)]
     third,singular[any_term(third,singular)]
     
-    +object(not,-but) <CASE *conjunction(nor) EXCEPTION> object(-not,-but,-delimited)
+    +object(-described,not,-but) <CASE *conjunction(nor) EXCEPTION> object(-not,-but,-delimited)
 
 # We use CASE instead of EXCEPTION for "but" because we require a "not" phrase
 # to designate which is the exception, and it comes with its own EXCEPTION
@@ -204,8 +204,8 @@ object(but,-and,-or,-nor,-not,-either,-neither):
     second,singular[any_term(second,singular)]
     third,singular[any_term(third,singular)]
     
-    object(-delimited) <CASE *conjunction(but) CASE> object(-delimited)
-    object(delimited) <CASE *conjunction(but) CASE> object(delimited)
+    object(-described,-delimited) <CASE *conjunction(but) CASE> object(-delimited)
+    object(-described,delimited) <CASE *conjunction(but) CASE> object(delimited)
 
 object(not,-and,-or,-nor,-but,-either,-neither):
     first,plural[any_term(first,plural)]        # the conjunctive phrase has the "first" and "plural" properties iff at least one term has them both
@@ -215,8 +215,8 @@ object(not,-and,-or,-nor,-but,-either,-neither):
     second,singular[any_term(second,singular)]
     third,singular[any_term(third,singular)]
     
-    -object(-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> object(-not,-but,-delimited)
-    object(-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> object(-not,-but,delimited)
+    -object(-described,-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> object(-not,-but,-delimited)
+    object(-described,-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> object(-not,-but,delimited)
 
 
     
@@ -241,7 +241,7 @@ target(third,plural,-singular,-nor,-but,-not,-either,-neither):
     second[any_term(second)]                    # the conjunctive phrase has the "second" property iff at least one term does
     
     # [<noun phrase>, ...,] <noun phrase>[,] and/or <noun phrase>
-    +target <CASE *conjunction(and)|conjunction(or) CASE> target(-delimited) # You and me are...
+    +target(-described) <CASE *conjunction(and)|conjunction(or) CASE> target(-delimited) # You and me are...
 
 target(or,third,singular,-plural,-and,-nor,-but,-not,-either,-neither):
     [compound(delimited) any_term(singular)]    # compound leadups must be delimited and at least one term must be singular to match
@@ -249,7 +249,7 @@ target(or,third,singular,-plural,-and,-nor,-but,-not,-either,-neither):
     second[any_term(second,singular)]           # the conjunctive phrase has the "second" property iff at least one term has both the "second" and "singular" properties
     
     # [<noun phrase>, ...,] <noun phrase>[,] or <noun phrase>
-    +target <CASE *conjunction(or) CASE> target(-delimited)
+    +target(-described) <CASE *conjunction(or) CASE> target(-delimited)
 
 # "nor" requires the presence of other negatives
 nor_target(nor,third,plural,-singular,-and,-or,-but,-not,-either,-neither):
@@ -258,7 +258,7 @@ nor_target(nor,third,plural,-singular,-and,-or,-but,-not,-either,-neither):
     second[any_term(second)]                    # the conjunctive phrase has the "second" property iff at least one term does
     
     # [<positive noun phrase>, ...,] <positive noun phrase>[,] nor <positive noun phrase>
-    +target(-negative) <EXCEPTION *conjunction(nor) EXCEPTION> target(-negative,-delimited)
+    +target(-described,-negative) <EXCEPTION *conjunction(nor) EXCEPTION> target(-negative,-delimited)
 
 nor_target(nor,third,singular,-plural,-and,-or,-but,-not,-either,-neither):
     [compound(delimited) any_term(singular)]    # compound leadups must be delimited and at least one term must be singular to match
@@ -266,7 +266,7 @@ nor_target(nor,third,singular,-plural,-and,-or,-but,-not,-either,-neither):
     second[any_term(second,singular)]           # the conjunctive phrase has the "second" property iff at least one term has both the "second" and "singular" properties
     
     # [<positive noun phrase>, ...,] <positive noun phrase>[,] nor <positive noun phrase>
-    +target <EXCEPTION *conjunction(nor) EXCEPTION> target(-delimited)
+    +target(-described) <EXCEPTION *conjunction(nor) EXCEPTION> target(-delimited)
     
 #target(nor,-and,-or,-but,-neither):
 #    not[head(not)]
@@ -279,7 +279,7 @@ nor_target(nor,third,singular,-plural,-and,-or,-but,-not,-either,-neither):
 #    third,singular[any_term(third,singular)]
 #    
 #    # [<positive noun phrase>
-#    -target(-not,-but,-delimited) <CASE *conjunction(not) CASE> nor_target(nor,-not,-but,-delimited)
+#    -target(-described,-not,-but,-delimited) <CASE *conjunction(not) CASE> nor_target(nor,-not,-but,-delimited)
 
 target(nor,-and,-or,-but,-either,-neither):
     [compound(delimited)]
@@ -290,11 +290,10 @@ target(nor,-and,-or,-but,-either,-neither):
     second,singular[any_term(second,singular)]
     third,singular[any_term(third,singular)]
     
-    +target(not,-but) <CASE *conjunction(nor) EXCEPTION> target(-not,-but,-delimited)
+    +target(-described,not,-but) <CASE *conjunction(nor) EXCEPTION> target(-not,-but,-delimited)
 
 # We use CASE instead of EXCEPTION for "but" because we require a "not" phrase
-# to designate which is the exception, and it comes with its own EXCEPTION
-# links.
+# to designate which is the exception, and it comes with its own EXCEPTION links.
 target(but,-and,-or,-nor,-not,-either,-neither):
     [one_term(not,single)]                             # exactly one term must have the "not" property to match
     delimited[last_term(delimited)]
@@ -305,8 +304,8 @@ target(but,-and,-or,-nor,-not,-either,-neither):
     second,singular[any_term(second,singular)]
     third,singular[any_term(third,singular)]
     
-    target(-delimited) <CASE *conjunction(but) CASE> target(-delimited)
-    target(delimited) <CASE *conjunction(but) CASE> target(delimited)
+    target(-described,-delimited) <CASE *conjunction(but) CASE> target(-delimited)
+    target(-described,delimited) <CASE *conjunction(but) CASE> target(delimited)
 
 target(not,-and,-or,-nor,-but,-either,-neither):
     first,plural[any_term(first,plural)]        # the conjunctive phrase has the "first" and "plural" properties iff at least one term has them both
@@ -316,8 +315,8 @@ target(not,-and,-or,-nor,-but,-either,-neither):
     second,singular[any_term(second,singular)]
     third,singular[any_term(third,singular)]
     
-    -target(-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> target(-not,-but,-delimited)
-    target(-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> target(-not,-but,delimited)
+    -target(-described,-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> target(-not,-but,-delimited)
+    target(-described,-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> target(-not,-but,delimited)
 
     
 
@@ -385,25 +384,25 @@ happening(-nor,-but,-not,-either,-neither):
     [compound(delimited)]
     and[head(and)]
     or[head(or)]
-    +happening <CASE *conjunction(and)|conjunction(or) CASE> happening
+    +happening(-described) <CASE *conjunction(and)|conjunction(or) CASE> happening
 
 nor_happening(nor,-and,-or,-but,-not,-either,-neither):
     [compound(delimited)]
-    +happening(-not) <EXCEPTION *conjunction(nor) EXCEPTION> happening(-not,-delimited)
+    +happening(-described,-not) <EXCEPTION *conjunction(nor) EXCEPTION> happening(-not,-delimited)
 
 happening(nor,-and,-or,-but,-either,-neither):
     [compound(delimited)]
-    +happening(not,-but) <CASE *conjunction(nor) EXCEPTION> happening(-not,-but,-delimited)
+    +happening(-described,not,-but) <CASE *conjunction(nor) EXCEPTION> happening(-not,-but,-delimited)
 
 happening(but,-and,-or,-nor,-not,-either,-neither):
     [one_term(not,single)]
     delimited[last_term(delimited)]
-    happening(-delimited) <CASE *conjunction(but) CASE> happening(-delimited)
-    happening(delimited) <CASE *conjunction(but) CASE> happening(delimited)
+    happening(-described,-delimited) <CASE *conjunction(but) CASE> happening(-delimited)
+    happening(-described,delimited) <CASE *conjunction(but) CASE> happening(delimited)
 
 happening(not,-and,-or,-nor,-but,-either,-neither):
-    -happening(-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> happening(-not,-but,-delimited)
-    happening(-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> happening(-not,-but,delimited)
+    -happening(-described,-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> happening(-not,-but,-delimited)
+    happening(-described,-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> happening(-not,-but,delimited)
 
 
 
@@ -472,25 +471,25 @@ experience(-nor,-but,-not,-either,-neither):
     [compound(delimited)]
     and[head(and)]
     or[head(or)]
-    +experience <CASE *conjunction(and)|conjunction(or) CASE> experience
+    +experience(-described) <CASE *conjunction(and)|conjunction(or) CASE> experience
 
 nor_experience(nor,-and,-or,-but,-not,-either,-neither):
     [compound(delimited)]
-    +experience(-not) <EXCEPTION *conjunction(nor) EXCEPTION> experience(-not,-delimited)
+    +experience(-described,-not) <EXCEPTION *conjunction(nor) EXCEPTION> experience(-not,-delimited)
 
 experience(nor,-and,-or,-but,-either,-neither):
     [compound(delimited)]
-    +experience(not,-but) <CASE *conjunction(nor) EXCEPTION> experience(-not,-but,-delimited)
+    +experience(-described,not,-but) <CASE *conjunction(nor) EXCEPTION> experience(-not,-but,-delimited)
 
 experience(but,-and,-or,-nor,-not,-either,-neither):
     [one_term(not,single)]
     delimited[last_term(delimited)]
-    experience(-delimited) <CASE *conjunction(but) CASE> experience(-delimited)
-    experience(delimited) <CASE *conjunction(but) CASE> experience(delimited)
+    experience(-described,-delimited) <CASE *conjunction(but) CASE> experience(-delimited)
+    experience(-described,delimited) <CASE *conjunction(but) CASE> experience(delimited)
 
 experience(not,-and,-or,-nor,-but,-either,-neither):
-    -experience(-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> experience(-not,-but,-delimited)
-    experience(-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> experience(-not,-but,delimited)
+    -experience(-described,-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> experience(-not,-but,-delimited)
+    experience(-described,-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> experience(-not,-but,delimited)
 
 
 
@@ -502,8 +501,8 @@ experience(not,-and,-or,-nor,-but,-either,-neither):
     
     
 intention(-and,-or,-nor,-but,-either,-neither):
-    -intention(-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> intention(-not,-but,-delimited)
-    intention(-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> intention(-not,-but,delimited)
+    -intention(-described,-not,-but,-delimited) <CASE *conjunction(not) EXCEPTION> intention(-not,-but,-delimited)
+    intention(-described,-not,-but,delimited) <CASE *conjunction(not) EXCEPTION> intention(-not,-but,delimited)
     
     
     
@@ -512,12 +511,12 @@ intention(-and,-or,-nor,-but,-either,-neither):
     
 sentence(and,-or,-nor,-but,-not,-either,-neither):
     [compound(delimited)]
-    +sentence(-terminated) <CASE *conjunction(and) CASE> sentence(-delimited,-terminated)
+    +sentence(complete,-terminated) <CASE *conjunction(and) CASE> sentence(complete,-delimited,-terminated)
 
 sentence(but,-and,-or,-nor,-not,-either,-neither):
     [one_term(not,single)]
     delimited[last_term(delimited)]
-    sentence|intention(not) <CASE *conjunction(but) CASE> sentence(-delimited,-terminated)
+    sentence(complete)|intention(not) <CASE *conjunction(but) CASE> sentence(complete,-delimited,-terminated)
 
  
     
