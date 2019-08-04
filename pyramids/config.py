@@ -1,14 +1,6 @@
 import bisect
 import configparser
 import os
-import warnings
-
-try:
-    import pyramids_categories
-except ImportError:
-    pyramids_categories = None
-    warnings.warn("The pyramids_categories package was not found. "
-                  "The pre-compiled category files will not be available.")
 
 from pyramids import categorization, exceptions, parsing, rules, tokenization
 
@@ -30,10 +22,7 @@ class ParserConfig:
 
         data_folder = os.path.dirname(config_file_path)
 
-        if pyramids_categories:
-            default_word_sets_folder = os.path.dirname(pyramids_categories.__file__)
-        else:
-            default_word_sets_folder = 'word_sets'
+        default_word_sets_folder = os.path.join(os.path.dirname(config_file_path), 'word_sets')
 
         if defaults is None:
             self._defaults = {}
@@ -41,8 +30,7 @@ class ParserConfig:
             self._defaults = dict(defaults)
         for option, value in (('Tokenizer Type', 'standard'),
                               ('Discard Spaces', '1'),
-                              ('Word Sets Folder',
-                               default_word_sets_folder)):
+                              ('Word Sets Folder', default_word_sets_folder)):
             if option not in self._defaults:
                 self._defaults[option] = value
 

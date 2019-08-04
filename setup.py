@@ -70,6 +70,6 @@ setup(
     packages=['pyramids'],
     package_data={'packages': ['*.txt', '*.ctg', '*.ini']},
     include_package_data=True,
-    install_requires=['pyramids_categories>=1.0',
+    install_requires=['pyramids_english>=1.0',
                       'sortedcontainers']
 )

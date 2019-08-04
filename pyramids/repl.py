@@ -12,6 +12,7 @@ except ImportError:
 
 from pyramids import benchmarking, graphs
 from pyramids.config import ParserFactory, ParserConfig
+from pyramids.language import Language
 
 
 __author__ = 'Aaron Hosford'
@@ -23,8 +24,9 @@ __all__ = [
 # TODO: Some code from this class is duplicated in __init__.py
 class ParserCmd(cmd.Cmd):
 
-    def __init__(self):
+    def __init__(self, language: Language):
         cmd.Cmd.__init__(self)
+        self._language = language
         self.prompt = '% '
         self._simple = True
         self._show_broken = False
@@ -47,6 +49,10 @@ class ParserCmd(cmd.Cmd):
         self._benchmark_update_time = time.time()
         self._last_input_text = None
         self.do_load()
+
+    @property
+    def language(self):
+        return self._language
 
     @property
     def parser_loader(self):
@@ -173,8 +179,7 @@ class ParserCmd(cmd.Cmd):
             if self._parser and self._parser.config_info:
                 config_info = self._parser.config_info
             else:
-                config_info = ParserConfig(
-                    os.path.abspath('pyramids.ini'))
+                config_info = self._language.load_parser_config()
         else:
             config_info = ParserConfig(line)
         self._parser_loader.standardize_parser(config_info)
@@ -233,11 +238,9 @@ class ParserCmd(cmd.Cmd):
         """Save scoring measures and load a parser from the given configuration file."""
         self.do_save()
         if not line:
-            line = os.path.abspath('data/pyramids.ini')
-            if not os.path.isfile(line):
-                line = os.path.join(os.path.dirname(__file__), 'data/pyramids.ini')
+            line = self._language.load_parser_config().config_file_path
         if not os.path.isfile(line):
-            print("The pyramids.ini file could not be found.")
+            print("File not found: " + line)
             return
         config_info = ParserConfig(line)
         self._parser = self._parser_loader.load_parser(config_info)
@@ -399,7 +402,7 @@ class ParserCmd(cmd.Cmd):
         w = line.strip()
         config_info = (self._parser.config_info
                        if self._parser and self._parser.config_info
-                       else ParserConfig(os.path.abspath('pyramids.ini')))
+                       else self._language.load_parser_config())
         found = False
         for folder_path in config_info.word_sets_folders:
             for filename in os.listdir(folder_path):
@@ -427,7 +430,7 @@ class ParserCmd(cmd.Cmd):
             return
         config_info = (self._parser.config_info
                        if self._parser and self._parser.config_info
-                       else ParserConfig(os.path.abspath('pyramids.ini')))
+                       else self._language.load_parser_config())
         found = False
         for folder_path in config_info.word_sets_folders:
             for filename in os.listdir(folder_path):
@@ -473,7 +476,7 @@ class ParserCmd(cmd.Cmd):
         category = self._parser_loader.parse_category(category_definition)
         config_info = (self._parser.config_info
                        if self._parser and self._parser.config_info
-                       else ParserConfig(os.path.abspath('pyramids.ini')))
+                       else self._language.load_parser_config())
         found = set()
         for folder_path in config_info.word_sets_folders:
             for filename in os.listdir(folder_path):
