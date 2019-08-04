@@ -2,6 +2,7 @@ from sys import intern
 
 from pyramids import categorization, trees, scoring
 from pyramids.categorization import Category, CATEGORY_WILDCARD, make_property_set, Property
+from pyramids.utils import extend_properties
 
 __author__ = 'Aaron Hosford'
 __all__ = [
@@ -162,7 +163,7 @@ class LeafRule(ParseRule):
         if new_token in self:
             positive, negative = self.discover_case_properties(new_token)
             category = self._category.promote_properties(positive, negative)
-            category = parser_state.extend_properties(category)
+            category = extend_properties(parser_state.model, category)
             parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self, index, category, index))
             return True
         else:
@@ -398,7 +399,7 @@ class SequenceRule(BranchRule):
             for backward_half in self._iter_backward_halves(parser_state.category_map, index - 1, new_node_set.start):
                 for forward_half in forward_halves:
                     subtrees = backward_half + [new_node_set] + forward_half
-                    category = self.get_category(parser_state.parser, [subtree.category for subtree in subtrees])
+                    category = self.get_category(parser_state.model, [subtree.category for subtree in subtrees])
                     if self.is_non_recursive(category, subtrees[self._head_index].category):
                         parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self, self._head_index,
                                                                   category, subtrees))
@@ -480,7 +481,7 @@ class SequenceRule(BranchRule):
     def get_link_types(self, parse_node, link_set_index):
         return self._link_type_sets[link_set_index]
 
-    def get_category(self, parser, subtree_categories):
+    def get_category(self, model, subtree_categories):
         head_category = subtree_categories[self._head_index]
         if self.category.is_wildcard():
             category = categorization.Category(head_category.name, self.category.positive_properties,
@@ -489,7 +490,7 @@ class SequenceRule(BranchRule):
             category = self.category
         positive = set(head_category.positive_properties)
         negative = set(head_category.negative_properties)
-        for prop in parser.any_promoted_properties:
+        for prop in model.any_promoted_properties:
             for subtree_category in subtree_categories:
                 if prop in subtree_category.positive_properties:
                     positive.add(prop)
@@ -501,7 +502,7 @@ class SequenceRule(BranchRule):
                         break
                 else:
                     negative.add(prop)
-        for prop in parser.all_promoted_properties:
+        for prop in model.all_promoted_properties:
             for subtree_category in subtree_categories:
                 if prop in subtree_category.negative_properties:
                     negative.add(prop)
@@ -756,7 +757,7 @@ class ConjunctionRule(BranchRule):
                     head_offset = len(forward_half) - 2
                     subtree_categories = [subtree.category for subtree in forward_half]
                     if self._can_match(subtree_categories, head_offset):
-                        category = self.get_category(parser_state.parser, subtree_categories, head_offset)
+                        category = self.get_category(parser_state.model, subtree_categories, head_offset)
                         if self.is_non_recursive(category, forward_half[head_offset].category):
                             parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self, head_offset,
                                                                       category, forward_half))
@@ -767,7 +768,7 @@ class ConjunctionRule(BranchRule):
                             head_offset = len(subtrees) - 2
                             subtree_categories = [subtree.category for subtree in subtrees]
                             if self._can_match(subtree_categories, head_offset):
-                                category = self.get_category(parser_state.parser, subtree_categories, head_offset)
+                                category = self.get_category(parser_state.model, subtree_categories, head_offset)
                                 if self.is_non_recursive(category, subtrees[head_offset].category):
                                     parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self,
                                                                               head_offset, category, subtrees))
@@ -777,7 +778,7 @@ class ConjunctionRule(BranchRule):
                         head_offset = len(forward_half) - 2
                         subtree_categories = [subtree.category for subtree in forward_half]
                         if self._can_match(subtree_categories, head_offset):
-                            category = self.get_category(parser_state.parser, subtree_categories, head_offset)
+                            category = self.get_category(parser_state.model, subtree_categories, head_offset)
                             if self.is_non_recursive(category, forward_half[head_offset].category):
                                 parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self, head_offset,
                                                                           category, forward_half))
@@ -787,7 +788,7 @@ class ConjunctionRule(BranchRule):
                         head_offset = len(subtrees) - 2
                         subtree_categories = [subtree.category for subtree in subtrees]
                         if self._can_match(subtree_categories, head_offset):
-                            category = self.get_category(parser_state.parser, subtree_categories, head_offset)
+                            category = self.get_category(parser_state.model, subtree_categories, head_offset)
                             if self.is_non_recursive(category, subtrees[head_offset].category):
                                 parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self, head_offset,
                                                                           category, subtrees))
@@ -798,7 +799,7 @@ class ConjunctionRule(BranchRule):
                         head_offset = len(subtrees) - 2
                         subtree_categories = [subtree.category for subtree in subtrees]
                         if self._can_match(subtree_categories, head_offset):
-                            category = self.get_category(parser_state.parser, subtree_categories, head_offset)
+                            category = self.get_category(parser_state.model, subtree_categories, head_offset)
                             if self.is_non_recursive(category, subtrees[head_offset].category):
                                 parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self, head_offset,
                                                                           category, subtrees))

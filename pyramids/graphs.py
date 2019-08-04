@@ -53,16 +53,14 @@ class ParseGraph:
     def __init__(self, root, tokens, links, phrases):
         self._root = root
         self._tokens = tuple(tokens)
-        self._links = tuple({sink: frozenset(labels)
-                             for sink, labels in dict(sink_map).items()}
+        self._links = tuple({sink: frozenset(labels) for sink, labels in dict(sink_map).items()}
                             for sink_map in links)
         self._phrases = tuple(tuple((category, frozenset((source, sink) for source, sink in phrase_links))
                                     for category, phrase_links in phrase_stack)
                               for phrase_stack in phrases)
         assert self._phrases and self._phrases[-1]
 
-        self._reversed_links = tuple({source: self._links[source][sink]
-                                      for source in range(len(self._tokens))
+        self._reversed_links = tuple({source: self._links[source][sink] for source in range(len(self._tokens))
                                       if sink in self._links[source]}
                                      for sink in range(len(self._tokens)))
 
@@ -140,8 +138,7 @@ class ParseGraph:
 
 
 class ParseGraphBuilder(LanguageContentHandler):
-    """A simple class for representing language content as semantic graphs.
-    """
+    """A simple class for representing language content as semantic graphs."""
 
     def __init__(self):
         self._counter = 0

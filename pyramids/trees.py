@@ -17,6 +17,7 @@ import time
 
 from pyramids import categorization, exceptions, graphs, tokenization
 from pyramids.categorization import Property
+from pyramids.graphs import ParseGraphBuilder
 
 __author__ = 'Aaron Hosford'
 __all__ = [
@@ -1113,3 +1114,9 @@ class Parse:
                            key=lambda tree: (tree.start, -tree.end, -scores[tree][0], -scores[tree][1])):
             tree.visit(handler)
             handler.handle_tree_end()
+
+    def get_parse_graphs(self):
+        assert not self.is_ambiguous()
+        graph_builder = ParseGraphBuilder()
+        self.visit(graph_builder)
+        return graph_builder.get_graphs()

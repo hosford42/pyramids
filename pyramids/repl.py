@@ -4,6 +4,8 @@ import sys
 import time
 import traceback
 
+from pyramids.parsing import GenerationAlgorithm, ParsingAlgorithm
+
 try:
     # noinspection PyPep8Naming
     import cProfile as profile
@@ -11,27 +13,26 @@ except ImportError:
     import profile
 
 from pyramids import benchmarking, graphs
-from pyramids.config import ParserFactory, ParserConfig
-from pyramids.language import Language
-
+from pyramids.config import ModelConfig
+from pyramids.model_loader import ModelLoader
 
 __author__ = 'Aaron Hosford'
 __all__ = [
     'ParserCmd',
+    'repl',
 ]
 
 
 # TODO: Some code from this class is duplicated in __init__.py
 class ParserCmd(cmd.Cmd):
 
-    def __init__(self, language: Language):
+    def __init__(self, model_loader: ModelLoader):
         cmd.Cmd.__init__(self)
-        self._language = language
+        self._model_loader = model_loader
+        self._model = model_loader.load_model()
         self.prompt = '% '
         self._simple = True
         self._show_broken = False
-        self._parser_loader = ParserFactory()
-        self._parser = None
         self._parser_state = None
         self._parses = []
         self._whole_parses = 0
@@ -51,16 +52,12 @@ class ParserCmd(cmd.Cmd):
         self.do_load()
 
     @property
-    def language(self):
-        return self._language
+    def model(self):
+        return self._model
 
     @property
-    def parser_loader(self):
-        return self._parser_loader
-
-    @property
-    def parser(self):
-        return self._parser
+    def model_loader(self):
+        return self._model_loader
 
     @property
     def max_parse_index(self):
@@ -176,13 +173,13 @@ class ParserCmd(cmd.Cmd):
     def do_standardize(self, line):
         """Standardizes the parser's files."""
         if not line:
-            if self._parser and self._parser.config_info:
-                config_info = self._parser.config_info
+            if self._model and self._model.config_info:
+                config_info = self._model.config_info
             else:
-                config_info = self._language.load_parser_config()
+                config_info = self._model_loader.load_model_config()
         else:
-            config_info = ParserConfig(line)
-        self._parser_loader.standardize_parser(config_info)
+            config_info = ModelConfig(line)
+        self._model_loader.standardize_parser(config_info)
 
     def do_short(self, line):
         """Causes parses to be printed in short form instead of long form."""
@@ -238,12 +235,13 @@ class ParserCmd(cmd.Cmd):
         """Save scoring measures and load a parser from the given configuration file."""
         self.do_save()
         if not line:
-            line = self._language.load_parser_config().config_file_path
+            line = self._model.config_info.config_file_path
         if not os.path.isfile(line):
             print("File not found: " + line)
             return
-        config_info = ParserConfig(line)
-        self._parser = self._parser_loader.load_parser(config_info)
+        config_info = ModelConfig(line)
+        self._model = self._model_loader.load_model(config_info)
+        self._parser_state = None
         self._benchmark = (benchmarking.Benchmark.load(config_info.benchmark_file)
                            if os.path.isfile(config_info.benchmark_file)
                            else benchmarking.Benchmark())
@@ -255,8 +253,8 @@ class ParserCmd(cmd.Cmd):
             print("'reload' command does not accept arguments.")
             return
         self.do_save()
-        self.do_load(self._parser.config_info.config_file_path
-                     if self._parser and self._parser.config_info
+        self.do_load(self._model.config_info.config_file_path
+                     if self._model and self._model.config_info
                      else '')
 
     def do_save(self, line=''):
@@ -264,11 +262,10 @@ class ParserCmd(cmd.Cmd):
         if line:
             print("'save' command does not accept arguments.")
             return
-        if self._parser is not None:
-            self._parser.save_scoring_measures()
+        if self._model is not None:
+            self._model_loader.save_scoring_measures(self._model)
             if self._benchmark_dirty:
-                self._benchmark.save(
-                    self._parser.config_info.benchmark_file)
+                self._benchmark.save(self._model.config_info.benchmark_file)
                 self._benchmark_dirty = False
 
     def do_discard(self, line=''):
@@ -276,9 +273,9 @@ class ParserCmd(cmd.Cmd):
         if line:
             print("'discard' command does not accept arguments.")
             return
-        self._parser.load_scoring_measures()
+        self._model_loader.load_scoring_measures(self._model)
 
-        config_info = self._parser.config_info
+        config_info = self._model.config_info
         if os.path.isfile(config_info.benchmark_file):
             self._benchmark = benchmarking.Benchmark.load(config_info.benchmark_file)
         else:
@@ -297,7 +294,7 @@ class ParserCmd(cmd.Cmd):
             return
         categories = set()
         for definition in definitions:
-            categories.add(self._parser_loader.parse_category(definition, offset=line.find(definition) + 1))
+            categories.add(self._model_loader.parse_category(definition, offset=line.find(definition) + 1))
         categories = sorted(categories, key=lambda category: str(category))
         for category1 in categories:
             for category2 in categories:
@@ -325,9 +322,9 @@ class ParserCmd(cmd.Cmd):
     def _do_parse(self, line, timeout, new_parser_state=True, restriction_category=None, fast=None):
         if fast is None:
             fast = self._fast
-        if new_parser_state:
-            self._parser_state = self._parser.new_parser_state()
-        parse = self._parser.parse(line, self._parser_state, fast, timeout)
+        if new_parser_state or self._parser_state is None:
+            self._parser_state = ParsingAlgorithm.new_parser_state(self._model)
+        parse = ParsingAlgorithm.parse(self._parser_state, line, fast, timeout)
         parse_timed_out = time.time() >= timeout
         emergency_disambiguation = False
         if restriction_category:
@@ -382,7 +379,7 @@ class ParserCmd(cmd.Cmd):
             print("No category specified.")
             return
         category_definition = line.split()[0]
-        category = self._parser_loader.parse_category(category_definition)
+        category = self._model_loader.parse_category(category_definition)
         line = line[len(category_definition):].strip()
         self._handle_parse(line, restriction_category=category)
 
@@ -400,9 +397,9 @@ class ParserCmd(cmd.Cmd):
             print("Expected only one word.")
             return
         w = line.strip()
-        config_info = (self._parser.config_info
-                       if self._parser and self._parser.config_info
-                       else self._language.load_parser_config())
+        config_info = (self._model.config_info
+                       if self._model and self._model.config_info
+                       else self._model_loader.load_model_config())
         found = False
         for folder_path in config_info.word_sets_folders:
             for filename in os.listdir(folder_path):
@@ -423,20 +420,20 @@ class ParserCmd(cmd.Cmd):
             print("No category specified.")
             return
         category_definition = line.split()[0]
-        category = self._parser_loader.parse_category(category_definition)
+        category = self._model_loader.parse_category(category_definition)
         words_to_add = sorted(set(line[len(category_definition):].strip().split()))
         if not words_to_add:
             print("No words specified.")
             return
-        config_info = (self._parser.config_info
-                       if self._parser and self._parser.config_info
-                       else self._language.load_parser_config())
+        config_info = (self._model.config_info
+                       if self._model and self._model.config_info
+                       else self._model_loader.load_model_config())
         found = False
         for folder_path in config_info.word_sets_folders:
             for filename in os.listdir(folder_path):
                 if not filename.lower().endswith('.ctg'):
                     continue
-                file_category = self._parser_loader.parse_category(filename[:-4])
+                file_category = self._model_loader.parse_category(filename[:-4])
                 if file_category != category:
                     continue
                 file_path = os.path.join(folder_path, filename)
@@ -473,16 +470,16 @@ class ParserCmd(cmd.Cmd):
         if not words_to_remove:
             print("No words specified.")
             return
-        category = self._parser_loader.parse_category(category_definition)
-        config_info = (self._parser.config_info
-                       if self._parser and self._parser.config_info
-                       else self._language.load_parser_config())
+        category = self._model_loader.parse_category(category_definition)
+        config_info = (self._model.config_info
+                       if self._model and self._model.config_info
+                       else self._model_loader.load_model_config())
         found = set()
         for folder_path in config_info.word_sets_folders:
             for filename in os.listdir(folder_path):
                 if not filename.lower().endswith('.ctg'):
                     continue
-                file_category = self._parser_loader.parse_category(filename[:-4])
+                file_category = self._model_loader.parse_category(filename[:-4])
                 if file_category != category:
                     continue
                 file_path = os.path.join(folder_path, filename)
@@ -582,7 +579,7 @@ class ParserCmd(cmd.Cmd):
             start_time = time.time()
             parse.visit(graph_builder)
             sentences = list(graph_builder.get_graphs())
-            results = [self._parser.generate(sentence) for sentence in sentences]
+            results = [GenerationAlgorithm().generate(self._model, sentence) for sentence in sentences]
             end_time = time.time()
             for sentence, result in zip(sentences, results):
                 print(sentence)
@@ -899,7 +896,7 @@ class ParserCmd(cmd.Cmd):
         # Restrict it to the correct category and start from there. This gives the parser a leg up when it's far
         # from the correct response.
         split_index = target.index(':')
-        target_category = ParserFactory.parse_category(target[:split_index])
+        target_category = ModelLoader.parse_category(target[:split_index])
         start_time = time.time()
         end_time = start_time + self._timeout_interval
         emergency_disambig, parse_timed_out, disambig_timed_out = self._do_parse(text, end_time,
@@ -938,10 +935,10 @@ class ParserCmd(cmd.Cmd):
         if ':' not in output_val:
             return False
         split_index = target.index(':')
-        target_category = ParserFactory.parse_category(target[:split_index])
+        target_category = ModelLoader.parse_category(target[:split_index])
         target_structure = target[split_index:]
         split_index = output_val.index(':')
-        output_category = ParserFactory.parse_category(output_val[:split_index])
+        output_category = ModelLoader.parse_category(output_val[:split_index])
         output_structure = output_val[split_index:]
         return output_category in target_category and target_structure == output_structure
 
@@ -1023,7 +1020,7 @@ class ParserCmd(cmd.Cmd):
         total_tokens = 0
         for input_val in sorted(self._benchmark.samples):
             print("  " + input_val)
-            count = len(list(self._parser.tokenizer.tokenize(input_val)))
+            count = len(list(self._model.tokenizer.tokenize(input_val)))
             total_tokens += count
             if count > max_tokens:
                 max_tokens = count
@@ -1031,3 +1028,9 @@ class ParserCmd(cmd.Cmd):
         print("Longest benchmark sample: " + str(max_tokens) + " tokens")
         print("Average benchmark sample length: " + str(round(total_tokens / float(len(self._benchmark.samples)), 1)) +
               " tokens")
+
+
+def repl(model_loader: ModelLoader):
+    parser_cmd = ParserCmd(model_loader)
+    print('')
+    parser_cmd.cmdloop()

@@ -1,4 +1,3 @@
-import ast
 import logging
 import time
 from itertools import product
@@ -6,18 +5,17 @@ from sys import intern
 
 from sortedcontainers import SortedSet
 
-from pyramids import categorization, graphs, rules, trees, tokenization
-
-# These are used during pickle reconstruction. Do not remove them.
-# noinspection PyUnresolvedReferences
-from pyramids.scoring import ScoringMeasure
-# noinspection PyUnresolvedReferences
-from pyramids.categorization import Category, Property, make_property_set
+from pyramids import graphs, rules, trees, tokenization
+from pyramids.model import Model
+from pyramids.model_loader import ModelLoader
+from pyramids.utils import extend_properties
 
 __author__ = 'Aaron Hosford'
 __all__ = [
     'CategoryMap',
     'ParserState',
+    'ParsingAlgorithm',
+    'GenerationAlgorithm',
     'Parser',
 ]
 
@@ -25,7 +23,9 @@ log = logging.getLogger(__name__)
 
 
 class CategoryMap:
-    """The category map tracked & used by a parser state."""
+    """The category map tracked & used by a parser state. This data structure holds a mapping from text ranges
+    to the grammatical categories and parse sub-trees associated with them. The data is structured to minimize
+    query & update time during the parser's search."""
 
     def __init__(self):
         self._map = {}
@@ -191,10 +191,10 @@ class ParserState:
         #       finding the best parse when parsing times out.
         return -score, -confidence
 
-    def __init__(self, parser):
-        if not isinstance(parser, Parser):
-            raise TypeError(parser, Parser)
-        self._parser = parser
+    def __init__(self, model):
+        if not isinstance(model, Model):
+            raise TypeError(model, Model)
+        self._model = model
         self._tokens = []
         self._token_sequence = None
         self._category_map = CategoryMap()
@@ -203,8 +203,8 @@ class ParserState:
         self._roots = set()
 
     @property
-    def parser(self):
-        return self._parser
+    def model(self):
+        return self._model
 
     @property
     def tokens(self):
@@ -223,16 +223,12 @@ class ParserState:
     @property
     def any_promoted_properties(self):
         """Properties that may be promoted if any element possesses them."""
-        return self._parser.any_promoted_properties
+        return self._model.any_promoted_properties
 
     @property
     def all_promoted_properties(self):
         """Properties that may be promoted if all elements possess them."""
-        return self._parser.all_promoted_properties
-
-    def extend_properties(self, category):
-        """Extend the category's properties per the inheritance rules."""
-        return self._parser.extend_properties(category)
+        return self._model.all_promoted_properties
 
     def has_nodes_pending(self):
         """The number of nodes still waiting to be processed."""
@@ -242,6 +238,15 @@ class ParserState:
         """Add a new parse tree node to the insertion queue."""
         self._insertion_queue.add(node)
 
+    def is_covered(self):
+        """Returns a boolean indicating whether a node exists that covers
+        the entire input by itself."""
+        for node_set in self._roots:
+            if node_set.end - node_set.start >= len(self._tokens):
+                return True
+        return False
+
+    # TODO: Move to ParsingAlgorithm
     def add_token(self, token, start=None, end=None):
         """Add a new token to the token sequence."""
         token = intern(str(token))
@@ -249,12 +254,13 @@ class ParserState:
         self._tokens.append((token, start, end))
         self._token_sequence = None
         covered = False
-        for leaf_rule in self._parser.primary_leaf_rules:
+        for leaf_rule in self._model.primary_leaf_rules:
             covered |= leaf_rule(self, token, index)
         if not covered:
-            for leaf_rule in self._parser.secondary_leaf_rules:
+            for leaf_rule in self._model.secondary_leaf_rules:
                 leaf_rule(self, token, index)
 
+    # TODO: Move to ParsingAlgorithm
     def process_node(self, timeout=None):
         """Search for the next parse tree node in the insertion queue that
         makes an original contribution to the parse. If any is found,
@@ -272,19 +278,12 @@ class ParserState:
                 self._node_set_ids.add(id(node_set))
                 # Only add to roots if the node set hasn't already been removed
                 self._roots.add(node_set)
-            for branch_rule in self._parser.branch_rules:
+            for branch_rule in self._model.branch_rules:
                 branch_rule(self, node_set)
             break
         return bool(self._insertion_queue)
 
-    def is_covered(self):
-        """Returns a boolean indicating whether a node exists that covers
-        the entire input by itself."""
-        for node_set in self._roots:
-            if node_set.end - node_set.start >= len(self._tokens):
-                return True
-        return False
-
+    # TODO: Move to ParserAlgorithm
     def process_necessary_nodes(self, timeout=None):
         """Process pending nodes until they are exhausted or the entire
         input is covered by a single tree."""
@@ -293,6 +292,7 @@ class ParserState:
         while not self.is_covered() and self.process_node() and (timeout is None or time.time() < timeout):
             pass  # The condition call does all the work.
 
+    # TODO: Move to ParsingAlgorithm
     def process_all_nodes(self, timeout=None):
         """Process all pending nodes."""
         while self.process_node(timeout) and (timeout is None or time.time() < timeout):
@@ -305,103 +305,22 @@ class ParserState:
         return trees.Parse(self.tokens, [trees.ParseTree(self.tokens, node) for node in self._roots])
 
 
-class Parser:
+class ParsingAlgorithm:
     """Coordinates the search for new tokens and structures in a text using
     BaseRules and BuildRules, respectively. Stores the results in a Parse
     instance, which can be passed back in if additional input is received,
     or can be queried to determine the recognized structure(s) of the
     input."""
 
-    def __init__(self, primary_leaf_rules, secondary_leaf_rules, branch_rules, tokenizer, any_promoted_properties,
-                 all_promoted_properties, property_inheritance_rules, config_info=None):
-        self._primary_leaf_rules = frozenset(primary_leaf_rules)
-        self._secondary_leaf_rules = frozenset(secondary_leaf_rules)
-        self._branch_rules = frozenset(branch_rules)
-        self._tokenizer = tokenizer
-        self._any_promoted_properties = make_property_set(any_promoted_properties)
-        self._all_promoted_properties = make_property_set(all_promoted_properties)
-        self._property_inheritance_rules = frozenset(property_inheritance_rules)
-        self._config_info = config_info
-        self._score_file_path = None
-        self._scoring_measures_path = None
-        self._rules_by_link_type = {}
-
-        # TODO: Right now this only works for SequenceRules, not
-        #       ConjunctionRules, hence the conditional thrown in here.
-        for rule in self._branch_rules:
-            if not isinstance(rule, rules.SequenceRule):
-                continue
-            for index in range(len(rule.link_type_sets)):
-                for link_type, left, right in rule.link_type_sets[index]:
-                    if link_type not in self._rules_by_link_type:
-                        self._rules_by_link_type[link_type] = set()
-                    self._rules_by_link_type[link_type].add((rule, index))
-
-    @property
-    def primary_leaf_rules(self):
-        return self._primary_leaf_rules
-
-    @property
-    def secondary_leaf_rules(self):
-        return self._secondary_leaf_rules
-
-    @property
-    def branch_rules(self):
-        return self._branch_rules
-
-    @property
-    def tokenizer(self):
-        return self._tokenizer
-
-    @property
-    def any_promoted_properties(self):
-        """Properties that may be promoted if any element possesses them."""
-        return self._any_promoted_properties
-
-    @property
-    def all_promoted_properties(self):
-        """Properties that may be promoted if all elements possess them."""
-        return self._all_promoted_properties
-
-    @property
-    def config_info(self):
-        """The configuration information for this parser, if any."""
-        return self._config_info
-
-    @property
-    def scoring_measures_path(self):
-        """The most recently loaded or saved scoring measures file path."""
-        return self._scoring_measures_path
-
-    def extend_properties(self, category):
-        """Extend the category's properties per the inheritance rules."""
-        positive = set(category.positive_properties)
-        negative = set(category.negative_properties)
-        more = True
-        while more:
-            more = False
-            for rule in self._property_inheritance_rules:
-                new = rule(category.name, positive, negative)
-                if new:
-                    new_positive, new_negative = new
-                    new_positive -= positive
-                    new_negative -= negative
-                    if new_positive or new_negative:
-                        more = True
-                        positive |= new_positive
-                        negative |= new_negative
-        negative -= positive
-        return categorization.Category(category.name, positive, negative)
-
-    def new_parser_state(self):
+    @staticmethod
+    def new_parser_state(model):
         """Return a new parser state, for incremental parsing."""
-        return ParserState(self)
+        return ParserState(model)
 
-    def parse(self, text, parser_state=None, fast=False, timeout=None):
+    @staticmethod
+    def parse(parser_state, text, fast=False, timeout=None):
         """Parses a piece of text, returning the results."""
-        if parser_state is None:
-            parser_state = self.new_parser_state()
-        for token, start, end in self.tokenizer.tokenize(text):
+        for token, start, end in parser_state.model.tokenizer.tokenize(text):
             parser_state.add_token(token, start, end)
         if fast:
             parser_state.process_necessary_nodes(timeout)
@@ -414,32 +333,35 @@ class Parser:
         """Extracts a sentence network from a parse."""
         return parse.build_language_graph(language_graph_builder)
 
-    def _iter_combos(self, subcategory_sets, covered, trees):
-        if not subcategory_sets:
-            yield []
-        else:
-            subcategory_set = subcategory_sets[0]
-            subcategory_sets = subcategory_sets[1:]
-            for tree in trees:
-                if tree.node_coverage & covered:
-                    # Don't allow multiple occurrences of the same node.
-                    continue
-                satisfied = False
-                for subcategory in subcategory_set:
-                    # If the subtree's category matches...
-                    if tree.category in subcategory:
-                        satisfied = True
-                        break
-                if not satisfied:
-                    continue
-                for tail in self._iter_combos(subcategory_sets, covered | tree.node_coverage, trees):
-                    yield [tree] + tail
+    # def _iter_combos(self, subcategory_sets, covered, trees):
+    #     if not subcategory_sets:
+    #         yield []
+    #     else:
+    #         subcategory_set = subcategory_sets[0]
+    #         subcategory_sets = subcategory_sets[1:]
+    #         for tree in trees:
+    #             if tree.node_coverage & covered:
+    #                 # Don't allow multiple occurrences of the same node.
+    #                 continue
+    #             satisfied = False
+    #             for subcategory in subcategory_set:
+    #                 # If the subtree's category matches...
+    #                 if tree.category in subcategory:
+    #                     satisfied = True
+    #                     break
+    #             if not satisfied:
+    #                 continue
+    #             for tail in self._iter_combos(subcategory_sets, covered | tree.node_coverage, trees):
+    #                 yield [tree] + tail
 
-    def generate(self, sentence):
+
+class GenerationAlgorithm:
+
+    def generate(self, model, sentence):
         assert isinstance(sentence, graphs.ParseGraph)
-        return self._generate(sentence.root_index, sentence)
+        return self._generate(model, sentence.root_index, sentence)
 
-    def _generate(self, head_node, sentence):
+    def _generate(self, model, head_node, sentence):
         head_spelling = sentence[head_node][1]
         head_category = sentence[head_node][3]
 
@@ -449,23 +371,23 @@ class Parser:
         subnodes = sentence.get_sinks(head_node)
 
         # Build the subtree for each subnode
-        subtrees = {sink: self._generate(sink, sentence) for sink in subnodes}
+        subtrees = {sink: self._generate(model, sink, sentence) for sink in subnodes}
 
         # Find all leaves for the head node
         subtrees[head_node] = set()
         positive_case_properties, negative_case_properties = rules.LeafRule.discover_case_properties(head_spelling)
-        for rule in self._primary_leaf_rules:
+        for rule in model.primary_leaf_rules:
             if head_spelling in rule:
                 category = rule.category.promote_properties(positive_case_properties, negative_case_properties)
-                category = self.extend_properties(category)
+                category = extend_properties(model, category)
                 if category in head_category:
                     tree = trees.BuildTreeNode(rule, category, head_spelling, head_node)
                     subtrees[head_node].add(tree)
         if not subtrees[head_node]:
-            for rule in self._secondary_leaf_rules:
+            for rule in model.secondary_leaf_rules:
                 if head_spelling in rule:
                     category = rule.category.promote_properties(positive_case_properties, negative_case_properties)
-                    category = self.extend_properties(category)
+                    category = extend_properties(model, category)
                     if category in head_category:
                         tree = trees.BuildTreeNode(rule, category, head_spelling, head_node)
                         subtrees[head_node].add(tree)
@@ -498,7 +420,7 @@ class Parser:
         insertion_queue = set(subtrees[head_node])
         while insertion_queue:
             head_tree = insertion_queue.pop()
-            for rule in self._branch_rules:
+            for rule in model.branch_rules:
                 fits = False
                 for subcategory in rule.head_category_set:
                     if head_tree.category in subcategory:
@@ -518,7 +440,7 @@ class Parser:
                             required_incoming.add(link_type)
                         if (left and index < rule.head_index) or (right and index >= rule.head_index):
                             required_outgoing.add(link_type)
-                    component_candidates = self.get_component_candidates(head_category, head_node, index,
+                    component_candidates = self.get_component_candidates(model, head_category, head_node, index,
                                                                          required_incoming, required_outgoing, rule,
                                                                          sentence, subnodes, subtrees)
                     if not component_candidates:
@@ -535,7 +457,7 @@ class Parser:
                             break
                         covered |= component.node_coverage
                     else:
-                        category = rule.get_category(self, [component.category for component in component_combination])
+                        category = rule.get_category(model, [component.category for component in component_combination])
                         if rule.is_non_recursive(category, head_tree.category):
                             new_tree = trees.BuildTreeNode(rule, category, head_tree.head_spelling,
                                                            head_tree.head_index, component_combination)
@@ -554,11 +476,12 @@ class Parser:
         else:
             return emergency_results
 
-    def get_component_candidates(self, head_category, head_node, index, required_incoming, required_outgoing, rule,
-                                 sentence, subnodes, subtrees):
+    @staticmethod
+    def get_component_candidates(model, head_category, head_node, index, required_incoming, required_outgoing,
+                                 rule, sentence, subnodes, subtrees):
         component_head_candidates = subnodes.copy()
         for link_type in required_incoming:
-            if link_type not in self._rules_by_link_type:
+            if link_type not in model.rules_by_link_type:
                 continue
             component_head_candidates &= {source for source in sentence.get_sources(head_node)
                                           if link_type in sentence.get_labels(source, head_node)}
@@ -567,7 +490,7 @@ class Parser:
         if not component_head_candidates:
             return None
         for link_type in required_outgoing:
-            if link_type not in self._rules_by_link_type:
+            if link_type not in model.rules_by_link_type:
                 continue
             component_head_candidates &= {sink for sink in sentence.get_sinks(head_node)
                                           if link_type in sentence.get_labels(head_node, sink)}
@@ -602,42 +525,50 @@ class Parser:
                             component_candidates.add(subtree)
         return component_candidates
 
-    def load_scoring_measures(self, path=None):
-        if path is None:
-            if self._scoring_measures_path is None:
-                raise ValueError("No path provided!")
-            path = self._scoring_measures_path
-        else:
-            self._scoring_measures_path = path
-        scores = {}
-        with open(path, 'r') as save_file:
-            # # Fudge the class constructors temporarily for the sake of eval()
-            # Category = CategoryClass.get
-            # Property = PropertyClass.get
-            for line in save_file:
-                rule_str, measure_str, score_str, accuracy_str = line.strip().split('\t')
-                if rule_str not in scores:
-                    scores[rule_str] = set()
-                measure = ast.literal_eval(measure_str)
-                scores[rule_str].add((measure, float(score_str), float(accuracy_str)))
-            for rule in self._primary_leaf_rules | self._secondary_leaf_rules | self._branch_rules:
-                rule_str = repr(str(rule))
-                if rule_str not in scores:
-                    continue
-                for measure, score, accuracy in scores[rule_str]:
-                    rule.set_score(measure, score, accuracy)
 
-    def save_scoring_measures(self, path=None):
-        if path is None:
-            if self._scoring_measures_path is None:
-                raise ValueError("No path provided!")
-            path = self._scoring_measures_path
+class Parser:
+
+    def __init__(self, model):
+        self._model = model
+        self._parser_state = None
+
+    @property
+    def state(self):
+        return self._parser_state
+
+    def clear_state(self):
+        self._parser_state = ParsingAlgorithm.new_parser_state(self._model)
+
+    # TODO: Fix this so it returns an empty list, rather than a list containing
+    #       an empty parse, if the text could not be parsed.
+    def parse(self, text, category=None, fast=False, timeout=None, fresh=True):
+        if isinstance(category, str):
+            category = ModelLoader.parse_category(category)
+
+        if fresh or not self._parser_state:
+            self.clear_state()
+
+        result = ParsingAlgorithm.parse(self._parser_state, text, fast, timeout)
+
+        if timeout:
+            parse_timed_out = time.time() >= timeout
         else:
-            self._scoring_measures_path = path
-        with open(path, 'w') as save_file:
-            for rule in sorted(self._primary_leaf_rules | self._secondary_leaf_rules | self._branch_rules, key=str):
-                for measure in rule.iter_all_scoring_measures():
-                    score, accuracy = rule.get_score(measure)
-                    if isinstance(measure, ScoringMeasure):
-                        measure = measure.value
-                    save_file.write('\t'.join(repr(item) for item in (str(rule), measure, score, accuracy)) + '\n')
+            parse_timed_out = False
+
+        if category:
+            result = result.restrict(category)
+
+        forests = [disambiguation for (disambiguation, rank) in result.get_sorted_disambiguations(None, None, timeout)]
+
+        if forests:
+            emergency_disambiguation = False
+        else:
+            emergency_disambiguation = True
+            forests = [result.disambiguate()]
+
+        if timeout:
+            disambiguation_timed_out = time.time() > timeout
+        else:
+            disambiguation_timed_out = False
+
+        return forests, emergency_disambiguation, parse_timed_out, disambiguation_timed_out
