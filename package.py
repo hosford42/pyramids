@@ -83,9 +83,7 @@ os.remove(old_zip_path)
 # Identify the newly created wheel and verify that it can be installed.
 dist = glob.glob('dist/*-' + __version__ + '-*.whl')[-1]
 print(dist)
-os.system('pip install ' +
-          os.path.join('dist', os.path.basename(dist)) +
-          ' --upgrade')
+os.system('pip install ' + os.path.join('dist', os.path.basename(dist)) + ' --upgrade')
 
 
 # If there is any HTML documentation, package it up into a .zip file that

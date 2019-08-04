@@ -22,7 +22,7 @@ long_description = """
 Pyramids Parser
 ===============
 
-*English Language Semantic Extraction*
+*Natural Language Semantic Extraction*
 
 """.strip()
 
@@ -46,7 +46,7 @@ setup(
     url='https://github.com/hosford42/pyramids',
     license='MIT',
     platforms=['any'],
-    description='Pyramids Parser: English Language Semantic Extraction',
+    description='Pyramids Parser: Natural Language Semantic Extraction',
     long_description=long_description,
 
     # See https://pypi.python.org/pypi?:action=list_classifiers
@@ -66,10 +66,9 @@ setup(
         'Programming Language :: Python :: 3 :: Only',
     ],
 
-    keywords='pyramids parser English natural language semantic',
+    keywords='pyramids parser natural language semantic',
     packages=['pyramids'],
     package_data={'packages': ['*.txt', '*.ctg', '*.ini']},
     include_package_data=True,
-    install_requires=['pyramids_english>=1.0',
-                      'sortedcontainers']
+    install_requires=['sortedcontainers']
 )

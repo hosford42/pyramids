@@ -53,12 +53,7 @@ def convert_md_to_rst(source, destination=None, backup_dir=None):
 
     try:
         # Try to convert the file.
-        pypandoc.convert(
-            source,
-            'rst',
-            format='md',
-            outputfile=destination
-        )
+        pypandoc.convert(source, 'rst', format='md', outputfile=destination)
     except:
         # If for any reason the conversion fails, try to put things back
         # like we found them.
