@@ -13,6 +13,7 @@ a whole family of sub-trees as if they were a single entity.
 """
 import math
 import time
+import weakref
 from collections import deque
 from functools import reduce
 
@@ -49,10 +50,6 @@ class ParseTreeNode:
             self._components = tuple(index_or_components)
             if not self._components:
                 raise ValueError("At least one component must be provided for a non-leaf node.")
-            for component in self._components:
-                if not isinstance(component, ParseTreeNodeSet):
-                    raise TypeError(component, ParseTreeNodeSet)
-                component.add_parent(self)
             self._start = self._end = self._components[0].start
             for component in self._components:
                 if self._end != component.start:
@@ -63,6 +60,15 @@ class ParseTreeNode:
                       hash(self._end) ^ hash(self._components))
         self._score = None
         self._raw_score = None
+
+        if self._components:
+            # This has to happen after the hash is determined, since the node will be added to the components'
+            # parent sets.
+            for component in self._components:
+                if not isinstance(component, ParseTreeNodeSet):
+                    raise TypeError(component, ParseTreeNodeSet)
+                component.add_parent(self)
+
         self.update_weighted_score()
 
     def __hash__(self):
@@ -262,9 +268,9 @@ class ParseTreeNode:
     def add_parent(self, parent):
         assert not parent.has_ancestor(self)
         if self._parents is None:
-            self._parents = [parent]
+            self._parents = weakref.WeakSet({parent})
         else:
-            self._parents.append(parent)
+            self._parents.add(parent)
 
     def has_ancestor(self, ancestor):
         if ancestor is self:
@@ -470,11 +476,14 @@ class ParseTreeNodeSet:
                 self._end = node.end
                 self._category = node.category
                 values_set = True
-            self.add(node)
         if not values_set:
             raise ValueError("ParseTreeNodeSet must contain at least one node.")
 
         self._hash = hash(self._start) ^ hash(self._end) ^ hash(self._category)
+
+        # This has to happen after the hash is determined, since we add the node set to the node's parent set
+        for node in nodes:
+            self.add(node)
 
         assert self._best_node is not None
 
@@ -632,9 +641,9 @@ class ParseTreeNodeSet:
     def add_parent(self, parent):
         assert not parent.has_ancestor(self)
         if self._parents is None:
-            self._parents = [parent]
+            self._parents = weakref.WeakSet({parent})
         else:
-            self._parents.append(parent)
+            self._parents.add(parent)
 
     def has_ancestor(self, ancestor):
         if ancestor is self:
