@@ -1,13 +1,8 @@
 __author__ = 'Aaron Hosford'
 __all__ = [
-    'Timeout',
     'GrammarParserError',
     'GrammarSyntaxError',
 ]
-
-
-class Timeout(Exception):
-    pass
 
 
 class GrammarParserError(Exception):

@@ -5,8 +5,7 @@ import os
 import sys
 import time
 import traceback
-
-from pyramids.parsing import GenerationAlgorithm, ParsingAlgorithm
+from typing import Optional, List, Iterator, Tuple
 
 try:
     # noinspection PyPep8Naming
@@ -14,9 +13,11 @@ try:
 except ImportError:
     import profile
 
-from pyramids import benchmarking, graphs
+from pyramids.batching import Attempt, Result, ModelBatchController, FeedbackReceiver, Failure
 from pyramids.config import ModelConfig
 from pyramids.loader import ModelLoader
+from pyramids.parsing import GenerationAlgorithm, ParsingAlgorithm
+from pyramids.sample_utils import Input, Target, SampleSet, SampleUtils
 
 __author__ = 'Aaron Hosford'
 __all__ = [
@@ -25,7 +26,6 @@ __all__ = [
 ]
 
 
-# TODO: Some code from this class is duplicated in __init__.py
 class ParserCmd(cmd.Cmd):
 
     def __init__(self, model_loader: ModelLoader):
@@ -42,7 +42,7 @@ class ParserCmd(cmd.Cmd):
         self._fast = False
         self._timeout_interval = 5
         self._benchmark_path = None
-        self._benchmark = None
+        self._benchmark = None  # type: Optional[SampleSet]
         self._benchmark_dirty = False
         self._benchmark_emergency_disambiguations = 0
         self._benchmark_parse_timeouts = 0
@@ -244,9 +244,9 @@ class ParserCmd(cmd.Cmd):
         config_info = ModelConfig(line)
         self._model = self._model_loader.load_model(config_info)
         self._parser_state = None
-        self._benchmark = (benchmarking.Benchmark.load(config_info.benchmark_file)
+        self._benchmark = (SampleUtils.load(config_info.benchmark_file)
                            if os.path.isfile(config_info.benchmark_file)
-                           else benchmarking.Benchmark())
+                           else {})
         self._benchmark_dirty = False
 
     def do_reload(self, line=''):
@@ -279,9 +279,9 @@ class ParserCmd(cmd.Cmd):
 
         config_info = self._model.config_info
         if os.path.isfile(config_info.benchmark_file):
-            self._benchmark = benchmarking.Benchmark.load(config_info.benchmark_file)
+            self._benchmark = SampleUtils.load(config_info.benchmark_file)
         else:
-            self._benchmark = benchmarking.Benchmark()
+            self._benchmark = {}
 
         self._benchmark_dirty = False
 
@@ -530,7 +530,6 @@ class ParserCmd(cmd.Cmd):
         if self._parser_state is None:
             print("Nothing to analyze.")
             return
-        # TODO: Add to this as further needs arise.
         print('Covered: ' + repr(self._parser_state.is_covered()))
         cat_map = self._parser_state.category_map
         rule_counts = {}
@@ -562,9 +561,7 @@ class ParserCmd(cmd.Cmd):
             return
         if self.parses_available:
             parse = self._parses[self._parse_index]
-            graph_builder = graphs.ParseGraphBuilder()
-            parse.visit(graph_builder)
-            for sentence in graph_builder.get_graphs():
+            for sentence in parse.get_parse_graphs():
                 print(sentence)
                 print('')
         else:
@@ -577,10 +574,8 @@ class ParserCmd(cmd.Cmd):
             return
         if self.parses_available:
             parse = self._parses[self._parse_index]
-            graph_builder = graphs.ParseGraphBuilder()
             start_time = time.time()
-            parse.visit(graph_builder)
-            sentences = list(graph_builder.get_graphs())
+            sentences = list(parse.get_parse_graphs())
             results = [GenerationAlgorithm().generate(self._model, sentence) for sentence in sentences]
             end_time = time.time()
             for sentence, result in zip(sentences, results):
@@ -771,12 +766,10 @@ class ParserCmd(cmd.Cmd):
             return
         self._parses[self._parse_index].adjust_score(False)
 
-    def _get_benchmark_target(self):
+    def _get_benchmark_parser_output(self):
         parse = self._parses[self._parse_index]
-        graph_builder = graphs.ParseGraphBuilder()
-        parse.visit(graph_builder)
         result = set()
-        for sentence in graph_builder.get_graphs():
+        for sentence in parse.get_parse_graphs():
             result.add(str(sentence))
         return '\n'.join(sorted(result))
 
@@ -789,10 +782,11 @@ class ParserCmd(cmd.Cmd):
             print("No parses available.")
             return
         assert self._benchmark is not None
-        self._benchmark.samples[self.last_input_text] = self._get_benchmark_target()
+        self._benchmark[Input(self.last_input_text)] = Target(self._get_benchmark_parser_output())
         self._benchmark_dirty = True
 
-    def _benchmark_output(self, text):
+    # noinspection PyUnusedLocal
+    def _test_attempt_iterator(self, text: Input, target: Target):
         start_time = time.time()
         emergency_disambig, parse_timed_out, disambig_timed_out = \
             self._do_parse(text, start_time + self._timeout_interval)
@@ -801,16 +795,16 @@ class ParserCmd(cmd.Cmd):
         self._benchmark_parse_timeouts += int(parse_timed_out)
         self._benchmark_disambiguation_timeouts += int(disambig_timed_out)
         self._benchmark_time += end_time - start_time
-        return self._get_benchmark_target()
+        yield (Attempt(self._get_benchmark_parser_output()), None)
 
     # noinspection PyUnusedLocal
-    def _report_benchmark_progress(self, input_val, output_val, target):
+    def _report_benchmark_progress(self, result: Result) -> None:
         assert self._benchmark is not None
 
         self._benchmark_tests_completed += 1
         if time.time() >= self._benchmark_update_time + 1:
             print("Benchmark " +
-                  str(round((100 * self._benchmark_tests_completed / float(len(self._benchmark.samples))), 1)) +
+                  str(round((100 * self._benchmark_tests_completed / float(len(self._benchmark))), 1)) +
                   "% complete...")
             self._benchmark_update_time = time.time()
 
@@ -819,7 +813,7 @@ class ParserCmd(cmd.Cmd):
         if line:
             print("'benchmark' command does not accept arguments.")
             return
-        if not self._benchmark.samples:
+        if not self._benchmark:
             print("No benchmarking samples.")
             return
         self._benchmark_emergency_disambiguations = 0
@@ -828,52 +822,28 @@ class ParserCmd(cmd.Cmd):
         self._benchmark_time = 0.0
         self._benchmark_tests_completed = 0
         self._benchmark_update_time = time.time()
-        failures, score = self._benchmark.test_and_score(self._benchmark_output, self._validate_output,
-                                                         self._report_benchmark_progress)
+        failures = []  # type: List[Failure]
+        tally = ModelBatchController(self._validate_output).run(self._benchmark, self._test_attempt_iterator,
+                                                                self._report_benchmark_progress, failures.append)
         print("")
         if failures:
             print('')
             print("Failures:")
-            for input_val, output_val, target in failures:
-                print(input_val)
-                print(output_val)
-                print(target)
+            for failure in failures:
+                print(failure.input)
+                print(failure.first_attempt)
+                print(failure.target)
                 print('')
-        print("Score: " + str(round(100 * score, 1)) + "%")
-        print("Average Parse Time: " + str(round(self._benchmark_time / float(len(self._benchmark.samples)), 1)) +
+        print("Score: " + str(round(100 * tally.avg_first_attempt_score, 1)) + "%")
+        print("Average Parse Time: " + str(round(self._benchmark_time / float(len(self._benchmark)), 1)) +
               ' seconds per parse')
-        print("Samples Evaluated: " + str(len(self._benchmark.samples)))
+        print("Samples Evaluated: " + str(len(self._benchmark)))
         print("Emergency Disambiguations: " + str(self._benchmark_emergency_disambiguations) + " (" +
-              str(round(100 * self._benchmark_emergency_disambiguations / float(len(self._benchmark.samples)), 1)) +
-              '%)')
+              str(round(100 * self._benchmark_emergency_disambiguations / float(len(self._benchmark)), 1)) + '%)')
         print("Parse Timeouts: " + str(self._benchmark_parse_timeouts) + " (" +
-              str(round(100 * self._benchmark_parse_timeouts / float(len(self._benchmark.samples)), 1)) + '%)')
+              str(round(100 * self._benchmark_parse_timeouts / float(len(self._benchmark)), 1)) + '%)')
         print("Disambiguation Timeouts: " + str(self._benchmark_disambiguation_timeouts) + " (" +
-              str(round(100 * self._benchmark_disambiguation_timeouts / float(len(self._benchmark.samples)), 1)) + '%)')
-
-    def do_test(self, line):
-        """Parse all benchmark samples and report back the first one that fails."""
-        if line:
-            print("'test' command does not accept arguments.")
-            return
-        if not self._benchmark.samples:
-            print("No benchmarking samples.")
-            return
-
-        self._benchmark_emergency_disambiguations = 0
-        self._benchmark_parse_timeouts = 0
-        self._benchmark_disambiguation_timeouts = 0
-        self._benchmark_time = 0.0
-        self._benchmark_tests_completed = 0
-        self._benchmark_update_time = time.time()
-        for input_val, output_val, target in self._benchmark.test(self._benchmark_output, self._validate_output,
-                                                                  self._report_benchmark_progress):
-            print(input_val)
-            print(output_val)
-            print(target)
-            break
-        else:
-            print("No failures!")
+              str(round(100 * self._benchmark_disambiguation_timeouts / float(len(self._benchmark)), 1)) + '%)')
 
     # def do_failures(self, line):
     #     if line:
@@ -892,7 +862,7 @@ class ParserCmd(cmd.Cmd):
         if not target or self._parse_index or (self._parses[self._parse_index].get_weighted_score()[0] < .9):
             self._parses[self._parse_index].adjust_score(target)
 
-    def _training_attempt_iterator(self, text, target):
+    def _training_attempt_iterator(self, text: Input, target: Target) -> Iterator[Tuple[Attempt, FeedbackReceiver]]:
         print(text)
 
         # Restrict it to the correct category and start from there. This gives the parser a leg up when it's far
@@ -914,7 +884,7 @@ class ParserCmd(cmd.Cmd):
         assert self.parses_available
         while self._parse_index <= self.max_parse_index:
             # (benchmark target, scoring function)
-            yield (self._get_benchmark_target(), self._scoring_function)
+            yield (self._get_benchmark_parser_output(), self._scoring_function)
             self._parse_index += 1
 
         # Now try it without any help,
@@ -929,7 +899,7 @@ class ParserCmd(cmd.Cmd):
         if self.parses_available:
             while self._parse_index <= self.max_parse_index:
                 # (benchmark target, scoring function)
-                yield (self._get_benchmark_target(), self._scoring_function)
+                yield (self._get_benchmark_parser_output(), self._scoring_function)
                 self._parse_index += 1
 
     @staticmethod
@@ -949,16 +919,15 @@ class ParserCmd(cmd.Cmd):
         if line:
             print("'train' command does not accept arguments.")
             return
-        if not self._benchmark.samples:
+        if not self._benchmark:
             print("No benchmarking samples.")
             return
-        # TODO: Record failures on both training & benchmarking sessions,
-        #       and allow a training or benchmarking session only for the
-        #       most recently failed benchmark samples by commands of the
-        #       form "benchmark failures" and "train failures". Also, add a
-        #       "failures" command which lists failures in the form they
-        #       are listed in for these two functions, and have these two
-        #       functions call into that command instead of printing them
+        # TODO: When the user runs a training or test session, provide the option to automatically update benchmarks if
+        #       they match but not exactly.
+        # TODO: Record failures on both training & benchmarking sessions, and allow a training or benchmarking session
+        #       only for the most recently failed benchmark samples by commands of the form "benchmark failures" and
+        #       "train failures". Also, add a "failures" command which lists failures in the form they are listed in for
+        #       these two functions, and have these two functions call into that command instead of printing them
         #       directly.
         self._benchmark_emergency_disambiguations = 0
         self._benchmark_parse_timeouts = 0
@@ -966,28 +935,28 @@ class ParserCmd(cmd.Cmd):
         self._benchmark_time = 0.0
         self._benchmark_tests_completed = 0
         self._benchmark_update_time = time.time()
-        failures, score = self._benchmark.train(self._training_attempt_iterator, self._validate_output,
-                                                self._report_benchmark_progress)
+        failures = []  # type: List[Failure]
+        tally = ModelBatchController(self._validate_output).run(self._benchmark, self._training_attempt_iterator,
+                                                                self._report_benchmark_progress, failures.append)
         print("")
         if failures:
             print('')
             print("Failures:")
-            for input_val, output_val, target in failures:
-                print(input_val)
-                print(output_val)
-                print(target)
+            for failure in failures:
+                print(failure.input)
+                print(failure.first_attempt)
+                print(failure.target)
                 print('')
-        print("Score: " + str(round(100 * score, 1)) + "%")
-        print("Average Parse Time: " + str(round(self._benchmark_time / float(len(self._benchmark.samples)), 1)) +
+        print("Score: " + str(round(100 * tally.avg_first_attempt_score, 1)) + "%")
+        print("Average Parse Time: " + str(round(self._benchmark_time / float(len(self._benchmark)), 1)) +
               ' seconds per parse')
-        print("Samples Evaluated: " + str(len(self._benchmark.samples)))
+        print("Samples Evaluated: " + str(len(self._benchmark)))
         print("Emergency Disambiguations: " + str(self._benchmark_emergency_disambiguations) + " (" +
-              str(round(100 * self._benchmark_emergency_disambiguations / float(len(self._benchmark.samples)), 1)) +
-              '%)')
+              str(round(100 * self._benchmark_emergency_disambiguations / float(len(self._benchmark)), 1)) + '%)')
         print("Parse Timeouts: " + str(self._benchmark_parse_timeouts) + " (" +
-              str(round(100 * self._benchmark_parse_timeouts / float(len(self._benchmark.samples)), 1)) + '%)')
+              str(round(100 * self._benchmark_parse_timeouts / float(len(self._benchmark)), 1)) + '%)')
         print("Disambiguation Timeouts: " + str(self._benchmark_disambiguation_timeouts) + " (" +
-              str(round(100 * self._benchmark_disambiguation_timeouts / float(len(self._benchmark.samples)), 1)) + '%)')
+              str(round(100 * self._benchmark_disambiguation_timeouts / float(len(self._benchmark)), 1)) + '%)')
 
     def do_training(self, line):
         """Repeatedly train and save until user hits Ctrl-C."""

@@ -11,14 +11,12 @@ the same token span and top-level category. This structure serves to reduce
 the combinatorics inherent to the parsing process, by allowing us to treat
 a whole family of sub-trees as if they were a single entity.
 """
-from collections import deque
-from functools import reduce
 import math
 import time
+from collections import deque
+from functools import reduce
 
-from pyramids import categorization, exceptions, graphs, tokenization
-from pyramids.categorization import Property
-from pyramids.graphs import ParseGraphBuilder
+from pyramids import categorization, graphs, tokenization, traversal
 
 __author__ = 'Aaron Hosford'
 __all__ = [
@@ -274,116 +272,6 @@ class ParseTreeNode:
         if not self._parents:
             return False
         return any(parent.has_ancestor(ancestor) for parent in self._parents)
-
-    def visit(self, handler, is_root=False):
-        """Visit this node with a LanguageContentHandler."""
-        # TODO: Should we let the handler know that there's a dangling
-        #       needs_* or takes_* property that hasn't been satisfied at
-        #       the root level?
-
-        # Hide the return value, since it's only for internal use.
-        self._visit(handler, is_root)
-
-    def _visit(self, handler, is_root=False):
-        assert isinstance(handler, graphs.LanguageContentHandler)
-
-        if self.is_leaf():
-            if is_root:
-                handler.handle_root()
-
-            handler.handle_token(self.tokens[self.start], self._category, self.head_token_start,
-                                 self.tokens.spans[self.start])
-
-            need_sources = {}
-            for prop in self.category.positive_properties:
-                if prop.startswith(('needs_', 'takes_')):
-                    needed = Property.get(prop[6:])
-                    need_sources[needed] = {self.head_token_start}
-            return need_sources
-
-        head_start = self.components[self._head_index].best.head_token_start
-        handler.handle_phrase_start(self.category, head_start)
-
-        # Visit each subtree, remembering which indices are to receive
-        # which potential links.
-        nodes = []
-        need_sources = {}
-        head_need_sources = {}
-        index = 0
-        for component in self.components:
-            assert isinstance(component, ParseTreeNodeSet)
-            component = component.best
-            assert isinstance(component, ParseTreeNode)
-
-            component_need_sources = component._visit(handler, is_root and index == self._head_index)
-
-            nodes.append(component.head_token_start)
-
-            for property_name in component_need_sources:
-                # if (Property('needs_'+ property_name) not in
-                #         self.category.positive_properties and
-                #         Property('takes_'+ property_name) not in
-                #         self.category.positive_properties):
-                #     continue
-                if property_name in need_sources:
-                    need_sources[property_name] |= component_need_sources[property_name]
-                else:
-                    need_sources[property_name] = component_need_sources[property_name]
-
-            if index == self._head_index:
-                head_need_sources = component_need_sources
-            index += 1
-
-        # Add the links as appropriate for the rule used to build this tree
-        for index in range(len(self.components) - 1):
-            links = self.rule.get_link_types(self, index)
-
-            # Skip the head node; there won't be any looping links.
-            if index < self._head_index:
-                left_side = nodes[index]
-                right_side = head_start
-            else:
-                left_side = head_start
-                right_side = nodes[index + 1]
-
-            for label, left, right in links:
-                if left:
-                    if label.lower() in head_need_sources:
-                        #     and not (Property.get('needs_' + label.lower()) in self.category.positive_properties or
-                        #              Property.get('takes_' + label.lower()) in self.category.positive_properties):
-                        for node in need_sources[label.lower()]:
-                            handler.handle_link(node, left_side, label)
-                    elif label[-3:].lower() == '_of' and label[:-3].lower() in head_need_sources:
-                        for node in need_sources[label[:-3].lower()]:
-                            handler.handle_link(left_side, node, label)
-                    else:
-                        handler.handle_link(right_side, left_side, label)
-
-                if right:
-                    if label.lower() in head_need_sources:
-                        #     and not (Property.get('needs_' + label.lower()) in self.category.positive_properties or
-                        #              Property.get('takes_' + label.lower()) in self.category.positive_properties):
-                        for node in need_sources[label.lower()]:
-                            handler.handle_link(node, right_side, label)
-                    elif label[-3:].lower() == '_of' and label[:-3].lower() in head_need_sources:
-                        for node in need_sources[label[:-3].lower()]:
-                            handler.handle_link(right_side, node, label)
-                    else:
-                        handler.handle_link(left_side, right_side, label)
-
-        handler.handle_phrase_end()
-
-        # Figure out which nodes should get which links from outside this
-        # subtree
-        parent_need_sources = {}
-        for prop in self.category.positive_properties:
-            if prop.startswith(('needs_', 'takes_')):
-                needed = Property.get(prop[6:])
-                if needed in need_sources:
-                    parent_need_sources[needed] = need_sources[needed]
-                else:
-                    parent_need_sources[needed] = {head_start}
-        return parent_need_sources
 
 
 # TODO: Merge ParseTreeNode and BuildTreeNode, making it possible to assign
@@ -644,6 +532,10 @@ class ParseTreeNodeSet:
         return self.to_str()
 
     @property
+    def best_node(self) -> ParseTreeNode:
+        return self._best_node
+
+    @property
     def category(self):
         return self._category
 
@@ -764,9 +656,6 @@ class ParseTreeNodeSet:
                 for restriction in node.restrict(categories):
                     yield restriction
 
-    def visit(self, handler, is_root=False):
-        self._best_node.visit(handler, is_root)
-
 
 class ParseTree:
     """Represents a complete parse tree."""
@@ -881,14 +770,6 @@ class ParseTree:
             item.update_weighted_score(recurse=False)
             visited.add(item)
             queue.extend(item.iter_parents())
-
-    def visit(self, handler):
-        # TODO: Make sure the return value is empty. If not, it's a bad
-        #       parse tree. This case should be detected when the Parse
-        #       instance is created, and bad trees should automatically be
-        #       filtered out then, so we should *never* get a need source
-        #       here.
-        self.root.visit(handler, True)
 
 
 class Parse:
@@ -1005,7 +886,7 @@ class Parse:
     def _iter_disambiguation_tails(self, index, max_index, gaps, pieces,
                                    timeout):
         if timeout is not None and time.time() >= timeout:
-            raise exceptions.Timeout()
+            raise TimeoutError()
         if index >= len(self._tokens):
             if not gaps and not pieces:
                 yield []
@@ -1048,7 +929,7 @@ class Parse:
                         break
                 if success:
                     break
-        except exceptions.Timeout:
+        except TimeoutError:
             # Don't do anything; we just want to exit early if this
             # happens.
             pass
@@ -1108,16 +989,9 @@ class Parse:
             return 0
         return int(math.floor(len(self._tokens) / float(max_width)))
 
-    def visit(self, handler):
-        scores = {tree: tree.get_weighted_score() for tree in self._parse_trees}
-
-        for tree in sorted(self._parse_trees,
-                           key=lambda tree: (tree.start, -tree.end, -scores[tree][0], -scores[tree][1])):
-            tree.visit(handler)
-            handler.handle_tree_end()
-
     def get_parse_graphs(self):
         assert not self.is_ambiguous()
-        graph_builder = ParseGraphBuilder()
-        self.visit(graph_builder)
+        traverser = traversal.DepthFirstTraverser()
+        graph_builder = graphs.ParseGraphBuilder()
+        traverser.traverse(self, graph_builder)
         return graph_builder.get_graphs()
