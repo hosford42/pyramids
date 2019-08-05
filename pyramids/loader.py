@@ -2,11 +2,11 @@ import ast
 import bisect
 import os
 
-from pyramids import tokenization, rules, categorization, exceptions
+from pyramids import rules, categorization, exceptions
 from pyramids.config import ModelConfig
 from pyramids.model import Model
 from pyramids.scoring import ScoringMeasure
-
+from pyramids.tokenization import Tokenizer
 
 __all__ = [
     'ModelLoader',
@@ -15,13 +15,17 @@ __all__ = [
 
 class ModelLoader:
 
-    def __init__(self, name, model_path, verbose=False):
+    def __init__(self, name: str, model_path: str, verbose: bool = False):
         self.verbose = bool(verbose)
         self._name = name
         self._model_path = model_path
         self._model_config_info = self.load_model_config()
 
-    def load_model(self, config_info=None):
+    @property
+    def model_config_info(self) -> ModelConfig:
+        return self._model_config_info
+
+    def load_model(self, tokenizer: Tokenizer, config_info=None):
         if config_info is None:
             config_info = self._model_config_info
 
@@ -31,7 +35,6 @@ class ModelLoader:
         # Tokenizer
         if config_info.tokenizer_type.lower() != 'standard':
             raise ValueError("Tokenizer type not supported: " + config_info.tokenizer_type)
-        tokenizer = tokenization.StandardTokenizer(config_info.discard_spaces)
 
         # Properties
         property_inheritance_rules = []

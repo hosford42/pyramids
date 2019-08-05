@@ -1,3 +1,4 @@
+from abc import ABCMeta, abstractmethod
 from functools import reduce
 from sys import intern
 
@@ -5,87 +6,8 @@ from sys import intern
 __author__ = 'Aaron Hosford'
 __all__ = [
     'Tokenizer',
-    'StandardTokenizer',
-    'tokenize',
     'TokenSequence',
 ]
-
-
-# TODO: Make this an abstract interface.
-class Tokenizer:
-
-    def tokenize(self, text):
-        raise NotImplementedError()
-
-
-# TODO: Rename this to EnglishTokenizer and move it to pyramids_english.
-class StandardTokenizer(Tokenizer):
-
-    def __init__(self, discard_spaces=True):
-        self._discard_spaces = bool(discard_spaces)
-        self.contractions = ("'", "'m", "'re", "'s", "'ve", "'d", "'ll")
-
-    @property
-    def discard_spaces(self):
-        return self._discard_spaces
-
-    @staticmethod
-    def is_word_char(char):
-        return char.isalnum() or char == "'"
-
-    def tokenize(self, text):
-        last_char = ''
-        start = 0
-        end = 0
-        non_space = False
-
-        for index, char in enumerate(text):
-            if start != end and last_char != char and not (self.is_word_char(last_char) and self.is_word_char(char)):
-                if not self.discard_spaces or non_space:
-                    token = text[start:end]
-                    if token.endswith(self.contractions):
-                        split = token.split("'")
-                        if len(split) > 1 and (len(split) != 2 or split[0]):
-                            yield "'".join(split[:-1]), start, end - len(split[-1])
-                        yield "'" + split[-1], end - len(split[-1]), end
-                    elif token[-2:].lower() in ('am', 'pm') and token[:-2].isdigit():
-                        yield token[:-2], start, end - 2
-                        yield token[-2:], end - 2, end
-                    elif token[-1:].lower() in ('a', 'p') and token[:-1].isdigit():
-                        yield token[:-1], start, end - 1
-                        yield token[-1:], end - 1, end
-                    else:
-                        yield token, start, end
-                    del token
-                start = end
-                non_space = False
-            end += 1
-            last_char = char
-            if not char.isspace():
-                non_space = True
-
-        if start < end and (not self.discard_spaces or non_space):
-            token = text[start:end]
-            if token.endswith(self.contractions):
-                split = token.split("'")
-                if len(split) > 1:
-                    yield "'".join(split[:-1]), start, end - len(split[-1])
-                yield "'" + split[-1], end - len(split[-1]), end
-            elif token[-2:].lower() in ('am', 'pm') and token[:-2].isdigit():
-                yield token[:-2], start, end - 2
-                yield token[-2:], end - 2, end
-            elif token[-1:].lower() in ('a', 'p') and token[:-1].isdigit():
-                yield token[:-1], start, end - 1
-                yield token[-1:], end - 1, end
-            else:
-                yield token, start, end
-
-
-_tokenizer = StandardTokenizer()
-
-
-def tokenize(text):
-    return _tokenizer.tokenize(text)
 
 
 class TokenSequence:
@@ -106,6 +28,14 @@ class TokenSequence:
         self._tokens = tuple(interned_tokens)
         self._spans = tuple(spans)
         self._hash = reduce(lambda a, b: a ^ id(b), self._tokens, 0) ^ reduce(lambda a, b: a ^ hash(b), self._spans, 0)
+
+    @property
+    def tokens(self):
+        return self._tokens
+
+    @property
+    def spans(self):
+        return self._spans
 
     def __str__(self):
         return ' '.join(self._tokens)
@@ -161,10 +91,9 @@ class TokenSequence:
     def __iter__(self):
         return iter(self._tokens)
 
-    @property
-    def tokens(self):
-        return self._tokens
 
-    @property
-    def spans(self):
-        return self._spans
+class Tokenizer(metaclass=ABCMeta):
+
+    @abstractmethod
+    def tokenize(self, text: str) -> TokenSequence:
+        raise NotImplementedError()

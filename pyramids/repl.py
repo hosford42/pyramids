@@ -7,6 +7,8 @@ import time
 import traceback
 from typing import Optional, List, Iterator, Tuple
 
+from pyramids.tokenization import Tokenizer
+
 try:
     # noinspection PyPep8Naming
     import cProfile as profile
@@ -28,10 +30,11 @@ __all__ = [
 
 class ParserCmd(cmd.Cmd):
 
-    def __init__(self, model_loader: ModelLoader):
+    def __init__(self, model_loader: ModelLoader, tokenizer: Tokenizer):
         cmd.Cmd.__init__(self)
         self._model_loader = model_loader
-        self._model = model_loader.load_model()
+        self._tokenizer = tokenizer
+        self._model = model_loader.load_model(tokenizer)
         self.prompt = '% '
         self._simple = True
         self._show_broken = False
@@ -242,7 +245,7 @@ class ParserCmd(cmd.Cmd):
             print("File not found: " + line)
             return
         config_info = ModelConfig(line)
-        self._model = self._model_loader.load_model(config_info)
+        self._model = self._model_loader.load_model(self._tokenizer, config_info)
         self._parser_state = None
         self._benchmark = (SampleUtils.load(config_info.benchmark_file)
                            if os.path.isfile(config_info.benchmark_file)
@@ -267,7 +270,7 @@ class ParserCmd(cmd.Cmd):
         if self._model is not None:
             self._model_loader.save_scoring_measures(self._model)
             if self._benchmark_dirty:
-                self._benchmark.save(self._model.config_info.benchmark_file)
+                SampleUtils.save(self._benchmark, self._model.config_info.benchmark_file)
                 self._benchmark_dirty = False
 
     def do_discard(self, line=''):
@@ -1001,7 +1004,7 @@ class ParserCmd(cmd.Cmd):
               " tokens")
 
 
-def repl(model_loader: ModelLoader):
-    parser_cmd = ParserCmd(model_loader)
+def repl(model_loader: ModelLoader, tokenizer: Tokenizer):
+    parser_cmd = ParserCmd(model_loader, tokenizer)
     print('')
     parser_cmd.cmdloop()
