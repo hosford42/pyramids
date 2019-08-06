@@ -1,3 +1,7 @@
+"""
+A parser model, consisting of a set of grammar rules.
+"""
+
 from pyramids import rules
 from pyramids.config import ModelConfig
 from pyramids.categorization import make_property_set
@@ -12,6 +16,7 @@ __all__ = [
 
 
 class Model:
+    """A parser model, consisting of a set of grammar rules."""
 
     def __init__(self, primary_leaf_rules, secondary_leaf_rules, branch_rules, tokenizer, any_promoted_properties,
                  all_promoted_properties, property_inheritance_rules, config_info=None):
@@ -23,35 +28,16 @@ class Model:
         self._all_promoted_properties = make_property_set(all_promoted_properties)
         self._property_inheritance_rules = frozenset(property_inheritance_rules)
         self._config_info = config_info
-        # self._score_file_path = None
-        # self._scoring_measures_path = None
-        self._rules_by_link_type = {}
+        self._sequence_rules_by_link_type = {}
 
-        # TODO: Right now this only works for SequenceRules, not ConjunctionRules, hence the conditional thrown in here.
         for rule in self._branch_rules:
             if not isinstance(rule, rules.SequenceRule):
                 continue
             for index in range(len(rule.link_type_sets)):
                 for link_type, left, right in rule.link_type_sets[index]:
-                    if link_type not in self._rules_by_link_type:
-                        self._rules_by_link_type[link_type] = set()
-                    self._rules_by_link_type[link_type].add((rule, index))
-
-    @property
-    def primary_leaf_rules(self):
-        return self._primary_leaf_rules
-
-    @property
-    def secondary_leaf_rules(self):
-        return self._secondary_leaf_rules
-
-    @property
-    def branch_rules(self):
-        return self._branch_rules
-
-    @property
-    def tokenizer(self):
-        return self._tokenizer
+                    if link_type not in self._sequence_rules_by_link_type:
+                        self._sequence_rules_by_link_type[link_type] = set()
+                    self._sequence_rules_by_link_type[link_type].add((rule, index))
 
     @property
     def any_promoted_properties(self):
@@ -64,14 +50,36 @@ class Model:
         return self._all_promoted_properties
 
     @property
-    def property_inheritance_rules(self):
-        return self._property_inheritance_rules
+    def tokenizer(self):
+        """The tokenizer used by this model."""
+        return self._tokenizer
 
     @property
-    def rules_by_link_type(self):
-        return self._rules_by_link_type
+    def sequence_rules_by_link_type(self):
+        """The sequence rules of the model, organized by link type for rapid lookup."""
+        return self._sequence_rules_by_link_type
 
     @property
     def config_info(self) -> ModelConfig:
-        """The configuration information for this parser, if any."""
+        """The configuration information for this model, if any."""
         return self._config_info
+
+    @property
+    def primary_leaf_rules(self):
+        """High-confidence rules that can generate leaf nodes in the parse tree."""
+        return self._primary_leaf_rules
+
+    @property
+    def secondary_leaf_rules(self):
+        """Lower-confidence rules that can generate leaf nodes in the parse tree."""
+        return self._secondary_leaf_rules
+
+    @property
+    def branch_rules(self):
+        """Rules that can generate branch nodes in a parse tree."""
+        return self._branch_rules
+
+    @property
+    def property_inheritance_rules(self):
+        """Rules for how properties are propagated upwards through the parse tree."""
+        return self._property_inheritance_rules

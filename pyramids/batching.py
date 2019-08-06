@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+
+"""
+Batchwise parser training and evaluation
+"""
+
 from typing import NewType, NamedTuple, Callable, Iterable, Tuple, Optional
 
 from pyramids.sample_utils import SampleSet, Input, Target
@@ -47,6 +53,7 @@ class ModelBatchController:
 
     def run(self, samples: SampleSet, attempt_generator: AttemptGenerator, result_callback: ResultCallback = None,
             failure_callback: FailureCallback = None) -> Tally:
+        """Run a set of samples as a batchwise operation."""
         if not samples:
             return Tally(0, 0, 0, 0)
         total = 0

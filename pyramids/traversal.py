@@ -1,6 +1,32 @@
-from pyramids.categorization import Property
-from pyramids.graphs import LanguageContentHandler
+from typing import Tuple
+
+from pyramids.categorization import Property, Category
 from pyramids import trees
+
+
+class LanguageContentHandler:
+    """A content handler for natural language, in the style of the
+    ContentHandler class of the xml.sax module."""
+
+    def handle_tree_end(self) -> None:
+        """Called to indicate the end of a tree."""
+
+    def handle_token(self, spelling: str, category: Category, index: int = None, span: Tuple[int, int] = None) -> None:
+        """Called to indicate the occurrence of a token."""
+
+    def handle_root(self) -> None:
+        """Called to indicate that the next token is the root."""
+
+    def handle_link(self, source_start_index: int, sink_start_index: int, label: str) -> None:
+        """Called to indicate the occurrence of a link between two tokens.
+        Note that this will not be called until handle_token() has been
+        called for both the source and sink."""
+
+    def handle_phrase_start(self, category: Category, head_start_index: int = None) -> None:
+        """Called to indicate the start of a phrase."""
+
+    def handle_phrase_end(self) -> None:
+        """Called to indicate the end of a phrase."""
 
 
 class DepthFirstTraverser:

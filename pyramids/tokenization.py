@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from functools import reduce
 from sys import intern
 
+from pyramids.config import ModelConfig
 
 __author__ = 'Aaron Hosford'
 __all__ = [
@@ -93,6 +94,11 @@ class TokenSequence:
 
 
 class Tokenizer(metaclass=ABCMeta):
+
+    @classmethod
+    @abstractmethod
+    def from_config(cls, config_info: ModelConfig) -> 'Tokenizer':
+        raise NotImplementedError()
 
     @abstractmethod
     def tokenize(self, text: str) -> TokenSequence:

@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+
+"""
+Parser model configuration
+"""
+
 import configparser
 import os
 
@@ -10,8 +16,11 @@ __all__ = [
 
 
 class ModelConfig:
+    """Parser model configuration"""
 
     def __init__(self, config_file_path, defaults=None):
+        config_file_path = os.path.abspath(os.path.expanduser(config_file_path))
+
         if not os.path.isfile(config_file_path):
             raise FileNotFoundError(config_file_path)
 
@@ -22,16 +31,16 @@ class ModelConfig:
         default_word_sets_folder = os.path.join(os.path.dirname(config_file_path), 'word_sets')
 
         if defaults is None:
-            self._defaults = {}
+            defaults = {}
         else:
-            self._defaults = dict(defaults)
+            defaults = dict(defaults)
         for option, value in (('Tokenizer Type', 'standard'),
                               ('Discard Spaces', '1'),
                               ('Word Sets Folder', default_word_sets_folder)):
-            if option not in self._defaults:
-                self._defaults[option] = value
+            if option not in defaults:
+                defaults[option] = value
 
-        config_parser = configparser.ConfigParser(self._defaults)
+        config_parser = configparser.ConfigParser(defaults)
         config_parser.read(self._config_file_path)
 
         # Tokenizer
@@ -95,61 +104,70 @@ class ModelConfig:
 
     @property
     def config_file_path(self):
+        """The expanded, absolute path to the primary configuration file for the model"""
         return self._config_file_path
 
-    def get_defaults(self):
-        if self._defaults is None:
-            return None
-        return self._defaults.copy()
-
     @property
-    def tokenizer_type(self):
+    def tokenizer_type(self) -> str:
+        """The type of tokenizer to use with the model"""
         return self._tokenizer_type
 
     @property
     def discard_spaces(self):
+        """Whether to discard spaces when tokenizing"""
         return self._discard_spaces
 
     @property
     def any_promoted_properties(self):
+        """Properties promoted to the head if any child has them"""
         return self._any_promoted_properties
 
     @property
     def all_promoted_properties(self):
+        """Properties promoted to the head if all children have them"""
         return self._all_promoted_properties
 
     @property
     def property_inheritance_files(self):
+        """Property inheritance rule file paths"""
         return self._property_inheritance_files
 
     @property
     def grammar_definition_files(self):
+        """Grammar definition file paths"""
         return self._grammar_definition_files
 
     @property
     def conjunction_files(self):
+        """Conjunction rule file paths"""
         return self._conjunction_files
 
     @property
     def word_sets_folders(self):
+        """Folder paths where word files can be found"""
         return self._word_sets_folders
 
     @property
     def suffix_files(self):
+        """Suffix rule file paths"""
         return self._suffix_files
 
     @property
     def special_words_files(self):
+        """Special word rule file paths"""
         return self._special_words_files
 
     @property
     def scoring_measures_file(self):
+        """Scoring measures file path"""
         return self._scoring_measures_file
 
     @property
     def benchmark_file(self):
+        """Benchmark file path"""
         return self._benchmark_file
 
     @property
     def name_cases(self):
+        """Case properties that indicate names"""
         return self._name_cases

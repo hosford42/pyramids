@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+
+# TODO: Compile the extension the correct way.
+# TODO: Get rid of the weird imports via renaming and then assignment.
+# TODO: Have pure Python code as a fallback.
 import pyximport
 pyximport.install()
 

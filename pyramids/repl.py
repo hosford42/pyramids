@@ -7,6 +7,7 @@ import time
 import traceback
 from typing import Optional, List, Iterator, Tuple
 
+from pyramids.grammar import GrammarParser
 from pyramids.tokenization import Tokenizer
 
 try:
@@ -18,7 +19,8 @@ except ImportError:
 from pyramids.batching import Attempt, Result, ModelBatchController, FeedbackReceiver, Failure
 from pyramids.config import ModelConfig
 from pyramids.loader import ModelLoader
-from pyramids.parsing import GenerationAlgorithm, ParsingAlgorithm
+from pyramids.parsing import ParsingAlgorithm
+from pyramids.generation import GenerationAlgorithm
 from pyramids.sample_utils import Input, Target, SampleSet, SampleUtils
 
 __author__ = 'Aaron Hosford'
@@ -30,11 +32,10 @@ __all__ = [
 
 class ParserCmd(cmd.Cmd):
 
-    def __init__(self, model_loader: ModelLoader, tokenizer: Tokenizer):
+    def __init__(self, model_loader: ModelLoader):
         cmd.Cmd.__init__(self)
         self._model_loader = model_loader
-        self._tokenizer = tokenizer
-        self._model = model_loader.load_model(tokenizer)
+        self._model = model_loader.load_model()
         self.prompt = '% '
         self._simple = True
         self._show_broken = False
@@ -184,7 +185,7 @@ class ParserCmd(cmd.Cmd):
                 config_info = self._model_loader.load_model_config()
         else:
             config_info = ModelConfig(line)
-        self._model_loader.standardize_parser(config_info)
+        self._model_loader.standardize_model(config_info)
 
     def do_short(self, line):
         """Causes parses to be printed in short form instead of long form."""
@@ -245,7 +246,7 @@ class ParserCmd(cmd.Cmd):
             print("File not found: " + line)
             return
         config_info = ModelConfig(line)
-        self._model = self._model_loader.load_model(self._tokenizer, config_info)
+        self._model = self._model_loader.load_model(config_info)
         self._parser_state = None
         self._benchmark = (SampleUtils.load(config_info.benchmark_file)
                            if os.path.isfile(config_info.benchmark_file)
@@ -299,7 +300,7 @@ class ParserCmd(cmd.Cmd):
             return
         categories = set()
         for definition in definitions:
-            categories.add(self._model_loader.parse_category(definition, offset=line.find(definition) + 1))
+            categories.add(GrammarParser.parse_category(definition, offset=line.find(definition) + 1))
         categories = sorted(categories, key=lambda category: str(category))
         for category1 in categories:
             for category2 in categories:
@@ -384,7 +385,7 @@ class ParserCmd(cmd.Cmd):
             print("No category specified.")
             return
         category_definition = line.split()[0]
-        category = self._model_loader.parse_category(category_definition)
+        category = GrammarParser.parse_category(category_definition)
         line = line[len(category_definition):].strip()
         self._handle_parse(line, restriction_category=category)
 
@@ -425,7 +426,7 @@ class ParserCmd(cmd.Cmd):
             print("No category specified.")
             return
         category_definition = line.split()[0]
-        category = self._model_loader.parse_category(category_definition)
+        category = GrammarParser.parse_category(category_definition)
         words_to_add = sorted(set(line[len(category_definition):].strip().split()))
         if not words_to_add:
             print("No words specified.")
@@ -438,7 +439,7 @@ class ParserCmd(cmd.Cmd):
             for filename in os.listdir(folder_path):
                 if not filename.lower().endswith('.ctg'):
                     continue
-                file_category = self._model_loader.parse_category(filename[:-4])
+                file_category = GrammarParser.parse_category(filename[:-4])
                 if file_category != category:
                     continue
                 file_path = os.path.join(folder_path, filename)
@@ -475,7 +476,7 @@ class ParserCmd(cmd.Cmd):
         if not words_to_remove:
             print("No words specified.")
             return
-        category = self._model_loader.parse_category(category_definition)
+        category = GrammarParser.parse_category(category_definition)
         config_info = (self._model.config_info
                        if self._model and self._model.config_info
                        else self._model_loader.load_model_config())
@@ -484,7 +485,7 @@ class ParserCmd(cmd.Cmd):
             for filename in os.listdir(folder_path):
                 if not filename.lower().endswith('.ctg'):
                     continue
-                file_category = self._model_loader.parse_category(filename[:-4])
+                file_category = GrammarParser.parse_category(filename[:-4])
                 if file_category != category:
                     continue
                 file_path = os.path.join(folder_path, filename)
@@ -871,7 +872,7 @@ class ParserCmd(cmd.Cmd):
         # Restrict it to the correct category and start from there. This gives the parser a leg up when it's far
         # from the correct response.
         split_index = target.index(':')
-        target_category = ModelLoader.parse_category(target[:split_index])
+        target_category = GrammarParser.parse_category(target[:split_index])
         start_time = time.time()
         end_time = start_time + self._timeout_interval
         emergency_disambig, parse_timed_out, disambig_timed_out = self._do_parse(text, end_time,
@@ -910,10 +911,10 @@ class ParserCmd(cmd.Cmd):
         if ':' not in output_val:
             return False
         split_index = target.index(':')
-        target_category = ModelLoader.parse_category(target[:split_index])
+        target_category = GrammarParser.parse_category(target[:split_index])
         target_structure = target[split_index:]
         split_index = output_val.index(':')
-        output_category = ModelLoader.parse_category(output_val[:split_index])
+        output_category = GrammarParser.parse_category(output_val[:split_index])
         output_structure = output_val[split_index:]
         return output_category in target_category and target_structure == output_structure
 
@@ -1004,7 +1005,7 @@ class ParserCmd(cmd.Cmd):
               " tokens")
 
 
-def repl(model_loader: ModelLoader, tokenizer: Tokenizer):
-    parser_cmd = ParserCmd(model_loader, tokenizer)
+def repl(model_loader: ModelLoader):
+    parser_cmd = ParserCmd(model_loader)
     print('')
     parser_cmd.cmdloop()

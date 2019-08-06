@@ -24,6 +24,7 @@ __all__ = [
     'OneTermMatchRule',
     'LastTermMatchRule',
     'ConjunctionRule',
+    'CaseRule',
 ]
 
 
