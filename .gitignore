@@ -1,5 +1,6 @@
 # PyCharm
 .idea/
+.mypy_cache/
 
 # Backup Files
 bak/

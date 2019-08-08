@@ -1,6 +1,11 @@
+# -*- coding: utf-8 -*-
+
+"""Tokenization data types and interfaces."""
+
 from abc import ABCMeta, abstractmethod
 from functools import reduce
 from sys import intern
+from typing import Tuple
 
 from pyramids.config import ModelConfig
 
@@ -31,11 +36,13 @@ class TokenSequence:
         self._hash = reduce(lambda a, b: a ^ id(b), self._tokens, 0) ^ reduce(lambda a, b: a ^ hash(b), self._spans, 0)
 
     @property
-    def tokens(self):
+    def tokens(self) -> Tuple[str, ...]:
+        """Get the interned token strings."""
         return self._tokens
 
     @property
-    def spans(self):
+    def spans(self) -> Tuple[Tuple[int, int], ...]:
+        """Get the start/end index spans of the tokens."""
         return self._spans
 
     def __str__(self):
@@ -57,7 +64,7 @@ class TokenSequence:
     def __ne__(self, other):
         if not isinstance(other, TokenSequence):
             return NotImplemented
-        return not (self == other)
+        return not self == other
 
     def __le__(self, other):
         if not isinstance(other, TokenSequence):
@@ -71,7 +78,7 @@ class TokenSequence:
     def __gt__(self, other):
         if not isinstance(other, TokenSequence):
             return NotImplemented
-        return not (self <= other)
+        return not self <= other
 
     def __ge__(self, other):
         if not isinstance(other, TokenSequence):
@@ -81,7 +88,7 @@ class TokenSequence:
     def __lt__(self, other):
         if not isinstance(other, TokenSequence):
             return NotImplemented
-        return not (self >= other)
+        return not self >= other
 
     def __getitem__(self, index):
         return self._tokens[index]
@@ -94,12 +101,15 @@ class TokenSequence:
 
 
 class Tokenizer(metaclass=ABCMeta):
+    """Abstract interface for Pyramids tokenizers."""
 
     @classmethod
     @abstractmethod
     def from_config(cls, config_info: ModelConfig) -> 'Tokenizer':
+        """Create a tokenizer instance from the given configuration info."""
         raise NotImplementedError()
 
     @abstractmethod
     def tokenize(self, text: str) -> TokenSequence:
+        """Tokenize a piece of text."""
         raise NotImplementedError()

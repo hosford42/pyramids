@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from typing import Tuple
 
 from pyramids.categorization import Property, Category

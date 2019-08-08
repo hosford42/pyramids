@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """
 Graph representations of parse trees
 """

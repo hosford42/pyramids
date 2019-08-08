@@ -1,6 +1,7 @@
-# TODO: Separate data from algorithms.
+# -*- coding: utf-8 -*-
+
 """
-pyramids.trees: Parse tree-related classes.
+Parse tree-related classes.
 
 Parse trees in Pyramids are represented a bit unusually. They do not
 represent ordinary trees, but are rather hierarchically grouped unions of
@@ -16,8 +17,11 @@ import time
 import weakref
 from collections import deque
 from functools import reduce
+from typing import Sequence, Tuple, NamedTuple, Any, Optional
 
 from pyramids import categorization, graphs, tokenization, traversal
+from pyramids.categorization import Category
+from pyramids.tokenization import TokenSequence
 
 __author__ = 'Aaron Hosford'
 __all__ = [
@@ -29,25 +33,28 @@ __all__ = [
 ]
 
 
+ParsingPayload = NamedTuple('ParsingPayload', [('tokens', TokenSequence), ('rule', Any), # rules.ParseRule),
+                                               ('head_index', int), ('category', Category), ('start', int),
+                                               ('end', int)])
+
+
 class ParseTreeNode:
     """Represents a branch or leaf node in a parse tree during parsing."""
 
-    def __init__(self, tokens, rule, head_index, category, index_or_components):
-        # assert isinstance(rule, rules.ParseRule)
-        assert isinstance(category, categorization.Category)
-
+    def __init__(self, tokens: TokenSequence, rule: Any, head_index: int, category: Category,
+                 components: Optional[Sequence['ParseTreeNodeSet']] = None):
         self._tokens = tokens
         self._head_index = int(head_index)
         self._rule = rule
 
         self._parents = None
 
-        if isinstance(index_or_components, int):
-            self._start = index_or_components
-            self._end = self._start + 1
+        if components is None:
+            self._start = head_index
+            self._end = head_index + 1
             self._components = None
         else:
-            self._components = tuple(index_or_components)
+            self._components = tuple(components)
             if not self._components:
                 raise ValueError("At least one component must be provided for a non-leaf node.")
             self._start = self._end = self._components[0].start
@@ -85,7 +92,7 @@ class ParseTreeNode:
     def __ne__(self, other):
         if not isinstance(other, ParseTreeNode):
             return NotImplemented
-        return not (self == other)
+        return not self == other
 
     def __le__(self, other):
         if not isinstance(other, ParseTreeNode):
@@ -128,41 +135,46 @@ class ParseTreeNode:
         return other < self
 
     def __repr__(self):
-        # TODO: Update this
-        if self.is_leaf():
-            return type(self).__name__ + "(" + repr(self._rule) + ", " + repr(self.span) + ")"
-        else:
-            return type(self).__name__ + "(" + repr(self._rule) + ", " + repr(self.components) + ")"
+        args = (self._tokens, self._rule, self._head_index, self._category,
+                self._start if self._components is None else self._components)
+        return '%s%r' % (type(self).__name__, args)
 
     def __str__(self):
         return self.to_str()
 
     @property
-    def tokens(self):
+    def tokens(self) -> TokenSequence:
+        """Get the token sequence this parse tree node matches."""
         return self._tokens
 
     @property
-    def rule(self):
+    def rule(self) -> Any:  #rules.ParseRule:
+        """Get the parse rule that is responsible for the creation of this parse tree node."""
         return self._rule
 
     @property
-    def head_index(self):
+    def head_index(self) -> int:
+        """Get the head token index for the phrase covered by this parse tree node."""
         return self._head_index
 
     @property
-    def category(self):
+    def category(self) -> Category:
+        """Get the category of the phrase covered by this parse tree node."""
         return self._category
 
     @property
-    def start(self):
+    def start(self) -> int:
+        """Get the starting token index (inclusive) of the phrase covered by this parse tree node."""
         return self._start
 
     @property
-    def end(self):
+    def end(self) -> int:
+        """Get the ending token index (exclusive) of the phrase covered by this parse tree node."""
         return self._end
 
     @property
-    def span(self):
+    def span(self) -> Tuple[int, int]:
+        """Return the start and end token indices of the phrase covered by this parse tree node."""
         return self.start, self.end
 
     @property
@@ -293,9 +305,7 @@ class BuildTreeNode:
     """Represents a branch or leaf node in a parse tree during
     reconstruction."""
 
-    def __init__(self, rule, category, head_spelling, head_index,
-                 components=None):
-        # TODO: Type checking
+    def __init__(self, rule, category, head_spelling, head_index, components=None):
         self._rule = rule
         self._category = category
         self._head_node = (head_spelling, head_index)
@@ -311,9 +321,8 @@ class BuildTreeNode:
         if self.is_leaf():
             return (type(self).__name__ + "(" + repr(self._rule) + ", " + repr(self.category) + ", " +
                     repr(self._head_node[0]) + ", " + repr(self._head_node[1]) + ")")
-        else:
-            return (type(self).__name__ + "(" + repr(self._rule) + ", " + repr(self.category) + ", " +
-                    repr(self._head_node[0]) + ", " + repr(self._head_node[1]) + ", " + repr(self.components) + ")")
+        return (type(self).__name__ + "(" + repr(self._rule) + ", " + repr(self.category) + ", " +
+                repr(self._head_node[0]) + ", " + repr(self._head_node[1]) + ", " + repr(self.components) + ")")
 
     def __str__(self):
         return self.to_str()
@@ -359,7 +368,9 @@ class BuildTreeNode:
         if self._tokens != other._tokens:
             return self._tokens < other._tokens
         if self._rule != other._rule:
-            return id(self._rule) < id(other._rule)  # TODO: Bad idea???
+            # This will vary from one model or run to the next, but it will be consistent for a given model throughout
+            # a single run. That's good enough for our purposes.
+            return id(self._rule) < id(other._rule)
         if self._category != other._category:
             return self._category < other._category
         if self._head_node[0] != other._head_node[0]:
@@ -427,37 +438,6 @@ class BuildTreeNode:
         return result
 
 
-# TODO: Each of these really represents a group of parses having the same
-#       root form. In Parse, when we get a list of ranked parses, we're
-#       ignoring all the other parses that have the same root form. While
-#       this *usually* means we see all the parses we actually care to see,
-#       sometimes there is an alternate parse with the same root form which
-#       actually has a higher rank than the best representatives of other
-#       forms. When this happens, we want to see this alternate form, but
-#       we don't get to. Create a method in Parse (along with helper
-#       methods here) to allow the caller to essentially treat the Parse as
-#       a priority queue for the best parses, so that we can iterate over
-#       *all* complete parses in order of score and not just those that are
-#       the best for each root form, but without forcing the caller to wait
-#       for every single complete parse to be calculated up front. That is,
-#       we should iteratively expand the parse set just enough to find the
-#       next best parse and yield it immediately, keeping track of where we
-#       are in case the client isn't satisfied.
-#
-#       Now that I think about it, the best way to implement this is
-#       literally with a priority queue. We create an iterator for each
-#       top-level parse set, which iterates over each alternative parse
-#       with the same root form, and we get the first parse from each one.
-#       We then rank each iterator by the quality of the parse we got from
-#       it. We take the best one & yield its parse, then grab another parse
-#       from it and re-rank the iterator by the new parse, putting it back
-#       into the priority queue. If no more parses are available from one
-#       of the iterators, we don't add it back to the priority queue. When
-#       the priority queue is empty, we return from the method. Probably
-#       what's going to happen is each of these iterators is actually going
-#       to use a recursive call back into the same method for each child of
-#       the root node, putting the pieces together to create the next best
-#       alternate parse.
 class ParseTreeNodeSet:
 
     def __init__(self, nodes):  # Always has to contain at least one node.

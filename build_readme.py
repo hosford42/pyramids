@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
+Build the readme file.
+
 See https://coderwall.com/p/qawuyq/use-markdown-readme-s-in-python-modules
 (Thanks for the idea, Will McKenzie!) This module attempts to build a
 README.rst from a README.md. It requires pandoc to be installed
@@ -16,13 +18,16 @@ __author__ = 'Aaron Hosford'
 
 
 def convert_md_to_rst(source, destination=None, backup_dir=None):
-    """Try to convert the source, an .md (markdown) file, to an .rst
+    """
+    Convert markdown (.md) file to reStructuredText (.rst) format.
+
+    Try to convert the source, an .md (markdown) file, to an .rst
     (reStructuredText) file at the destination. If the destination isn't
     provided, it defaults to be the same as the source path except for the
     filename extension. If the destination file already exists, it will be
     overwritten. In the event of an error, the destination file will be
-    left untouched."""
-
+    left untouched.
+    """
     # Doing this in the function instead of the module level ensures the
     # error occurs when the function is called, rather than when the module
     # is evaluated.
@@ -54,7 +59,7 @@ def convert_md_to_rst(source, destination=None, backup_dir=None):
     try:
         # Try to convert the file.
         pypandoc.convert(source, 'rst', format='md', outputfile=destination)
-    except:
+    except BaseException:
         # If for any reason the conversion fails, try to put things back
         # like we found them.
         if os.path.isfile(destination):
@@ -69,9 +74,12 @@ def convert_md_to_rst(source, destination=None, backup_dir=None):
 
 
 def build_readme(base_path=None):
-    """Call the conversion routine on README.md to generate README.rst.
+    """
+    Call the conversion routine on README.md to generate README.rst.
+
     Why do all this? Because pypi requires reStructuredText, but markdown
-    is friendlier to work with and is nicer for GitHub."""
+    is friendlier to work with and is nicer for GitHub.
+    """
     if base_path:
         path = os.path.join(base_path, 'README.md')
     else:

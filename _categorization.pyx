@@ -69,18 +69,24 @@ cdef class InternedString:
 cdef class StringInterner:
     cdef dict _intern_map
     cdef type _subtype
+    cdef frozenset _all
 
-    def __init__(self, type subtype=InternedString):
+    def __cinit__(self, type subtype=InternedString):
         self._intern_map = {}
         self._subtype = subtype
+        self._all = frozenset()
 
-    cpdef InternedString intern(self, str s):
+    cdef InternedString intern(self, str s):
         if s in self._intern_map:
             return self._intern_map[s]
         else:
             result = self._subtype(s)
             self._intern_map[s] = result
+            self._all |= {result}
             return result
+
+    cdef frozenset get_all(self):
+        return self._all
 
 
 cdef class Property(InternedString):
@@ -162,9 +168,9 @@ cdef class Category:
 
         hash_value = hash(i_name)
         for prop in positives:
-            hash_value ^= (hash(prop) << 1)
+            hash_value ^= hash(prop) * 5
         for prop in negatives:
-            hash_value ^= -hash(prop) << 2
+            hash_value ^= hash(prop) * 7
 
         both = positives & negatives
         if both:
@@ -298,16 +304,6 @@ cdef class Category:
                             (self._negative_properties | (negatives - self._positive_properties)))
         return category
 
-#    def __getstate__(self):
-#        return (str(self.name), [str(prop) for prop in self._positive_properties],
-#                [str(prop) for prop in self._negative_properties])
-#
-#    def __setstate__(self, state):
-#        name, pos, neg = state
-#        assert isinstance(name, str)
-#        cat = Category.get(name, pos, neg)
-#        self.init(cat._name, cat._positive_properties, cat._negative_properties)
-
 
 cdef StringInterner _category_name_interner = StringInterner()
 cdef StringInterner _property_interner = StringInterner(Property)
@@ -315,3 +311,11 @@ cdef InternedString _CATEGORY_WILDCARD = _category_name_interner.intern("_")
 
 
 CATEGORY_WILDCARD = _CATEGORY_WILDCARD
+
+
+def get_all_category_names() -> frozenset:
+    return _category_name_interner.get_all()
+
+
+def get_all_properties() -> frozenset:
+    return _property_interner.get_all()

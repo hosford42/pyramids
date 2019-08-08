@@ -1,6 +1,7 @@
-# TODO: Optimize this class. Consider moving to _categorization.pyx.
+# -*- coding: utf-8 -*-
 
 from pyramids import trees
+from pyramids.categorization import Category
 
 
 class CategoryMap:
@@ -16,10 +17,10 @@ class CategoryMap:
         self._ranges = set()
 
     def __iter__(self):
-        for start in self._map:
-            for category_name_id in self._map[start]:
-                for category in self._map[start][category_name_id]:
-                    for end in self._map[start][category_name_id][category]:
+        for start, category_name_map in self._map.items():
+            for category_name, category_map in category_name_map.items():
+                for category, end_map in category_map.items():
+                    for end in end_map:
                         yield start, category, end
 
     @property
@@ -40,32 +41,43 @@ class CategoryMap:
         start = node.start
         end = node.end
 
-        if start not in self._map:
+        category_name_map = self._map.get(start)
+        if category_name_map is None:
             node_set = trees.ParseTreeNodeSet(node)
             self._map[start] = {name: {cat: {end: node_set}}}
-        elif name not in self._map[start]:
-            node_set = trees.ParseTreeNodeSet(node)
-            self._map[start][name] = {cat: {end: node_set}}
-        elif cat not in self._map[start][name]:
-            node_set = trees.ParseTreeNodeSet(node)
-            self._map[start][name][cat] = {end: node_set}
-        elif end not in self._map[start][name][cat]:
-            node_set = trees.ParseTreeNodeSet(node)
-            self._map[start][name][cat][end] = node_set
-        elif node not in self._map[start][name][cat][end]:
-            self._map[start][name][cat][end].add(node)
-            return False  # No new node sets were added.
         else:
-            return False  # It's already in the map
+            category_map = category_name_map.get(name)
+            if category_map is None:
+                node_set = trees.ParseTreeNodeSet(node)
+                category_name_map[name] = {cat: {end: node_set}}
+            else:
+                end_map = category_map.get(cat)
+                if end_map is None:
+                    node_set = trees.ParseTreeNodeSet(node)
+                    category_map[cat] = {end: node_set}
+                else:
+                    node_set = end_map.get(end)
+                    if node_set is None:
+                        node_set = trees.ParseTreeNodeSet(node)
+                        end_map[end] = node_set
+                    else:
+                        # No new node sets were added, so we don't need to do anything else.
+                        node_set.add(node)
+                        return False
 
-        if end not in self._reverse_map:
+        category_name_map = self._reverse_map.get(end)
+        if category_name_map is None:
             self._reverse_map[end] = {name: {cat: {start: node_set}}}
-        elif name not in self._reverse_map[end]:
-            self._reverse_map[end][name] = {cat: {start: node_set}}
-        elif cat not in self._reverse_map[end][name]:
-            self._reverse_map[end][name][cat] = {start: node_set}
-        elif start not in self._reverse_map[end][name][cat]:
-            self._reverse_map[end][name][cat][start] = node_set
+        else:
+            category_map = category_name_map.get(name)
+            if category_map is None:
+                category_name_map[name] = {cat: {start: node_set}}
+            else:
+                start_map = category_map.get(cat)
+                if start_map is None:
+                    category_map[cat] = {start: node_set}
+                else:
+                    start_map[start] = node_set
 
         if end > self._max_end:
             self._max_end = end
@@ -76,59 +88,73 @@ class CategoryMap:
         return True  # It's something new
 
     def iter_forward_matches(self, start, categories):
-        if start in self._map:
-            for category in categories:
-                by_name = self._map[start]
-                if category.is_wildcard():
-                    for category_name in by_name:
-                        by_cat = by_name[category_name]
-                        for mapped_category in by_cat:
-                            if mapped_category in category:
-                                for end in by_cat[mapped_category]:
-                                    yield mapped_category, end
-                elif category.name in by_name:
-                    by_cat = by_name[category.name]
-                    for mapped_category in by_cat:
+        category_name_map = self._map.get(start)
+        if category_name_map is None:
+            return
+        for category in categories:
+            if category.is_wildcard():
+                for category_name, category_map in category_name_map.items():
+                    for mapped_category, end_map in category_map.items():
                         if mapped_category in category:
-                            for end in by_cat[mapped_category]:
+                            for end in end_map:
+                                yield mapped_category, end
+            else:
+                category_map = category_name_map.get(category.name)
+                if category_map is not None:
+                    for mapped_category, end_map in category_map.items():
+                        if mapped_category in category:
+                            for end in end_map:
                                 yield mapped_category, end
 
     def iter_backward_matches(self, end, categories):
-        if end in self._reverse_map:
-            for category in categories:
-                by_name = self._reverse_map[end]
-                if category.is_wildcard():
-                    for category_name in by_name:
-                        by_cat = by_name[category_name]
-                        for mapped_category in by_cat:
-                            if mapped_category in category:
-                                for start in by_cat[mapped_category]:
-                                    yield mapped_category, start
-                elif category.name in by_name:
-                    by_cat = by_name[category.name]
-                    for mapped_category in by_cat:
+        category_name_map = self._reverse_map.get(end)
+        if category_name_map is None:
+            return
+        for category in categories:
+            if category.is_wildcard():
+                for category_name, category_map in category_name_map.items():
+                    for mapped_category, start_map in category_map.items():
                         if mapped_category in category:
-                            for start in by_cat[mapped_category]:
+                            for start in start_map:
+                                yield mapped_category, start
+            else:
+                category_map = category_name_map.get(category.name)
+                if category_map is not None:
+                    for mapped_category, start_map in category_map.items():
+                        if mapped_category in category:
+                            for start in start_map:
                                 yield mapped_category, start
 
-    def iter_node_sets(self, start, category, end):
-        if (start in self._map and
-                category.name in self._map[start] and
-                category in self._map[start][category.name] and
-                end in self._map[start][category.name][category]):
-            yield self._map[start][category.name][category][end]
+    # TODO: Why does this even exist? Either convert it to a simple getter, or make it match wildcards like its name
+    #       seems to imply. For now, I've changed it to return a sequence instead of working as a generator, which
+    #       doesn't break anything and should improve performance slightly.
+    def iter_node_sets(self, start: int, category: Category, end: int):
+        assert not category.is_wildcard()
+        category_name_map = self._map.get(start)
+        if category_name_map is None:
+            return ()
+        category_map = category_name_map.get(category.name)
+        if category_map is None:
+            return ()
+        end_map = category_map.get(category)
+        if end_map is None:
+            return ()
+        node_set = end_map.get(end)
+        if node_set is None:
+            return ()
+        return node_set,
 
     def get_node_set(self, node):
-        category = node.category
-        name = category.name
-        start = node.start
-        if (start in self._map and
-                name in self._map[start] and
-                category in self._map[start][name] and
-                node.end in self._map[start][name][category]):
-            return self._map[start][name][category][node.end]
-        else:
+        category_name_map = self._map.get(node.start)
+        if category_name_map is None:
             return None
+        category_map = category_name_map.get(node.category.name)
+        if category_map is None:
+            return None
+        end_map = category_map.get(node.category)
+        if end_map is None:
+            return None
+        return end_map.get(node.end)
 
     def has_start(self, start):
         return start in self._map

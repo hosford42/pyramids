@@ -97,7 +97,7 @@ class ModelConfig:
         )
 
         # Scoring
-        self._scoring_measures_file = os.path.join(data_folder, config_parser.get('Scoring', 'Scoring Measures File'))
+        self._score_file = os.path.join(data_folder, config_parser.get('Scoring', 'Score File'))
 
         # Benchmarking
         self._benchmark_file = os.path.join(data_folder, config_parser.get('Benchmarking', 'Benchmark File'))
@@ -158,9 +158,9 @@ class ModelConfig:
         return self._special_words_files
 
     @property
-    def scoring_measures_file(self):
-        """Scoring measures file path"""
-        return self._scoring_measures_file
+    def score_file(self):
+        """Score file path"""
+        return self._score_file
 
     @property
     def benchmark_file(self):

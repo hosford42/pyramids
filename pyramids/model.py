@@ -1,7 +1,9 @@
+# -*- coding: utf-8 -*-
+
 """
 A parser model, consisting of a set of grammar rules.
 """
-
+import pyramids.rules.sequence
 from pyramids import rules
 from pyramids.config import ModelConfig
 from pyramids.categorization import make_property_set
@@ -31,7 +33,7 @@ class Model:
         self._sequence_rules_by_link_type = {}
 
         for rule in self._branch_rules:
-            if not isinstance(rule, rules.SequenceRule):
+            if not isinstance(rule, pyramids.rules.sequence.SequenceRule):
                 continue
             for index in range(len(rule.link_type_sets)):
                 for link_type, left, right in rule.link_type_sets[index]:

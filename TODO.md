@@ -1,3 +1,19 @@
+# Urgent
+
+Before the next release:
+
+* Update setup.py to build cython extension package.
+* Revisit build_readme.py in light of newly added support for markdown.
+* Make sure that either pylama gets a bug fix or it's removed as a testing dependency.
+  I had to hack it to get the code quality tests to work. I've submitted a 
+  [bug report](https://github.com/klen/pylama/issues/160). Until this is taken care of, 
+  the code can't ship as is.
+* Regarding the `pyramids.trees module`: To clean up the code, separate data from 
+  algorithms and separate tree structure from node data payload.
+
+# Back Burner
+
+When there's time to get around to it:
 
 * Handle emergency parsing by ignoring properties when the best parse's score is sufficiently 
   terrible or no full-coverage tree is found.
@@ -40,4 +56,42 @@
   disappearing before it can due to other rules' actions. When all have fired and nothing new 
   can be added, positive properties overrule negative ones.
 
-* next
+* When the user runs a training or test session, provide the option to automatically update 
+  benchmarks if they match but not exactly.
+
+* Record failures on both training & benchmarking sessions, and allow a training or 
+  benchmarking session only for the most recently failed benchmark samples by commands of 
+  the form "benchmark failures" and "train failures". Also, add a "failures" command which 
+  lists failures in the form they are listed in for these two functions, and have these two 
+  functions call into that command instead of printing them directly.
+
+* Regarding parse tree node sets:
+ 
+  Each of these really represents a group of parses having the same root form. In Parse, 
+  when we get a list of ranked parses, we're ignoring all the other parses that have the 
+  same root form. While this *usually* means we see all the parses we actually care to 
+  see, sometimes there is an alternate parse with the same root form which actually has a 
+  higher rank than the best representatives of other forms. When this happens, we want to 
+  see this alternate form, but we don't get to. Create a method in Parse (along with 
+  helper methods here) to allow the caller to essentially treat the Parse as a priority 
+  queue for the best parses, so that we can iterate over *all* complete parses in order 
+  of score and not just those that are the best for each root form, but without forcing 
+  the caller to wait for every single complete parse to be calculated up front. That is,
+  we should iteratively expand the parse set just enough to find the next best parse and 
+  yield it immediately, keeping track of where we are in case the client isn't satisfied.
+
+  Now that I think about it, the best way to implement this is literally with a priority 
+  queue. We create an iterator for each top-level parse set, which iterates over each 
+  alternative parse with the same root form, and we get the first parse from each one. We 
+  then rank each iterator by the quality of the parse we got from it. We take the best 
+  one & yield its parse, then grab another parse from it and re-rank the iterator by the 
+  new parse, putting it back into the priority queue. If no more parses are available 
+  from one of the iterators, we don't add it back to the priority queue. When the 
+  priority queue is empty, we return from the method. Probably what's going to happen is 
+  each of these iterators is actually going to use a recursive call back into the same 
+  method for each child of the root node, putting the pieces together to create the next 
+  best alternate parse.
+
+* While functional, `GrammarParser.parse_conjunction_rule` is a copy/paste from 
+  `parse_branch_rule`. Modify it to fit conjunctions more cleanly, or combine the two 
+  methods.

@@ -1,7 +1,7 @@
-# TODO: Finish this docstring and add docstrings for the rest of the code.
-"""
-pyramids.samples: Sample sets for training & test parser models
-"""
+# -*- coding: utf-8 -*-
+
+"""Utility functions for dealing with samples and sample sets."""
+
 import ast
 from typing import Dict, NewType
 

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # TODO: This thing is a beast! Refactor.
 
 import cmd
@@ -8,7 +10,7 @@ import traceback
 from typing import Optional, List, Iterator, Tuple
 
 from pyramids.grammar import GrammarParser
-from pyramids.tokenization import Tokenizer
+from pyramids.trees import Parse
 
 try:
     # noinspection PyPep8Naming
@@ -30,6 +32,10 @@ __all__ = [
 ]
 
 
+def function_to_profile():
+    """Placeholder function for profiler."""
+
+
 class ParserCmd(cmd.Cmd):
 
     def __init__(self, model_loader: ModelLoader):
@@ -40,7 +46,7 @@ class ParserCmd(cmd.Cmd):
         self._simple = True
         self._show_broken = False
         self._parser_state = None
-        self._parses = []
+        self._parses = []  # type: List[Parse]
         self._whole_parses = 0
         self._parse_index = 0
         self._fast = False
@@ -69,15 +75,11 @@ class ParserCmd(cmd.Cmd):
     def max_parse_index(self):
         if self._show_broken:
             return len(self._parses) - 1 if self._parses else 0
-        else:
-            return self._whole_parses - 1 if self._whole_parses else 0
+        return self._whole_parses - 1 if self._whole_parses else 0
 
     @property
     def parses_available(self):
-        if self._show_broken:
-            return bool(self._parses)
-        else:
-            return bool(self._whole_parses)
+        return bool(self._parser_state if self._show_broken else self._whole_parses)
 
     @property
     def last_input_text(self):
@@ -130,7 +132,7 @@ class ParserCmd(cmd.Cmd):
             exec(line)
 
     def do_quit(self, line):
-        """Save scoring measures and exit the parser debugger."""
+        """Save scoring features and exit the parser debugger."""
         if line:
             print("'quit' command does not accept arguments.")
             return
@@ -238,7 +240,7 @@ class ParserCmd(cmd.Cmd):
         print("Parsing will now continue until all parses have been identified.")
 
     def do_load(self, line=''):
-        """Save scoring measures and load a parser from the given configuration file."""
+        """Save scoring features and load a parser from the given configuration file."""
         self.do_save()
         if not line:
             line = self._model.config_info.config_file_path
@@ -254,7 +256,7 @@ class ParserCmd(cmd.Cmd):
         self._benchmark_dirty = False
 
     def do_reload(self, line=''):
-        """Save scoring measures and reload the last configuration file provided."""
+        """Save scoring features and reload the last configuration file provided."""
         if line:
             print("'reload' command does not accept arguments.")
             return
@@ -264,22 +266,22 @@ class ParserCmd(cmd.Cmd):
                      else '')
 
     def do_save(self, line=''):
-        """Save scoring measures."""
+        """Save scoring features."""
         if line:
             print("'save' command does not accept arguments.")
             return
         if self._model is not None:
-            self._model_loader.save_scoring_measures(self._model)
+            self._model_loader.save_scoring_features(self._model)
             if self._benchmark_dirty:
                 SampleUtils.save(self._benchmark, self._model.config_info.benchmark_file)
                 self._benchmark_dirty = False
 
     def do_discard(self, line=''):
-        """Discard scoring measures."""
+        """Discard scoring features."""
         if line:
             print("'discard' command does not accept arguments.")
             return
-        self._model_loader.load_scoring_measures(self._model)
+        self._model_loader.load_scoring_features(self._model)
 
         config_info = self._model.config_info
         if os.path.isfile(config_info.benchmark_file):
@@ -289,7 +291,8 @@ class ParserCmd(cmd.Cmd):
 
         self._benchmark_dirty = False
 
-    def do_compare(self, line):
+    @staticmethod
+    def do_compare(line):
         """Compare two categories to determine if either contains the other."""
         definitions = [definition for definition in line.split() if definition]
         if len(definitions) == 0:
@@ -301,7 +304,7 @@ class ParserCmd(cmd.Cmd):
         categories = set()
         for definition in definitions:
             categories.add(GrammarParser.parse_category(definition, offset=line.find(definition) + 1))
-        categories = sorted(categories, key=lambda category: str(category))
+        categories = sorted(categories, key=str)
         for category1 in categories:
             for category2 in categories:
                 if category1 is not category2:
@@ -349,9 +352,8 @@ class ParserCmd(cmd.Cmd):
         self._last_input_text = line
         return emergency_disambiguation, parse_timed_out, disambiguation_timed_out
 
-    def _handle_parse(self, line, new_parser_state=True,
-                      restriction_category=None, fast=None):
-        """Handles parsing on behalf of do_parse, do_as, and do_extend."""
+    def _handle_parse(self, line, new_parser_state=True, restriction_category=None, fast=None):
+        """Handle parsing on behalf of do_parse, do_as, and do_extend."""
         if not line:
             print("Nothing to parse.")
             return
@@ -395,14 +397,14 @@ class ParserCmd(cmd.Cmd):
         self._handle_parse(line, new_parser_state=False)
 
     def do_files(self, line):
-        """Lists the word list files containing a given word."""
+        """List the word list files containing a given word."""
         if not line:
             print("No word specified.")
             return
         if len(line.split()) > 1:
             print("Expected only one word.")
             return
-        w = line.strip()
+        word = line.strip()
         config_info = (self._model.config_info
                        if self._model and self._model.config_info
                        else self._model_loader.load_model_config())
@@ -414,11 +416,11 @@ class ParserCmd(cmd.Cmd):
                 file_path = os.path.join(folder_path, filename)
                 with open(file_path) as word_set_file:
                     words = set(word_set_file.read().split())
-                if w in words:
-                    print(repr(w) + " found in " + file_path + ".")
+                if word in words:
+                    print(repr(word) + " found in " + file_path + ".")
                     found = True
         if not found:
-            print(repr(w) + " not found in any word list files.")
+            print(repr(word) + " not found in any word list files.")
 
     def do_add(self, line):
         """Adds a word to a given category's word list file."""
@@ -516,15 +518,14 @@ class ParserCmd(cmd.Cmd):
         # Only a function at the module level can be profiled. To get
         # around this limitation, we define a temporary module-level
         # function that calls the method we want to profile.
-        # noinspection PyGlobalUndefined
-        global foo
+        global function_to_profile
 
-        def _foo():
+        def _function_to_profile():
             self.onecmd(line)
 
-        foo = _foo
+        function_to_profile = _function_to_profile
 
-        profile.run('foo()')
+        profile.run('function_to_profile()')
 
     def do_analyze(self, line):
         """Analyzes the last parse and prints statistics useful for debugging."""
@@ -534,15 +535,9 @@ class ParserCmd(cmd.Cmd):
         if self._parser_state is None:
             print("Nothing to analyze.")
             return
+
         print('Covered: ' + repr(self._parser_state.is_covered()))
-        cat_map = self._parser_state.category_map
-        rule_counts = {}
-        rule_nodes = {}
-        for start, category, end in cat_map:
-            for node_set in cat_map.iter_node_sets(start, category, end):
-                for node in node_set:
-                    rule_counts[node.rule] = rule_counts.get(node.rule, 0) + 1
-                    rule_nodes[node.rule] = rule_nodes.get(node.rule, []) + [node]
+        rule_counts, rule_nodes = self._get_rule_map()
         counter = 0
         for rule in sorted(rule_counts, key=rule_counts.get, reverse=True):
             print(str(rule) + " (" + str(rule_counts[rule]) + " nodes)")
@@ -557,6 +552,18 @@ class ParserCmd(cmd.Cmd):
             rule_counts[node.rule] = rule_counts.get(node.rule, 0) + 1
         for rule in sorted(rule_counts, key=rule_counts.get, reverse=True):
             print(str(rule) + " (" + str(rule_counts[rule]) + " nodes)")
+
+    def _get_rule_map(self):
+        """Collect and count the nodes, organized by rule, from the latest parse's category map."""
+        cat_map = self._parser_state.category_map
+        rule_counts = {}
+        rule_nodes = {}
+        for start, category, end in cat_map:
+            for node_set in cat_map.iter_node_sets(start, category, end):
+                for node in node_set:
+                    rule_counts[node.rule] = rule_counts.get(node.rule, 0) + 1
+                    rule_nodes[node.rule] = rule_nodes.get(node.rule, []) + [node]
+        return rule_counts, rule_nodes
 
     def do_links(self, line):
         """Display the semantic net links for the current parse."""
@@ -695,9 +702,7 @@ class ParserCmd(cmd.Cmd):
             print("No parses found.")
 
     def do_best(self, line):
-        """Update the scoring measures of the most recently printed parse
-        (and any predecessors it might have had) to show that it was the
-        best parse for its input string."""
+        """Adjust the score upward for the most recently printed parse until it is higher than all others returned."""
         if line:
             print("'best' command does not accept arguments.")
             return
@@ -705,7 +710,7 @@ class ParserCmd(cmd.Cmd):
             print("No parses available for adjustment.")
             return
         best_parse = self._parses[self._parse_index]
-        for iteration in range(100):
+        for _ in range(100):
             self._parses[self._parse_index].adjust_score(True)
             ranks = {}
             for parse in self._parses:
@@ -722,9 +727,7 @@ class ParserCmd(cmd.Cmd):
             print("Failed to make this parse the highest ranked.")
 
     def do_worst(self, line):
-        """Update the scoring measures of the most recently printed parse
-        (and any successors it might have had) to show that it was the
-        worst parse for its input string."""
+        """Adjust the score downward for the most recently printed parse until it is lower than all others returned."""
         if line:
             print("'worst' command does not accept arguments.")
             return
@@ -732,7 +735,7 @@ class ParserCmd(cmd.Cmd):
             print("No parses available for adjustment.")
             return
         worst_parse = self._parses[self._parse_index]
-        for iteration in range(100):
+        for _ in range(100):
             self._parses[self._parse_index].adjust_score(False)
             ranks = {}
             for parse in self._parses:
@@ -749,8 +752,7 @@ class ParserCmd(cmd.Cmd):
             print("Failed to make this parse the lowest ranked.")
 
     def do_good(self, line):
-        """Update the scoring measures of the most recently printed parse
-        to show that it was a good parse for its input string."""
+        """Adjust the score upward for the most recently printed parse."""
         if line:
             print("'next' command does not accept arguments.")
             return
@@ -760,8 +762,7 @@ class ParserCmd(cmd.Cmd):
         self._parses[self._parse_index].adjust_score(True)
 
     def do_bad(self, line):
-        """Update the scoring measures of the most recently printed parse
-        to show that it was a bad parse for its input string."""
+        """Adjust the score downward for the most recently printed parse."""
         if line:
             print("'next' command does not accept arguments.")
             return
@@ -827,8 +828,8 @@ class ParserCmd(cmd.Cmd):
         self._benchmark_tests_completed = 0
         self._benchmark_update_time = time.time()
         failures = []  # type: List[Failure]
-        tally = ModelBatchController(self._validate_output).run(self._benchmark, self._test_attempt_iterator,
-                                                                self._report_benchmark_progress, failures.append)
+        tally = ModelBatchController(self._validate_output).run_batch(self._benchmark, self._test_attempt_iterator,
+                                                                      self._report_benchmark_progress, failures.append)
         print("")
         if failures:
             print('')
@@ -848,15 +849,6 @@ class ParserCmd(cmd.Cmd):
               str(round(100 * self._benchmark_parse_timeouts / float(len(self._benchmark)), 1)) + '%)')
         print("Disambiguation Timeouts: " + str(self._benchmark_disambiguation_timeouts) + " (" +
               str(round(100 * self._benchmark_disambiguation_timeouts / float(len(self._benchmark)), 1)) + '%)')
-
-    # def do_failures(self, line):
-    #     if line:
-    #         print("'failures' command does not accept arguments.")
-    #         return
-    #     if self._benchmark_failures is None:
-    #         print("No benchmarking batches have been run yet.")
-    #     if not self._benchmark_failures:
-    #         print("No failures for most recent benchmarking batch.")
 
     def _scoring_function(self, target):
         # NOTE: It is important that positive reinforcement not
@@ -926,13 +918,6 @@ class ParserCmd(cmd.Cmd):
         if not self._benchmark:
             print("No benchmarking samples.")
             return
-        # TODO: When the user runs a training or test session, provide the option to automatically update benchmarks if
-        #       they match but not exactly.
-        # TODO: Record failures on both training & benchmarking sessions, and allow a training or benchmarking session
-        #       only for the most recently failed benchmark samples by commands of the form "benchmark failures" and
-        #       "train failures". Also, add a "failures" command which lists failures in the form they are listed in for
-        #       these two functions, and have these two functions call into that command instead of printing them
-        #       directly.
         self._benchmark_emergency_disambiguations = 0
         self._benchmark_parse_timeouts = 0
         self._benchmark_disambiguation_timeouts = 0
@@ -940,8 +925,8 @@ class ParserCmd(cmd.Cmd):
         self._benchmark_tests_completed = 0
         self._benchmark_update_time = time.time()
         failures = []  # type: List[Failure]
-        tally = ModelBatchController(self._validate_output).run(self._benchmark, self._training_attempt_iterator,
-                                                                self._report_benchmark_progress, failures.append)
+        tally = ModelBatchController(self._validate_output).run_batch(self._benchmark, self._training_attempt_iterator,
+                                                                      self._report_benchmark_progress, failures.append)
         print("")
         if failures:
             print('')
@@ -1006,6 +991,7 @@ class ParserCmd(cmd.Cmd):
 
 
 def repl(model_loader: ModelLoader):
+    """Run the interactive command line interface to the parser."""
     parser_cmd = ParserCmd(model_loader)
     print('')
     parser_cmd.cmdloop()

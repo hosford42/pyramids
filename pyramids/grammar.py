@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """
 Parsing of grammar files
 """
@@ -5,8 +7,17 @@ Parsing of grammar files
 from typing import Tuple, List, Iterable
 
 from pyramids.categorization import Category, Property
-from pyramids.rules import SequenceRule, AnyTermMatchRule, AllTermsMatchRule, CompoundMatchRule, HeadMatchRule, \
-    OneTermMatchRule, LastTermMatchRule, ConjunctionRule, PropertyInheritanceRule, SuffixRule, SetRule
+from pyramids.rules.conjunction import ConjunctionRule
+from pyramids.rules.last_term_match import LastTermMatchRule
+from pyramids.rules.one_term_match import OneTermMatchRule
+from pyramids.rules.all_terms_match import AllTermsMatchRule
+from pyramids.rules.any_term_match import AnyTermMatchRule
+from pyramids.rules.head_match import HeadMatchRule
+from pyramids.rules.compound_match import CompoundMatchRule
+from pyramids.rules.sequence import SequenceRule
+from pyramids.rules.suffix import SuffixRule
+from pyramids.rules.token_set import SetRule
+from pyramids.rules.property_inheritance import PropertyInheritanceRule
 
 __all__ = [
     'GrammarSyntaxError',
@@ -259,9 +270,8 @@ class GrammarParser:
             if generator is None:
                 raise GrammarSyntaxError("Unexpected: " + repr(category),
                                          offset=1 + definition.find(category_definition))
-            else:
-                assert callable(generator)
-                rule_list.append(generator(category.positive_properties, category.negative_properties))
+            assert callable(generator)
+            rule_list.append(generator(category.positive_properties, category.negative_properties))
         if not rule_list:
             raise GrammarSyntaxError("Expected: category")
         return tuple(rule_list)
@@ -280,8 +290,6 @@ class GrammarParser:
                 single = True
             definition = definition[1:]
             offset += 1
-        # TODO: While functional, this is a copy/paste from parse_branch_rule. Modify it to fit conjunctions more
-        #       cleanly, or combine the two methods.
         subcategory_sets = []
         link_types = []
         term = ''
@@ -304,6 +312,8 @@ class GrammarParser:
                             raise GrammarSyntaxError("Unexpected: left link", offset=offset + term_start)
                     link_types[-1].add((link_type, left, right))
                 else:
+                    if len(subcategory_sets) >= 3:
+                        raise GrammarSyntaxError("Unexpected: category", offset=offset + term_start)
                     is_head, subcategories = self.parse_branch_rule_term(term, offset=offset + term_start)
                     if is_head:
                         if head_index is not None:
@@ -317,6 +327,8 @@ class GrammarParser:
                     term_start = index
                 term += char
         if term:
+            if len(subcategory_sets) >= 3:
+                raise GrammarSyntaxError("Unexpected: category", offset=offset + term_start)
             is_head, subcategories = self.parse_branch_rule_term(term, offset=offset + term_start)
             if is_head:
                 if head_index is not None:
@@ -324,7 +336,7 @@ class GrammarParser:
                 head_index = len(subcategory_sets)
             subcategory_sets.append(subcategories)
             link_types.append(set())
-        if not subcategory_sets:
+        if len(subcategory_sets) < 2:
             raise GrammarSyntaxError("Expected: category", offset=offset)
         if link_types[-1]:
             raise GrammarSyntaxError("Expected: category", offset=offset + term_start + len(term))
@@ -333,25 +345,19 @@ class GrammarParser:
             if len(subcategory_sets) != 1:
                 raise GrammarSyntaxError("Expected: '*'", offset=offset + term_start)
             head_index = 0
-        # TODO: Specify offsets for these errors.
-        if len(subcategory_sets) > 3:
-            raise GrammarSyntaxError("Unexpected: category")
-        elif len(subcategory_sets) < 2:
-            raise GrammarSyntaxError("Expected: category")
-        elif len(subcategory_sets) == 3:
+        assert 2 <= len(subcategory_sets) <= 3
+        if len(subcategory_sets) == 3:
             if head_index != 1:
-                raise GrammarSyntaxError("Unexpected: category")
+                raise GrammarSyntaxError("Unexpected: category", offset=offset)
             leadup_cats, conjunction_cats, followup_cats = subcategory_sets
             leadup_link_types, followup_link_types = link_types
-        else:  # if len(subcategory_sets) == 2:
+        else:
+            assert len(subcategory_sets) == 2
             if head_index != 0:
-                raise GrammarSyntaxError("Expected: category")
+                raise GrammarSyntaxError("Expected: category", offset=offset)
             leadup_cats = None
             conjunction_cats, followup_cats = subcategory_sets
-            # TODO: While these are sets, ConjunctionRule expects
-            #       individual links. Modify ConjunctionRule to expect sets
             leadup_link_types = set()
-
             followup_link_types = link_types[0]
         return ConjunctionRule(category, match_rules, property_rules, leadup_cats, conjunction_cats, followup_cats,
                                leadup_link_types, followup_link_types, single, compound)
@@ -383,8 +389,14 @@ class GrammarParser:
                     raise GrammarSyntaxError("Expected: property", offset=1 + line.find(':') + 1)
                 positive_additions = [addition for addition in additions if not addition.startswith('-')]
                 negative_additions = [addition[1:] for addition in additions if addition.startswith('-')]
-                # TODO: Check negative additions for a double '-'
-                # TODO: Check that positive & negative additions don't conflict
+                # Double-negatives are not allowed
+                if any(addition.startswith('-') for addition in negative_additions):
+                    raise GrammarSyntaxError("Unexpected: '-'", offset=2 + line.find('--'))
+                # Check that positive & negative additions don't conflict
+                for addition in negative_additions:
+                    if addition in positive_additions:
+                        raise GrammarSyntaxError("Conflicting property signs: %s" % addition,
+                                                 offset=1 + line.find(addition, line.find(addition) + 1))
                 inheritance_rules.append(PropertyInheritanceRule(category, positive_additions, negative_additions))
             except GrammarParserError as error:
                 if error.text is None:
@@ -417,14 +429,13 @@ class GrammarParser:
                     if line.endswith(']') and '[' in line:
                         if line.lstrip().startswith('['):
                             if match_rules_closed:
-                                # TODO: offset
-                                raise GrammarSyntaxError("Unexpected: matching rule")
+                                raise GrammarSyntaxError("Unexpected: matching rule", offset=1 + line.find('['))
                             match_rules.append(self.parse_match_rule(line.lstrip(),
                                                                      offset=1 + line.find(line.lstrip())))
                         else:
                             if property_rules_closed:
-                                # TODO: offset
-                                raise GrammarSyntaxError("Unexpected: property rule")
+                                raise GrammarSyntaxError("Unexpected: property rule",
+                                                         offset=1 + len(line) - len(line.lstrip()))
                             match_rules_closed = True
                             left_bracket_index = line.index('[')
                             property_names = line[:left_bracket_index].strip().split(',')
