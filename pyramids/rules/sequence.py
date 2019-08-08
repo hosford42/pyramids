@@ -54,8 +54,9 @@ class SequenceRule(BranchRule):
                     subtrees = backward_half + [new_node_set] + forward_half
                     category = self.get_category(parser_state.model, [subtree.category for subtree in subtrees])
                     if self.is_non_recursive(category, subtrees[self._head_index].category):
-                        parser_state.add_node(trees.ParseTreeNode(parser_state.tokens, self, self._head_index,
-                                                                  category, subtrees))
+                        node = trees.ParseTreeUtils().make_parse_tree_node(parser_state.tokens, self, self._head_index,
+                                                                           category, subtrees)
+                        parser_state.add_node(node)
 
     def __call__(self, parser_state, new_node_set):
         if not (self._has_wildcard or new_node_set.category.name in self._references):

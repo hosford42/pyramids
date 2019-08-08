@@ -36,10 +36,10 @@ class CategoryMap:
         boolean indicating whether it was something new or was already
         mapped."""
 
-        cat = node.category
+        cat = node.payload.category
         name = cat.name
-        start = node.start
-        end = node.end
+        start = node.payload.start
+        end = node.payload.end
 
         category_name_map = self._map.get(start)
         if category_name_map is None:
@@ -63,6 +63,7 @@ class CategoryMap:
                     else:
                         # No new node sets were added, so we don't need to do anything else.
                         node_set.add(node)
+                        trees.ParseTreeUtils().update_node_set_weighted_score(node_set, node)
                         return False
 
         category_name_map = self._reverse_map.get(end)
@@ -84,6 +85,8 @@ class CategoryMap:
 
         self._size += 1
         self._ranges.add((start, end))
+
+        trees.ParseTreeUtils().update_node_set_weighted_score(node_set, node)
 
         return True  # It's something new
 
@@ -145,16 +148,16 @@ class CategoryMap:
         return node_set,
 
     def get_node_set(self, node):
-        category_name_map = self._map.get(node.start)
+        category_name_map = self._map.get(node.payload.start)
         if category_name_map is None:
             return None
-        category_map = category_name_map.get(node.category.name)
+        category_map = category_name_map.get(node.payload.category.name)
         if category_map is None:
             return None
-        end_map = category_map.get(node.category)
+        end_map = category_map.get(node.payload.category)
         if end_map is None:
             return None
-        return end_map.get(node.end)
+        return end_map.get(node.payload.end)
 
     def has_start(self, start):
         return start in self._map

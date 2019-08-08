@@ -1,4 +1,4 @@
-from pyramids import scoring
+from pyramids import scoring, trees
 from pyramids.rules.parse_rule import ParseRule
 
 
@@ -21,9 +21,10 @@ class BranchRule(ParseRule):
         # We have to look not at individual features, but at specific combinations thereof which might affect
         # the quality of the parse.
 
-        head_cat = str(parse_node.category.name)
-        yield scoring.ScoringFeature(('head spelling', (head_cat, parse_node.head_token)))
-        for prop in parse_node.category.positive_properties:
+        head_cat = str(parse_node.payload.category.name)
+        head_token = trees.ParseTreeUtils().get_head_token(parse_node)
+        yield scoring.ScoringFeature(('head spelling', (head_cat, head_token)))
+        for prop in parse_node.payload.category.positive_properties:
             yield scoring.ScoringFeature(('head properties', (head_cat, str(prop))))
         for index, component in enumerate(parse_node.components):
             component_cat = str(component.category.name)
