@@ -12,12 +12,14 @@ the same token span and top-level category. This structure serves to reduce
 the combinatorics inherent to the parsing process, by allowing us to treat
 a whole family of sub-trees as if they were a single entity.
 """
+
 import math
 import time
 import weakref
+from abc import ABCMeta, abstractmethod
 from collections import deque
 from functools import reduce
-from typing import Sequence, Tuple, NamedTuple, Optional, Iterable, Iterator, Union
+from typing import Sequence, Tuple, NamedTuple, Optional, Iterable, Iterator, Union, Set
 
 from pyramids import categorization, graphs, tokenization, traversal
 from pyramids.categorization import Category
@@ -40,9 +42,15 @@ _ParsingPayload = NamedTuple('ParsingPayload', [('tokens', TokenSequence), ('rul
 
 
 class ParsingPayload(_ParsingPayload):
+    """Payload used for tree nodes at parse time."""
 
-    def get_sort_key(self):
-        return self.start, self.end, self.head_index, self.category, self.rule
+    def is_compatible_with(self, other: 'ParsingPayload'):
+        """Return whether two nodes holding this and the other payload are compatible to share a single node set."""
+        return other.start == self.start and other.end == self.end and other.category == self.category
+
+    def get_sort_key(self) -> Tuple[int, int, int, Category, ParseRule]:
+        """Get sort key used for ordering parse tree nodes during parsing."""
+        return self.start, self.end, self.category, self.head_index, self.rule
 
     @property
     def span(self) -> Tuple[int, int]:
@@ -51,11 +59,15 @@ class ParsingPayload(_ParsingPayload):
 
 
 class ParseTreeUtils:
-    # TODO: Make this into a singleton or a static class, and get rid of all the scattered locations where it gets
-    #       created for a single method call.
+    """Utility methods for operating on trees at parse time."""
 
-    def make_parse_tree_node(self, tokens: TokenSequence, rule: ParseRule, head_index: int, category: Category,
-                             components: Optional[Sequence['ParseTreeNodeSet']] = None) -> 'ParseTreeNode':
+    def __init__(self):
+        raise NotImplementedError("This class is not instantiable.")
+
+    @staticmethod
+    def make_parse_tree_node(tokens: TokenSequence, rule: ParseRule, head_index: int, category: Category,
+                             components: Optional[Sequence['TreeNodeInterface']] = None) -> 'ParseTreeNode':
+        """Create a tree node with a parse-time payload."""
         if components is None:
             start = head_index
             end = start + 1
@@ -63,32 +75,35 @@ class ParseTreeUtils:
             components = tuple(components)
             if not components:
                 raise ValueError("At least one component must be provided for a non-leaf node.")
-            start = end = components[0].start
+            start = end = components[0].payload.start
             for component in components:
-                if end != component.start:
+                if end != component.payload.start:
                     raise ValueError("Discontinuity in component coverage.")
-                end = component.end
-            # assert start <= head_index < end, (start, head_index, end)
+                end = component.payload.end
         payload = ParsingPayload(tokens, rule, head_index, category, start, end)
         node = ParseTreeNode(payload, components)
-        self.update_node_weighted_score(node)
+        ParseTreeUtils.update_weighted_score(node)
         return node
 
-    def get_head_token(self, node: 'ParseTreeNode') -> str:
+    @staticmethod
+    def get_head_token(node: 'TreeNodeInterface') -> str:
+        """Return the spelling of the head token of the phrase for this tree node."""
         payload = node.payload
         if node.is_leaf():
             return payload.tokens[payload.start]
-        else:
-            return self.get_head_token(node.components[payload.head_index].best_node)
+        return ParseTreeUtils.get_head_token(node.components[payload.head_index])
 
-    def get_head_token_start(self, node: 'ParseTreeNode') -> int:
+    @staticmethod
+    def get_head_token_start(node: 'TreeNodeInterface') -> int:
+        """Return the starting index of the head token of the phrase for this tree node."""
         payload = node.payload
         if node.is_leaf():
             return payload.start
-        else:
-            return self.get_head_token_start(node.components[payload.head_index].best_node)
+        return ParseTreeUtils.get_head_token_start(node.components[payload.head_index].best_node)
 
-    def to_str(self, node: 'ParseTreeNode', simplify: bool = False) -> str:
+    @staticmethod
+    def to_str(node: 'TreeNodeInterface', simplify: bool = False) -> str:
+        """Generate a string representation of a parse-time tree node."""
         payload = node.payload
         result = payload.category.to_str(simplify) + ':'
         if node.is_leaf():
@@ -97,16 +112,17 @@ class ParseTreeUtils:
             if not simplify:
                 result += ' [' + str(payload.rule) + ']'
         elif len(node.components) == 1 and simplify:
-            result += ' ' + self.to_str(node.components[0].best_node, simplify)
+            result += ' ' + ParseTreeUtils.to_str(node.components[0], simplify)
         else:
             if not simplify:
                 result += ' [' + str(payload.rule) + ']'
             for component in node.components:
-                result += '\n    ' + self.to_str(component.best_node, simplify).replace('\n', '\n    ')
+                result += '\n    ' + ParseTreeUtils.to_str(component, simplify).replace('\n', '\n    ')
         return result
 
-    def restrict_node(self, node: 'ParseTreeNode', categories: Iterable[Category]) \
-            -> Iterator[Union['ParseTreeNode', 'ParseTreeNodeSet']]:
+    @staticmethod
+    def restrict(node: 'TreeNodeInterface', categories: Iterable[Category]) -> Iterator['TreeNodeInterface']:
+        """Restrict a tree node to a particular category at parse time."""
         payload = node.payload
         for category in categories:
             if payload.category in category:
@@ -115,92 +131,107 @@ class ParseTreeUtils:
         else:
             if node.components:
                 for component in node.components:
-                    yield from self.restrict_node_set(component, categories)
+                    yield from ParseTreeUtils.restrict(component, categories)
 
-    def restrict_node_set(self, node_set: 'ParseTreeNodeSet', categories: Iterable[Category]) \
-            -> Iterator[Union['ParseTreeNode', 'ParseTreeNodeSet']]:
-        for category in categories:
-            if node_set.category in category:
-                yield node_set
-                break
-        else:
-            for node in node_set.iter_unique():
-                yield from self.restrict_node(node, categories)
+    @staticmethod
+    def update_weighted_score(node: 'TreeNodeInterface', affected_child: 'TreeNodeInterface' = None,
+                              recurse: bool = True) -> None:
+        """
+        Update the parse-time score of the tree node.
 
-    def update_node_weighted_score(self, node: 'ParseTreeNode', recurse: bool = True) -> None:
-        payload = node.payload
-        total_weighted_score, total_weight = payload.rule.calculate_weighted_score(node)
-        if node.is_leaf():
-            depth = 1
-        else:
-            depth = total_weight
-            for component in node.components:
-                component_depth, weighted_score, weight = component.get_score_data()
-
-                # It's already weighted, so don't multiply it
-                total_weighted_score += weighted_score
-
-                total_weight += weight
-                depth += component_depth * weight
-            depth /= total_weight
-
-        node.raw_score = (depth, total_weighted_score, total_weight)
-        node.score = (total_weighted_score / math.log(1 + depth, 2), total_weight)
-
-        if recurse and node.iter_parents():
+        If recurse is True (default) then propagate the score upward through all trees containing this node.
+        """
+        if node.recompute_weighted_score(affected_child) and recurse:
             for parent in node.iter_parents():
-                self.update_node_set_weighted_score(parent)
+                ParseTreeUtils.update_weighted_score(parent, node)
 
-    def adjust_node_score(self, node: 'ParseTreeNode', target: float) -> None:
+    @staticmethod
+    def adjust_score(node: 'TreeNodeInterface', target: float) -> None:
+        """Adjust a parse-time tree node's score towards the target."""
         payload = node.payload
         payload.rule.adjust_score(node, target)
         if not node.is_leaf():
             for component in node.components:
-                self.adjust_node_set_score(component, target)
-
-    def update_node_set_weighted_score(self, node_set: 'ParseTreeNodeSet', affected_node=None, recurse=True):
-        assert node_set.best_node is not None
-        if affected_node is None or affected_node is node_set.best_node:
-            best_score = None
-            best_node = None
-            for node in node_set.iter_unique():
-                score = node.get_weighted_score()
-                if best_score is None or best_score < score:
-                    best_score = score
-                    best_node = node
-            node_set.best_node = best_node
-            if recurse and node_set.has_parents():
-                for parent in node_set.iter_parents():
-                    self.update_node_weighted_score(parent)
-        elif node_set.best_node.get_weighted_score() < affected_node.get_weighted_score():
-            node_set.best_node = affected_node
-            if recurse and node_set.has_parents():
-                for parent in node_set.iter_parents():
-                    self.update_node_weighted_score(parent)
-        assert node_set.best_node is not None
-
-    def adjust_node_set_score(self, node_set, target):
-        for node in node_set.iter_unique():
-            self.adjust_node_score(node, target)
+                ParseTreeUtils.adjust_score(component, target)
 
 
-class ParseTreeNode:
+class TreeNodeInterface(metaclass=ABCMeta):
+    """Abstract interface for various types of interoperable tree nodes."""
+
+    @property
+    @abstractmethod
+    def payload(self) -> ParsingPayload:
+        """Get the payload associated with this tree node."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def components(self) -> Tuple['TreeNodeInterface', ...]:
+        """Get the children of this tree node."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def coverage(self) -> int:
+        """Compute the number of unique combinatoric variations of the subtree rooted at this node."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def iter_parents(self) -> Iterator['TreeNodeInterface']:
+        """Iterate over the parents of this node."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def is_leaf(self) -> bool:
+        """Return a boolean indicating whether this node is a leaf."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def iter_leaves(self) -> Iterator['TreeNodeInterface']:
+        """Iterate over the leaves of the subtree rooted at this node from left to right."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def add_parent(self, parent: 'TreeNodeInterface') -> None:
+        """Add a weak reference to a parent of this node."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def has_ancestor(self, ancestor: 'TreeNodeInterface') -> bool:
+        """Return a boolean indicating whether the subtree rooted at the given ancestor contains this node."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def score(self) -> Tuple[float, float]:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def raw_score(self) -> Tuple[int, float, float]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def recompute_weighted_score(self, affected_child: 'TreeNodeInterface' = None) -> bool:
+        """Recompute the score of the tree node."""
+        raise NotImplementedError()
+
+
+class ParseTreeNode(TreeNodeInterface):
     """Represents a branch or leaf node in a parse tree during parsing."""
 
-    def __init__(self, payload: ParsingPayload, components: Optional[Tuple['ParseTreeNodeSet', ...]]):
+    def __init__(self, payload: ParsingPayload, components: Optional[Tuple[TreeNodeInterface, ...]]):
         self._payload = payload
         self._components = components
-        self._hash = (hash(self._payload) ^ hash(self._components))
+        self._hash = (hash(self._payload) * 5) ^ (hash(self._components) * 2)
         self._parents = None
-        self.score = None
-        self.raw_score = None
+        self._score = None  # type: Optional[Tuple[float, float]]
+        self._raw_score = None  # type: Optional[Tuple[int, float, float]]
 
         if components:
             # This has to happen after the hash is determined, since the node will be added to the components'
             # parent sets.
-            for component in self._components:
-                if not isinstance(component, ParseTreeNodeSet):
-                    raise TypeError(component, ParseTreeNodeSet)
+            for component in components:
                 component.add_parent(self)
 
     def __hash__(self):
@@ -217,96 +248,103 @@ class ParseTreeNode:
             return NotImplemented
         return not self == other
 
-    def __le__(self, other):
-        if not isinstance(other, ParseTreeNode):
-            return NotImplemented
-        my_sort_key = self.payload.get_sort_key()
-        other_sort_key = other.payload.get_sort_key()
-        if my_sort_key != other_sort_key:
-            return my_sort_key < other_sort_key
-        return self._components <= other._components
-
-    def __lt__(self, other):
-        if not isinstance(other, ParseTreeNode):
-            return NotImplemented
-        my_sort_key = self.payload.get_sort_key()
-        other_sort_key = other.payload.get_sort_key()
-        if my_sort_key != other_sort_key:
-            return my_sort_key < other_sort_key
-        return self._components < other._components
-
-    def __ge__(self, other):
-        if not isinstance(other, ParseTreeNode):
-            return NotImplemented
-        my_sort_key = self.payload.get_sort_key()
-        other_sort_key = other.payload.get_sort_key()
-        if my_sort_key != other_sort_key:
-            return my_sort_key > other_sort_key
-        return self._components >= other._components
-
-    def __gt__(self, other):
-        if not isinstance(other, ParseTreeNode):
-            return NotImplemented
-        my_sort_key = self.payload.get_sort_key()
-        other_sort_key = other.payload.get_sort_key()
-        if my_sort_key != other_sort_key:
-            return my_sort_key > other_sort_key
-        return self._components > other._components
-
     def __repr__(self):
         args = (self._payload, self._components)
         return '%s%r' % (type(self).__name__, args)
 
-    # def __str__(self):
-    #     return self.to_str()
-
     @property
     def payload(self) -> ParsingPayload:
+        """Get the payload for this tree node."""
         return self._payload
 
     @property
-    def components(self):
-        return self._components
+    def components(self) -> Tuple[TreeNodeInterface, ...]:
+        """Get the children of this tree node."""
+        return self._components or ()
 
     @property
-    def coverage(self):
-        # TODO: Is this a bug? It looks like it will always return 1.
+    def coverage(self) -> int:
+        """Compute the number of unique combinatoric variations of the subtree rooted at this node."""
         return 1 if self.is_leaf() else reduce(lambda a, b: a * b.coverage, self.components, 1)
 
-    def iter_parents(self):
+    @property
+    def score(self) -> Tuple[float, float]:
+        assert self._score is not None
+        return self._score
+
+    @property
+    def raw_score(self) -> Tuple[int, float, float]:
+        assert self._raw_score is not None
+        return self._raw_score
+
+    def iter_parents(self) -> Iterator[TreeNodeInterface]:
+        """Iterate over the parents of this node."""
         if self._parents:
             yield from self._parents
 
-    def is_leaf(self):
+    def is_leaf(self) -> bool:
+        """Return a boolean indicating whether this node is a leaf."""
         return self._components is None
 
-    def get_weighted_score(self):
-        return self.score
-
-    def get_score_data(self):
-        return self.raw_score
-
-    def iter_leaves(self):
+    def iter_leaves(self) -> Iterator[TreeNodeInterface]:
+        """Iterate over the leaves of the subtree rooted at this node from left to right."""
         if self.is_leaf():
             yield self
         else:
             for component in self.components:
                 yield from component.iter_leaves()
 
-    def add_parent(self, parent):
+    def add_parent(self, parent: TreeNodeInterface) -> None:
+        """Add a weak reference to a parent of this node."""
         assert not parent.has_ancestor(self)
         if self._parents is None:
             self._parents = weakref.WeakSet({parent})
         else:
             self._parents.add(parent)
 
-    def has_ancestor(self, ancestor):
+    def has_ancestor(self, ancestor: TreeNodeInterface) -> bool:
+        """Return a boolean indicating whether the subtree rooted at the given ancestor contains this node."""
         if ancestor is self:
             return True
         if not self._parents:
             return False
         return any(parent.has_ancestor(ancestor) for parent in self._parents)
 
+    def recompute_weighted_score(self, affected_child: 'TreeNodeInterface' = None) -> bool:
+        """
+        Update the parse-time score of the tree node.
+
+        If recurse is True (default) then propagate the score upward through all trees containing this node.
+        """
+        # TODO: Take advantage of the affected_child argument.
+        total_weighted_score, total_weight = self.payload.rule.calculate_weighted_score(self)
+        if self.is_leaf():
+            depth = 1.0
+        else:
+            depth = total_weight
+            for component in self.components:
+                raw_score = component.raw_score
+                assert raw_score is not None
+                component_depth, weighted_score, weight = raw_score
+
+                # It's already weighted, so don't multiply it
+                total_weighted_score += weighted_score
+
+                total_weight += weight
+                depth += component_depth * weight
+            depth /= total_weight
+
+        self._raw_score = (depth, total_weighted_score, total_weight)
+        self._score = (total_weighted_score / math.log(1 + depth, 2), total_weight)
+
+        return True
+
+
+# class GenerationPayload:
+#     rule
+#     category
+#     head_node: (head_spelling, head_index)
+#     tokens
 
 # TODO: Merge ParseTreeNode and BuildTreeNode, making it possible to assign
 #       a semantic net node and token index/range in the parse tree node
@@ -318,8 +356,7 @@ class ParseTreeNode:
 #       they are requested after the tree is built, they will be calculated
 #       and stored.
 class BuildTreeNode:
-    """Represents a branch or leaf node in a parse tree during
-    reconstruction."""
+    """Represents a branch or leaf node in a parse tree during reconstruction."""
 
     def __init__(self, rule, category, head_spelling, head_index, components=None):
         self._rule = rule
@@ -360,44 +397,6 @@ class BuildTreeNode:
         return (self._rule != other._rule or self._category != other._category or self._head_node != other._head_node or
                 self._components != other._components)
 
-    def __le__(self, other):
-        if not isinstance(other, BuildTreeNode):
-            return NotImplemented
-        if self._tokens != other._tokens:
-            return self._tokens < other._tokens
-        if self._rule != other._rule:
-            return self._rule < other._rule
-        if self._category != other._category:
-            return self._category < other._category
-        if self._head_node[0] != other._head_node[0]:
-            return self._head_node[0] < other._head_node[0]
-        return self._components <= other._components
-
-    def __ge__(self, other):
-        if not isinstance(other, BuildTreeNode):
-            return NotImplemented
-        return other <= self
-
-    def __lt__(self, other):
-        if not isinstance(other, BuildTreeNode):
-            return NotImplemented
-        if self._tokens != other._tokens:
-            return self._tokens < other._tokens
-        if self._rule != other._rule:
-            # This will vary from one model or run to the next, but it will be consistent for a given model throughout
-            # a single run. That's good enough for our purposes.
-            return id(self._rule) < id(other._rule)
-        if self._category != other._category:
-            return self._category < other._category
-        if self._head_node[0] != other._head_node[0]:
-            return self._head_node[0] < other._head_node[0]
-        return self._components < other._components
-
-    def __gt__(self, other):
-        if not isinstance(other, BuildTreeNode):
-            return NotImplemented
-        return other < self
-
     @property
     def rule(self):
         return self._rule
@@ -405,10 +404,6 @@ class BuildTreeNode:
     @property
     def category(self):
         return self._category
-
-    # @property
-    # def head_node(self):
-    #     return self._head_node
 
     @property
     def head_spelling(self):
@@ -454,167 +449,130 @@ class BuildTreeNode:
         return result
 
 
-class ParseTreeNodeSet:
+class ParseTreeNodeSet(TreeNodeInterface):
+    """A set of tree nodes that cover the same phrase with the same category."""
 
-    def __init__(self, nodes):  # Always has to contain at least one node.
-        if isinstance(nodes, ParseTreeNode):
-            nodes = [nodes]
-        self._unique = set()
-        self._best_node = None
-        self._best_score = None
-        self._best_raw_score = None
-        self._parents = None
+    def __init__(self, nodes: Union[TreeNodeInterface, Iterable[TreeNodeInterface]]):
+        self._nodes = set()  # type: Set[TreeNodeInterface]
+        self._parents = weakref.WeakSet()
 
-        values_set = False
-        for node in nodes:
-            if not values_set:
-                self._start = node.payload.start
-                self._end = node.payload.end
-                self._category = node.payload.category
-                values_set = True
-        if not values_set:
-            raise ValueError("ParseTreeNodeSet must contain at least one node.")
+        if isinstance(nodes, TreeNodeInterface):
+            first_node = nodes
+            self._best_node = first_node
+            self.add(first_node)
+        else:
+            node_iterator = iter(nodes)
+            try:
+                first_node = next(node_iterator)
+            except StopIteration:
+                raise ValueError("ParseTreeNodeSet must contain at least one node.")
+            self._best_node = first_node  # type: TreeNodeInterface
 
-        self._hash = hash(self._start) ^ hash(self._end) ^ hash(self._category)
-
-        # This has to happen after the hash is determined, since we add the node set to the node's parent set
-        for node in nodes:
-            self.add(node)
-
-        assert self._best_node is not None
+            self.add(first_node)
+            for node in node_iterator:
+                self.add(node)
 
     def __repr__(self):
-        return type(self).__name__ + "(" + repr(self._unique) + ")"
+        return type(self).__name__ + "(" + repr(self._nodes) + ")"
 
     def __iter__(self):
-        return iter(self._unique)
+        return iter(self._nodes)
 
     def __len__(self):
-        return len(self._unique)
+        return len(self._nodes)
 
     def __contains__(self, node):
-        return node in self._unique
-
-    def __hash__(self):
-        return self._hash
-
-    def __eq__(self, other):
-        if not isinstance(other, ParseTreeNodeSet):
-            return NotImplemented
-        return self is other or (self._hash == other._hash and self._start == other._start and
-                                 self._end == other._end and self._category == other._category)
-
-    def __ne__(self, other):
-        if not isinstance(other, ParseTreeNodeSet):
-            return NotImplemented
-        return not self == other
-
-    def __le__(self, other):
-        if not isinstance(other, ParseTreeNodeSet):
-            return NotImplemented
-        if self._start != other._start:
-            return self._start < other._start
-        if self._end != other._end:
-            return self._end < other._end
-        return self._category <= other._category
-
-    def __ge__(self, other):
-        if not isinstance(other, ParseTreeNodeSet):
-            return NotImplemented
-        return other <= self
-
-    def __lt__(self, other):
-        if not isinstance(other, ParseTreeNodeSet):
-            return NotImplemented
-        return not (self >= other)
-
-    def __gt__(self, other):
-        if not isinstance(other, ParseTreeNodeSet):
-            return NotImplemented
-        return not (self <= other)
+        return node in self._nodes
 
     @property
-    def best_node(self) -> ParseTreeNode:
+    def best_node(self) -> TreeNodeInterface:
+        """Get the node in this node set with the highest score."""
         return self._best_node
 
     @best_node.setter
-    def best_node(self, node: ParseTreeNode) -> None:
-        assert node in self._unique
+    def best_node(self, node: TreeNodeInterface) -> None:
+        """Get the node in this node set with the highest score."""
+        assert node in self._nodes
         self._best_node = node
 
     @property
-    def category(self):
-        return self._category
-
-    @property
-    def start(self):
-        return self._start
-
-    @property
-    def end(self):
-        return self._end
-
-    @property
-    def span(self):
-        return self._start, self._end
-
-    @property
-    def count(self):
-        return len(self._unique)
+    def payload(self) -> ParsingPayload:
+        """Get the payload of the node in this set with the highest score."""
+        return self._best_node.payload
 
     @property
     def coverage(self):
-        return sum([node.coverage for node in self._unique])
+        """Compute the number of unique combinatoric variations of the subtree rooted at this node set."""
+        return sum(node.coverage for node in self._nodes)
 
     @property
-    def head_token(self):
-        assert self._best_node is not None, self._unique
-        return self._best_node.head_token
+    def components(self) -> Tuple[TreeNodeInterface, ...]:
+        """Get the children of this tree node."""
+        return self._best_node.components
 
-    def iter_unique(self):
-        return iter(self._unique)
+    @property
+    def score(self) -> Tuple[float, float]:
+        return self._best_node.score
 
-    def has_parents(self):
+    @property
+    def raw_score(self) -> Tuple[int, float, float]:
+        return self._best_node.raw_score
+
+    def recompute_weighted_score(self, affected_child: 'TreeNodeInterface' = None) -> bool:
+        """
+        Update the parse-time score of the tree node set.
+
+        If an affected_node is provided, the update is performed in a more efficient way that assumes that the
+        affected_node is the only member of the node set whose score changed.
+
+        If recurse is True (default) then propagate the score upward through all trees containing this node set.
+        """
+        if affected_child is None or affected_child is self._best_node:
+            self._best_node = max(self._nodes, key=lambda n: n.score)
+            return True
+        elif self._best_node.score < affected_child.score:
+            self._best_node = affected_child
+            return True
+        return False
+
+    def is_leaf(self):
+        """Return a boolean indicating whether this node is a leaf."""
+        return self._best_node.is_leaf()
+
+    def has_parents(self) -> bool:
+        """Return a boolean indicating whether this node set has any parents."""
         return bool(self._parents)
 
-    def iter_parents(self):
+    def iter_parents(self) -> Iterator[TreeNodeInterface]:
+        """Iterate over the parents of this node set."""
         if self._parents:
             yield from self._parents
 
-    def is_compatible(self, node_or_set):
-        return (node_or_set.start == self._start and node_or_set.end == self._end and
-                node_or_set.category == self._category)
-
-    def add(self, node):
-        if not isinstance(node, ParseTreeNode):
-            raise TypeError(node, ParseTreeNode)
-        if not self.is_compatible(node.payload):
-            raise ValueError("Node is not compatible.")
-        if node in self._unique:
-            return
-        self._unique.add(node)
-        node.add_parent(self)
-        if self._best_node is None:
-            self._best_node = node
-
-    def get_weighted_score(self):
-        return self._best_node.get_weighted_score() if self._best_node else None
-
-    def get_score_data(self):
-        return self._best_node.get_score_data() if self._best_node else None
+    def add(self, node: TreeNodeInterface) -> None:
+        """Add a new node to this node set."""
+        if isinstance(node, ParseTreeNodeSet):
+            for member in node:
+                self.add(member)
+        else:
+            if self._best_node is not None and not self._best_node.payload.is_compatible_with(node.payload):
+                raise ValueError("Node is not compatible.")
+            self._nodes.add(node)
+            node.add_parent(self)
+            if self._best_node is None:
+                self._best_node = node
 
     def iter_leaves(self):
-        for node in self._unique:
+        """Iterate over the leaves of the subtree rooted at this node from left to right."""
+        for node in self._nodes:
             yield from node.iter_leaves()
 
     def add_parent(self, parent):
+        """Add a weak reference to a parent of this node."""
         assert not parent.has_ancestor(self)
-        if self._parents is None:
-            self._parents = weakref.WeakSet({parent})
-        else:
-            self._parents.add(parent)
+        self._parents.add(parent)
 
-    def has_ancestor(self, ancestor):
+    def has_ancestor(self, ancestor: TreeNodeInterface):
+        """Return a boolean indicating whether the subtree rooted at the given ancestor contains this node."""
         if ancestor is self:
             return True
         if not self._parents:
@@ -652,34 +610,6 @@ class ParseTree:
             return NotImplemented
         return not (self == other)
 
-    def __le__(self, other):
-        if not isinstance(other, ParseTree):
-            return NotImplemented
-        if self is other:
-            return True
-        if self._tokens != other._tokens:
-            return self._tokens < other._tokens
-        return self._root <= other._root
-
-    def __lt__(self, other):
-        if not isinstance(other, ParseTree):
-            return NotImplemented
-        if self is other:
-            return False
-        if self._tokens != other._tokens:
-            return self._tokens < other._tokens
-        return self._root < other._root
-
-    def __ge__(self, other):
-        if not isinstance(other, ParseTree):
-            return NotImplemented
-        return other <= self
-
-    def __gt__(self, other):
-        if not isinstance(other, ParseTree):
-            return NotImplemented
-        return other < self
-
     @property
     def tokens(self):
         return self._tokens
@@ -690,30 +620,30 @@ class ParseTree:
 
     @property
     def category(self):
-        return self._root.category
+        return self._root.best_node.payload.category
 
     @property
     def start(self):
-        return self._root.start
+        return self._root.best_node.payload.start
 
     @property
     def end(self):
-        return self._root.end
+        return self._root.best_node.payload.end
 
     @property
     def span(self):
-        return self._root.span
+        return self._root.best_node.payload.span
 
     @property
     def coverage(self):
         return self._root.coverage
 
     def to_str(self, simplify=True):
-        return ParseTreeUtils().to_str(self._root.best_node, simplify)
+        return ParseTreeUtils.to_str(self._root.best_node, simplify)
 
     def restrict(self, categories):
         results = set()
-        for node in ParseTreeUtils().restrict_node_set(self._root, categories):
+        for node in ParseTreeUtils.restrict(self._root, categories):
             results.add(type(self)(self._tokens, node))
         return results
 
@@ -721,10 +651,10 @@ class ParseTree:
         return self.start <= other.start < self.end or other.start <= self.start < other.end
 
     def get_weighted_score(self):
-        return self.root.get_weighted_score()
+        return self.root.score
 
     def adjust_score(self, target):
-        ParseTreeUtils().adjust_node_set_score(self.root, target)
+        ParseTreeUtils.adjust_score(self.root, target)
 
         queue = deque(self.root.iter_leaves())
         visited = set()
@@ -732,15 +662,13 @@ class ParseTree:
             item = queue.popleft()
             if item in visited:
                 continue
-            if isinstance(item, ParseTreeNode):
-                ParseTreeUtils().update_node_weighted_score(item, recurse=False)
-            else:
-                ParseTreeUtils().update_node_set_weighted_score(item, recurse=False)
+            ParseTreeUtils.update_weighted_score(item, recurse=False)
             visited.add(item)
             queue.extend(item.iter_parents())
 
 
 class Parse:
+    # TODO: Should this be renamed to Forest?
     # TODO: Make sure the docstrings are up to date.
     """A finished parse. Stores the state of the parse during Parser's
     operation as a separate, first class object. Because a sentence can
@@ -748,7 +676,7 @@ class Parse:
     collection of ParseTrees which apply to the input after parsing is
     complete."""
 
-    def __init__(self, tokens, parse_trees):
+    def __init__(self, tokens, parse_trees: Iterable[ParseTree]):
         self._tokens = tokens
         self._parse_trees = frozenset(parse_trees)
         self._hash = None
@@ -786,7 +714,8 @@ class Parse:
 
     @property
     def coverage(self):
-        return sum(tree.coverage for tree in self._parse_trees)
+        """Compute the number of unique combinatoric variations of the trees in this forest."""
+        return reduce(lambda a, b: a * b, (tree.coverage for tree in self._parse_trees), 1)
 
     def to_str(self, simplify=True):
         return '\n'.join(tree.to_str(simplify) for tree in sorted(self._parse_trees))

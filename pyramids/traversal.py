@@ -69,7 +69,7 @@ class DepthFirstTraverser:
             if is_root:
                 handler.handle_root()
 
-            head_token_start = trees.ParseTreeUtils().get_head_token_start(element)
+            head_token_start = trees.ParseTreeUtils.get_head_token_start(element)
             handler.handle_token(payload.tokens[payload.start], payload.category, head_token_start,
                                  payload.tokens.spans[payload.start])
 
@@ -80,7 +80,7 @@ class DepthFirstTraverser:
                     need_sources[needed] = {head_token_start}
             return need_sources
 
-        head_start = trees.ParseTreeUtils().get_head_token_start(element)
+        head_start = trees.ParseTreeUtils.get_head_token_start(element)
         handler.handle_phrase_start(payload.category, head_start)
 
         # Visit each subtree, remembering which indices are to receive
@@ -96,7 +96,7 @@ class DepthFirstTraverser:
 
             component_need_sources = self._traverse(component, handler, is_root and index == payload.head_index)
 
-            head_token_start = trees.ParseTreeUtils().get_head_token_start(component)
+            head_token_start = trees.ParseTreeUtils.get_head_token_start(component)
             nodes.append(head_token_start)
 
             for property_name in component_need_sources:

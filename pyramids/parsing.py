@@ -29,9 +29,9 @@ class ParserState:
     #       covered, how much did the maximum parse quality for that token
     #       improve?
     @staticmethod
-    def _insertion_key(node):
+    def _insertion_key(node: trees.ParseTreeNode):
         # width = node.end - node.start
-        score, confidence = node.get_weighted_score()
+        score, confidence = node.score
 
         # same_rule_count = 0
         # for item in self._insertion_queue:

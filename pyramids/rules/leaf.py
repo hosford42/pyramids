@@ -24,7 +24,7 @@ class LeafRule(ParseRule):
             positive, negative = self.discover_case_properties(new_token)
             category = self._category.promote_properties(positive, negative)
             category = extend_properties(parser_state.model, category)
-            node = trees.ParseTreeUtils().make_parse_tree_node(parser_state.tokens, self, index, category)
+            node = trees.ParseTreeUtils.make_parse_tree_node(parser_state.tokens, self, index, category)
             parser_state.add_node(node)
             return True
         else:
@@ -54,7 +54,7 @@ class LeafRule(ParseRule):
         # CAREFUL!!! Scoring features must be perfectly recoverable via eval(repr(feature))
 
         head_cat = str(parse_node.payload.category.name)
-        head_token = trees.ParseTreeUtils().get_head_token(parse_node)
+        head_token = trees.ParseTreeUtils.get_head_token(parse_node)
         yield scoring.ScoringFeature(('head spelling', (head_cat, head_token)))
         for prop in parse_node.payload.category.positive_properties:
             yield scoring.ScoringFeature(('head properties', (head_cat, str(prop))))

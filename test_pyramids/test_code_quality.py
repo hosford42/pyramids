@@ -32,6 +32,8 @@ PYLAMA_OPTION_OVERRIDES = {
 
         'D212',  # This is optional and directly conflicts with an alternative one.
         'D203',  # Likewise.
+
+        'W0611',  # PyFlakes gets confused by MyPy type annotations, which require imports to be present.
     ],
     'async': True,
     'concurrent': True,

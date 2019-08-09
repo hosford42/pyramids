@@ -592,7 +592,7 @@ class ParserCmd(cmd.Cmd):
             for sentence, result in zip(sentences, results):
                 print(sentence)
                 print('')
-                for tree in sorted(result):
+                for tree in sorted(result, key=lambda t: t.tokens):
                     text = ' '.join(tree.tokens)
                     text = text[:1].upper() + text[1:]
                     for punctuation in ',.?!:;)]}':

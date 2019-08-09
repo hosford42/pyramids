@@ -63,7 +63,7 @@ class CategoryMap:
                     else:
                         # No new node sets were added, so we don't need to do anything else.
                         node_set.add(node)
-                        trees.ParseTreeUtils().update_node_set_weighted_score(node_set, node)
+                        trees.ParseTreeUtils.update_weighted_score(node_set, node)
                         return False
 
         category_name_map = self._reverse_map.get(end)
@@ -86,7 +86,7 @@ class CategoryMap:
         self._size += 1
         self._ranges.add((start, end))
 
-        trees.ParseTreeUtils().update_node_set_weighted_score(node_set, node)
+        trees.ParseTreeUtils.update_weighted_score(node_set, node)
 
         return True  # It's something new
 
@@ -147,7 +147,7 @@ class CategoryMap:
             return ()
         return node_set,
 
-    def get_node_set(self, node):
+    def get_node_set(self, node: trees.ParseTreeNode):
         category_name_map = self._map.get(node.payload.start)
         if category_name_map is None:
             return None

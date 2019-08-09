@@ -15,7 +15,7 @@ class GenerationAlgorithm:
         assert isinstance(sentence, graphs.ParseGraph)
         return self._generate(model, sentence.root_index, sentence)
 
-    def _generate(self, model, head_node, sentence):
+    def _generate(self, model, head_node: int, sentence):
         head_spelling = sentence[head_node][1]
         head_category = sentence[head_node][3]
 
