@@ -12,8 +12,8 @@ class BranchRule(ParseRule):
     def get_link_types(self, parse_node, link_set_index):
         raise NotImplementedError()
 
-    def iter_scoring_features(self, parse_node: trees.ParseTreeNode):
-        # CAREFUL!!! Scoring features must be perfectly recoverable via eval(repr(feature))
+    def iter_scoring_features(self, parse_node: 'trees.TreeNode'):
+        # CAREFUL!!! Scoring features must be perfectly recoverable via ast.literal_eval(repr(feature))
 
         # Possible Head Features: category name, property names, token spelling
         # Component Features: category name, ordering, token spelling, property names
@@ -22,7 +22,7 @@ class BranchRule(ParseRule):
         # the quality of the parse.
 
         head_cat = str(parse_node.payload.category.name)
-        head_token = trees.ParseTreeUtils.get_head_token(parse_node)
+        head_token = parse_node.payload.head_spelling
         yield scoring.ScoringFeature(('head spelling', (head_cat, head_token)))
         for prop in parse_node.payload.category.positive_properties:
             yield scoring.ScoringFeature(('head properties', (head_cat, str(prop))))

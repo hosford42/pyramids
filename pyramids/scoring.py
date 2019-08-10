@@ -17,7 +17,18 @@ class ScoringFeature:
     accuracies.
     """
 
+    @classmethod
+    def validate_key(cls, key):
+        if key is None:
+            return
+        if isinstance(key, str):
+            return
+        assert isinstance(key, tuple), key
+        for item in key:
+            cls.validate_key(item)
+
     def __init__(self, key):
+        self.validate_key(key)
         self._key = key
         self._hash = hash(key)
 

@@ -19,7 +19,7 @@ import weakref
 from abc import ABCMeta, abstractmethod
 from collections import deque
 from functools import reduce
-from typing import Sequence, Tuple, NamedTuple, Optional, Iterable, Iterator, Union, Set
+from typing import Sequence, Tuple, NamedTuple, Optional, Iterable, Iterator, Union, Set, FrozenSet, TypeVar, Generic
 
 from pyramids import categorization, graphs, tokenization, traversal
 from pyramids.categorization import Category
@@ -28,7 +28,7 @@ from pyramids.tokenization import TokenSequence
 
 __author__ = 'Aaron Hosford'
 __all__ = [
-    'ParseTreeNode',
+    'TreeNode',
     'BuildTreeNode',
     'ParseTreeNodeSet',
     'ParseTree',
@@ -36,89 +36,56 @@ __all__ = [
 ]
 
 
+class PayloadInterface(metaclass=ABCMeta):
+    rule: ParseRule
+    tokens: Union[TokenSequence, Tuple[str, ...]]
+    category: Category
+    head_spelling: str
+
+    @abstractmethod
+    def is_compatible_with(self, other: 'PayloadInterface') -> bool:
+        """Return whether two nodes holding this and the other payload are compatible to share a single node set."""
+        raise NotImplementedError()
+
+
+PayloadType = TypeVar('PayloadType', bound=PayloadInterface)
+
+
 _ParsingPayload = NamedTuple('ParsingPayload', [('tokens', TokenSequence), ('rule', ParseRule),
-                                                ('head_index', int), ('category', Category), ('start', int),
-                                                ('end', int)])
+                                                ('head_component_index', Optional[int]), ('category', Category),
+                                                ('head_spelling', str),
+                                                ('token_start_index', int), ('token_end_index', int)])
 
 
-class ParsingPayload(_ParsingPayload):
+class ParsingPayload(_ParsingPayload, PayloadInterface):
     """Payload used for tree nodes at parse time."""
 
     def is_compatible_with(self, other: 'ParsingPayload'):
         """Return whether two nodes holding this and the other payload are compatible to share a single node set."""
-        return other.start == self.start and other.end == self.end and other.category == self.category
-
-    def get_sort_key(self) -> Tuple[int, int, int, Category, ParseRule]:
-        """Get sort key used for ordering parse tree nodes during parsing."""
-        return self.start, self.end, self.category, self.head_index, self.rule
+        return (other.token_start_index == self.token_start_index and
+                other.token_end_index == self.token_end_index and
+                other.category == self.category)
 
     @property
-    def span(self) -> Tuple[int, int]:
+    def token_index_span(self) -> Tuple[int, int]:
         """Return the start and end token indices of the phrase covered by this parse tree node."""
-        return self.start, self.end
+        return self.token_start_index, self.token_end_index
 
 
-class ParseTreeUtils:
-    """Utility methods for operating on trees at parse time."""
+_GenerationPayload = NamedTuple('GenerationPayload', [('rule', ParseRule), ('category', Category),
+                                                      ('head_spelling', str), ('head_graph_index', int),
+                                                      ('covered_graph_indices', FrozenSet[int])])
 
-    def __init__(self):
-        raise NotImplementedError("This class is not instantiable.")
 
-    @staticmethod
-    def make_parse_tree_node(tokens: TokenSequence, rule: ParseRule, head_index: int, category: Category,
-                             components: Optional[Sequence['TreeNodeInterface']] = None) -> 'ParseTreeNode':
-        """Create a tree node with a parse-time payload."""
-        if components is None:
-            start = head_index
-            end = start + 1
-        else:
-            components = tuple(components)
-            if not components:
-                raise ValueError("At least one component must be provided for a non-leaf node.")
-            start = end = components[0].payload.start
-            for component in components:
-                if end != component.payload.start:
-                    raise ValueError("Discontinuity in component coverage.")
-                end = component.payload.end
-        payload = ParsingPayload(tokens, rule, head_index, category, start, end)
-        node = ParseTreeNode(payload, components)
-        ParseTreeUtils.update_weighted_score(node)
-        return node
+class GenerationPayload(_GenerationPayload, PayloadInterface):
 
-    @staticmethod
-    def get_head_token(node: 'TreeNodeInterface') -> str:
-        """Return the spelling of the head token of the phrase for this tree node."""
-        payload = node.payload
-        if node.is_leaf():
-            return payload.tokens[payload.start]
-        return ParseTreeUtils.get_head_token(node.components[payload.head_index])
+    def is_compatible_with(self, other: 'GenerationPayload'):
+        """Return whether two nodes holding this and the other payload are compatible to share a single node set."""
+        return self.covered_graph_indices == other.covered_graph_indices and self.category == other.category
 
-    @staticmethod
-    def get_head_token_start(node: 'TreeNodeInterface') -> int:
-        """Return the starting index of the head token of the phrase for this tree node."""
-        payload = node.payload
-        if node.is_leaf():
-            return payload.start
-        return ParseTreeUtils.get_head_token_start(node.components[payload.head_index].best_node)
 
-    @staticmethod
-    def to_str(node: 'TreeNodeInterface', simplify: bool = False) -> str:
-        """Generate a string representation of a parse-time tree node."""
-        payload = node.payload
-        result = payload.category.to_str(simplify) + ':'
-        if node.is_leaf():
-            covered_tokens = ' '.join(payload.tokens[payload.start:payload.end])
-            result += ' ' + repr(covered_tokens) + ' ' + repr(payload.span)
-            if not simplify:
-                result += ' [' + str(payload.rule) + ']'
-        elif len(node.components) == 1 and simplify:
-            result += ' ' + ParseTreeUtils.to_str(node.components[0], simplify)
-        else:
-            if not simplify:
-                result += ' [' + str(payload.rule) + ']'
-            for component in node.components:
-                result += '\n    ' + ParseTreeUtils.to_str(component, simplify).replace('\n', '\n    ')
-        return result
+class TreeUtils:
+    """Utility methods for operating on trees at any time."""
 
     @staticmethod
     def restrict(node: 'TreeNodeInterface', categories: Iterable[Category]) -> Iterator['TreeNodeInterface']:
@@ -131,7 +98,7 @@ class ParseTreeUtils:
         else:
             if node.components:
                 for component in node.components:
-                    yield from ParseTreeUtils.restrict(component, categories)
+                    yield from TreeUtils.restrict(component, categories)
 
     @staticmethod
     def update_weighted_score(node: 'TreeNodeInterface', affected_child: 'TreeNodeInterface' = None,
@@ -143,7 +110,7 @@ class ParseTreeUtils:
         """
         if node.recompute_weighted_score(affected_child) and recurse:
             for parent in node.iter_parents():
-                ParseTreeUtils.update_weighted_score(parent, node)
+                TreeUtils.update_weighted_score(parent, node)
 
     @staticmethod
     def adjust_score(node: 'TreeNodeInterface', target: float) -> None:
@@ -152,21 +119,85 @@ class ParseTreeUtils:
         payload.rule.adjust_score(node, target)
         if not node.is_leaf():
             for component in node.components:
-                ParseTreeUtils.adjust_score(component, target)
+                TreeUtils.adjust_score(component, target)
 
 
-class TreeNodeInterface(metaclass=ABCMeta):
+class ParseTreeUtils:
+    """Utility methods for operating on trees at parse time."""
+
+    def __init__(self):
+        raise NotImplementedError("This class is not instantiable.")
+
+    @staticmethod
+    def make_leaf_parse_tree_node(tokens: TokenSequence, rule: ParseRule, token_index: int,
+                                  category: Category) -> 'TreeNode':
+        """Create a leaf tree node with a parse-time payload."""
+        start = token_index
+        head_spelling = tokens[start]
+        end = start + 1
+        payload = ParsingPayload(tokens, rule, None, category, head_spelling, start, end)
+        node = TreeNode(payload, None)
+        TreeUtils.update_weighted_score(node)
+        return node
+
+    @staticmethod
+    def make_branch_parse_tree_node(tokens: TokenSequence, rule: ParseRule, head_index: int, category: Category,
+                                    components: Sequence['TreeNodeInterface[ParsingPayload]']) -> 'TreeNode':
+        """Create a tree node with a parse-time payload."""
+        components = tuple(components)
+        if not components:
+            raise ValueError("At least one component must be provided for a non-leaf node.")
+        start = end = components[0].payload.token_start_index
+        for component in components:
+            if end != component.payload.token_start_index:
+                raise ValueError("Discontinuity in component coverage.")
+            end = component.payload.token_end_index
+        head_spelling = components[head_index].payload.head_spelling
+        payload = ParsingPayload(tokens, rule, head_index, category, head_spelling, start, end)
+        node = TreeNode(payload, components)
+        TreeUtils.update_weighted_score(node)
+        return node
+
+    @staticmethod
+    def get_head_token_start(node: 'TreeNodeInterface[ParsingPayload]') -> int:
+        """Return the starting index of the head token of the phrase for this tree node."""
+        payload = node.payload
+        if node.is_leaf():
+            return payload.token_start_index
+        return ParseTreeUtils.get_head_token_start(node.components[payload.head_component_index].best_node)
+
+    @staticmethod
+    def to_str(node: 'TreeNodeInterface[ParsingPayload]', simplify: bool = False) -> str:
+        """Generate a string representation of a parse-time tree node."""
+        payload = node.payload
+        result = payload.category.to_str(simplify) + ':'
+        if node.is_leaf():
+            covered_tokens = ' '.join(payload.tokens[payload.token_start_index:payload.token_end_index])
+            result += ' ' + repr(covered_tokens) + ' ' + repr(payload.token_index_span)
+            if not simplify:
+                result += ' [' + str(payload.rule) + ']'
+        elif len(node.components) == 1 and simplify:
+            result += ' ' + ParseTreeUtils.to_str(node.components[0], simplify)
+        else:
+            if not simplify:
+                result += ' [' + str(payload.rule) + ']'
+            for component in node.components:
+                result += '\n    ' + ParseTreeUtils.to_str(component, simplify).replace('\n', '\n    ')
+        return result
+
+
+class TreeNodeInterface(Generic[PayloadType], metaclass=ABCMeta):
     """Abstract interface for various types of interoperable tree nodes."""
 
     @property
     @abstractmethod
-    def payload(self) -> ParsingPayload:
+    def payload(self) -> PayloadType:
         """Get the payload associated with this tree node."""
         raise NotImplementedError()
 
     @property
     @abstractmethod
-    def components(self) -> Tuple['TreeNodeInterface', ...]:
+    def components(self) -> Tuple['TreeNodeInterface[PayloadType]', ...]:
         """Get the children of this tree node."""
         raise NotImplementedError()
 
@@ -177,7 +208,7 @@ class TreeNodeInterface(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def iter_parents(self) -> Iterator['TreeNodeInterface']:
+    def iter_parents(self) -> Iterator['TreeNodeInterface[PayloadType]']:
         """Iterate over the parents of this node."""
         raise NotImplementedError()
 
@@ -187,17 +218,17 @@ class TreeNodeInterface(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def iter_leaves(self) -> Iterator['TreeNodeInterface']:
+    def iter_leaves(self) -> Iterator['TreeNodeInterface[PayloadType]']:
         """Iterate over the leaves of the subtree rooted at this node from left to right."""
         raise NotImplementedError()
 
     @abstractmethod
-    def add_parent(self, parent: 'TreeNodeInterface') -> None:
+    def add_parent(self, parent: 'TreeNodeInterface[PayloadType]') -> None:
         """Add a weak reference to a parent of this node."""
         raise NotImplementedError()
 
     @abstractmethod
-    def has_ancestor(self, ancestor: 'TreeNodeInterface') -> bool:
+    def has_ancestor(self, ancestor: 'TreeNodeInterface[PayloadType]') -> bool:
         """Return a boolean indicating whether the subtree rooted at the given ancestor contains this node."""
         raise NotImplementedError()
 
@@ -212,15 +243,15 @@ class TreeNodeInterface(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def recompute_weighted_score(self, affected_child: 'TreeNodeInterface' = None) -> bool:
+    def recompute_weighted_score(self, affected_child: 'TreeNodeInterface[PayloadType]' = None) -> bool:
         """Recompute the score of the tree node."""
         raise NotImplementedError()
 
 
-class ParseTreeNode(TreeNodeInterface):
+class TreeNode(TreeNodeInterface[PayloadType]):
     """Represents a branch or leaf node in a parse tree during parsing."""
 
-    def __init__(self, payload: ParsingPayload, components: Optional[Tuple[TreeNodeInterface, ...]]):
+    def __init__(self, payload: PayloadInterface, components: Optional[Tuple[TreeNodeInterface[PayloadType], ...]]):
         self._payload = payload
         self._components = components
         self._hash = (hash(self._payload) * 5) ^ (hash(self._components) * 2)
@@ -238,13 +269,13 @@ class ParseTreeNode(TreeNodeInterface):
         return self._hash
 
     def __eq__(self, other):
-        if not isinstance(other, ParseTreeNode):
+        if not isinstance(other, TreeNode):
             return NotImplemented
         return self is other or (self._hash == other._hash and self._payload == other._payload and
                                  self._components == other._components)
 
     def __ne__(self, other):
-        if not isinstance(other, ParseTreeNode):
+        if not isinstance(other, TreeNode):
             return NotImplemented
         return not self == other
 
@@ -253,12 +284,12 @@ class ParseTreeNode(TreeNodeInterface):
         return '%s%r' % (type(self).__name__, args)
 
     @property
-    def payload(self) -> ParsingPayload:
+    def payload(self) -> PayloadType:
         """Get the payload for this tree node."""
         return self._payload
 
     @property
-    def components(self) -> Tuple[TreeNodeInterface, ...]:
+    def components(self) -> Tuple[TreeNodeInterface[PayloadType], ...]:
         """Get the children of this tree node."""
         return self._components or ()
 
@@ -277,7 +308,7 @@ class ParseTreeNode(TreeNodeInterface):
         assert self._raw_score is not None
         return self._raw_score
 
-    def iter_parents(self) -> Iterator[TreeNodeInterface]:
+    def iter_parents(self) -> Iterator[TreeNodeInterface[PayloadType]]:
         """Iterate over the parents of this node."""
         if self._parents:
             yield from self._parents
@@ -286,7 +317,7 @@ class ParseTreeNode(TreeNodeInterface):
         """Return a boolean indicating whether this node is a leaf."""
         return self._components is None
 
-    def iter_leaves(self) -> Iterator[TreeNodeInterface]:
+    def iter_leaves(self) -> Iterator[TreeNodeInterface[PayloadType]]:
         """Iterate over the leaves of the subtree rooted at this node from left to right."""
         if self.is_leaf():
             yield self
@@ -294,7 +325,7 @@ class ParseTreeNode(TreeNodeInterface):
             for component in self.components:
                 yield from component.iter_leaves()
 
-    def add_parent(self, parent: TreeNodeInterface) -> None:
+    def add_parent(self, parent: TreeNodeInterface[PayloadType]) -> None:
         """Add a weak reference to a parent of this node."""
         assert not parent.has_ancestor(self)
         if self._parents is None:
@@ -302,7 +333,7 @@ class ParseTreeNode(TreeNodeInterface):
         else:
             self._parents.add(parent)
 
-    def has_ancestor(self, ancestor: TreeNodeInterface) -> bool:
+    def has_ancestor(self, ancestor: TreeNodeInterface[PayloadType]) -> bool:
         """Return a boolean indicating whether the subtree rooted at the given ancestor contains this node."""
         if ancestor is self:
             return True
@@ -310,7 +341,7 @@ class ParseTreeNode(TreeNodeInterface):
             return False
         return any(parent.has_ancestor(ancestor) for parent in self._parents)
 
-    def recompute_weighted_score(self, affected_child: 'TreeNodeInterface' = None) -> bool:
+    def recompute_weighted_score(self, affected_child: TreeNodeInterface[PayloadType] = None) -> bool:
         """
         Update the parse-time score of the tree node.
 
@@ -339,12 +370,6 @@ class ParseTreeNode(TreeNodeInterface):
 
         return True
 
-
-# class GenerationPayload:
-#     rule
-#     category
-#     head_node: (head_spelling, head_index)
-#     tokens
 
 # TODO: Merge ParseTreeNode and BuildTreeNode, making it possible to assign
 #       a semantic net node and token index/range in the parse tree node
@@ -449,11 +474,11 @@ class BuildTreeNode:
         return result
 
 
-class ParseTreeNodeSet(TreeNodeInterface):
+class ParseTreeNodeSet(TreeNodeInterface[PayloadType]):
     """A set of tree nodes that cover the same phrase with the same category."""
 
-    def __init__(self, nodes: Union[TreeNodeInterface, Iterable[TreeNodeInterface]]):
-        self._nodes = set()  # type: Set[TreeNodeInterface]
+    def __init__(self, nodes: Union[TreeNodeInterface[PayloadType], Iterable[TreeNodeInterface[PayloadType]]]):
+        self._nodes = set()  # type: Set[TreeNodeInterface[PayloadType]]
         self._parents = weakref.WeakSet()
 
         if isinstance(nodes, TreeNodeInterface):
@@ -485,18 +510,18 @@ class ParseTreeNodeSet(TreeNodeInterface):
         return node in self._nodes
 
     @property
-    def best_node(self) -> TreeNodeInterface:
+    def best_node(self) -> TreeNodeInterface[PayloadType]:
         """Get the node in this node set with the highest score."""
         return self._best_node
 
     @best_node.setter
-    def best_node(self, node: TreeNodeInterface) -> None:
+    def best_node(self, node: TreeNodeInterface[PayloadType]) -> None:
         """Get the node in this node set with the highest score."""
         assert node in self._nodes
         self._best_node = node
 
     @property
-    def payload(self) -> ParsingPayload:
+    def payload(self) -> PayloadType:
         """Get the payload of the node in this set with the highest score."""
         return self._best_node.payload
 
@@ -506,7 +531,7 @@ class ParseTreeNodeSet(TreeNodeInterface):
         return sum(node.coverage for node in self._nodes)
 
     @property
-    def components(self) -> Tuple[TreeNodeInterface, ...]:
+    def components(self) -> Tuple[TreeNodeInterface[PayloadType], ...]:
         """Get the children of this tree node."""
         return self._best_node.components
 
@@ -518,7 +543,7 @@ class ParseTreeNodeSet(TreeNodeInterface):
     def raw_score(self) -> Tuple[int, float, float]:
         return self._best_node.raw_score
 
-    def recompute_weighted_score(self, affected_child: 'TreeNodeInterface' = None) -> bool:
+    def recompute_weighted_score(self, affected_child: 'TreeNodeInterface[PayloadType]' = None) -> bool:
         """
         Update the parse-time score of the tree node set.
 
@@ -543,12 +568,12 @@ class ParseTreeNodeSet(TreeNodeInterface):
         """Return a boolean indicating whether this node set has any parents."""
         return bool(self._parents)
 
-    def iter_parents(self) -> Iterator[TreeNodeInterface]:
+    def iter_parents(self) -> Iterator[TreeNodeInterface[PayloadType]]:
         """Iterate over the parents of this node set."""
         if self._parents:
             yield from self._parents
 
-    def add(self, node: TreeNodeInterface) -> None:
+    def add(self, node: TreeNodeInterface[PayloadType]) -> None:
         """Add a new node to this node set."""
         if isinstance(node, ParseTreeNodeSet):
             for member in node:
@@ -571,7 +596,7 @@ class ParseTreeNodeSet(TreeNodeInterface):
         assert not parent.has_ancestor(self)
         self._parents.add(parent)
 
-    def has_ancestor(self, ancestor: TreeNodeInterface):
+    def has_ancestor(self, ancestor: TreeNodeInterface[PayloadType]):
         """Return a boolean indicating whether the subtree rooted at the given ancestor contains this node."""
         if ancestor is self:
             return True
@@ -624,15 +649,15 @@ class ParseTree:
 
     @property
     def start(self):
-        return self._root.best_node.payload.start
+        return self._root.best_node.payload.token_start_index
 
     @property
     def end(self):
-        return self._root.best_node.payload.end
+        return self._root.best_node.payload.token_end_index
 
     @property
     def span(self):
-        return self._root.best_node.payload.span
+        return self._root.best_node.payload.token_index_span
 
     @property
     def coverage(self):
@@ -643,7 +668,7 @@ class ParseTree:
 
     def restrict(self, categories):
         results = set()
-        for node in ParseTreeUtils.restrict(self._root, categories):
+        for node in TreeUtils.restrict(self._root, categories):
             results.add(type(self)(self._tokens, node))
         return results
 
@@ -654,7 +679,7 @@ class ParseTree:
         return self.root.score
 
     def adjust_score(self, target):
-        ParseTreeUtils.adjust_score(self.root, target)
+        TreeUtils.adjust_score(self.root, target)
 
         queue = deque(self.root.iter_leaves())
         visited = set()
@@ -662,7 +687,7 @@ class ParseTree:
             item = queue.popleft()
             if item in visited:
                 continue
-            ParseTreeUtils.update_weighted_score(item, recurse=False)
+            TreeUtils.update_weighted_score(item, recurse=False)
             visited.add(item)
             queue.extend(item.iter_parents())
 

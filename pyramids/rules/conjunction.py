@@ -92,13 +92,13 @@ class ConjunctionRule(BranchRule):
             # never call this with that state
             raise Exception("Unexpected state: " + repr(state))
 
-    def _find_matches(self, parser_state, state, new_node_set: trees.ParseTreeNodeSet):
+    def _find_matches(self, parser_state, state, new_node_set: trees.ParseTreeNodeSet[trees.ParsingPayload]):
         """Given a starting state (-1 for leadup, 0 for conjunction, 1 for followup), attempt to find and add all parse
         node sequences in the parser state that can contain the new node in that state."""
         # Check forward halves first, because they're less likely, and if we don't find any, we won't even need to
         # bother looking for backward halves.
         payload = new_node_set.payload
-        forward_halves = list(self._iter_forward_halves(parser_state.category_map, state, payload.start))
+        forward_halves = list(self._iter_forward_halves(parser_state.category_map, state, payload.token_start_index))
         if forward_halves:
             if state == -1:  # Leadup case/exception
                 for forward_half in forward_halves:
@@ -107,11 +107,12 @@ class ConjunctionRule(BranchRule):
                     if self._can_match(subtree_categories, head_offset):
                         category = self.get_category(parser_state.model, subtree_categories, head_offset)
                         if self.is_non_recursive(category, forward_half[head_offset].payload.category):
-                            node = trees.ParseTreeUtils.make_parse_tree_node(parser_state.tokens, self, head_offset,
-                                                                             category, forward_half)
+                            node = trees.ParseTreeUtils.make_branch_parse_tree_node(
+                                parser_state.tokens, self, head_offset, category, forward_half)
                             parser_state.add_node(node)
                 if self._compound:
-                    for backward_half in self._iter_backward_halves(parser_state.category_map, -1, payload.start):
+                    for backward_half in self._iter_backward_halves(parser_state.category_map, -1,
+                                                                    payload.token_start_index):
                         for forward_half in forward_halves:
                             subtrees = backward_half + forward_half
                             head_offset = len(subtrees) - 2
@@ -119,8 +120,8 @@ class ConjunctionRule(BranchRule):
                             if self._can_match(subtree_categories, head_offset):
                                 category = self.get_category(parser_state.model, subtree_categories, head_offset)
                                 if self.is_non_recursive(category, subtrees[head_offset].payload.category):
-                                    node = trees.ParseTreeUtils.make_parse_tree_node(parser_state.tokens, self,
-                                                                                     head_offset, category, subtrees)
+                                    node = trees.ParseTreeUtils.make_branch_parse_tree_node(
+                                        parser_state.tokens, self, head_offset, category, subtrees)
                                     parser_state.add_node(node)
             elif state == 0:  # Conjunction
                 if self._single:
@@ -130,10 +131,11 @@ class ConjunctionRule(BranchRule):
                         if self._can_match(subtree_categories, head_offset):
                             category = self.get_category(parser_state.model, subtree_categories, head_offset)
                             if self.is_non_recursive(category, forward_half[head_offset].payload.category):
-                                node = trees.ParseTreeUtils.make_parse_tree_node(parser_state.tokens, self,
-                                                                                 head_offset, category, forward_half)
+                                node = trees.ParseTreeUtils.make_branch_parse_tree_node(
+                                    parser_state.tokens, self, head_offset, category, forward_half)
                                 parser_state.add_node(node)
-                for backward_half in self._iter_backward_halves(parser_state.category_map, -1, payload.start):
+                for backward_half in self._iter_backward_halves(parser_state.category_map, -1,
+                                                                payload.token_start_index):
                     for forward_half in forward_halves:
                         subtrees = backward_half + forward_half
                         head_offset = len(subtrees) - 2
@@ -141,11 +143,12 @@ class ConjunctionRule(BranchRule):
                         if self._can_match(subtree_categories, head_offset):
                             category = self.get_category(parser_state.model, subtree_categories, head_offset)
                             if self.is_non_recursive(category, subtrees[head_offset].payload.category):
-                                node = trees.ParseTreeUtils.make_parse_tree_node(parser_state.tokens, self,
-                                                                                 head_offset, category, subtrees)
+                                node = trees.ParseTreeUtils.make_branch_parse_tree_node(
+                                    parser_state.tokens, self, head_offset, category, subtrees)
                                 parser_state.add_node(node)
             elif state == 1:  # Followup case/exception
-                for backward_half in self._iter_backward_halves(parser_state.category_map, 0, payload.start):
+                for backward_half in self._iter_backward_halves(parser_state.category_map, 0,
+                                                                payload.token_start_index):
                     for forward_half in forward_halves:
                         subtrees = backward_half + forward_half
                         head_offset = len(subtrees) - 2
@@ -153,8 +156,8 @@ class ConjunctionRule(BranchRule):
                         if self._can_match(subtree_categories, head_offset):
                             category = self.get_category(parser_state.model, subtree_categories, head_offset)
                             if self.is_non_recursive(category, subtrees[head_offset].payload.category):
-                                node = trees.ParseTreeUtils.make_parse_tree_node(parser_state.tokens, self,
-                                                                                 head_offset, category, subtrees)
+                                node = trees.ParseTreeUtils.make_branch_parse_tree_node(
+                                    parser_state.tokens, self, head_offset, category, subtrees)
                                 parser_state.add_node(node)
             else:
                 raise Exception("Unexpected state: " + repr(state))

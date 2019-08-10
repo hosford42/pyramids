@@ -29,7 +29,7 @@ class ParserState:
     #       covered, how much did the maximum parse quality for that token
     #       improve?
     @staticmethod
-    def _insertion_key(node: trees.ParseTreeNode):
+    def _insertion_key(node: trees.TreeNode):
         # width = node.end - node.start
         score, confidence = node.score
 
@@ -133,15 +133,10 @@ class ParserState:
             if not self._category_map.add(node):
                 # Drop it and continue on to the next one. "We've already got one!"
                 continue
-
-            # TODO: For debugging purposes...
-            if self._category_map.get_node_set(node) is None:
-                self._category_map.get_node_set(node)
-
             if not node.is_leaf():
                 self._roots -= set(node.components)
             node_set = self._category_map.get_node_set(node)
-            assert node_set is not None
+            assert node_set is not None, node
             if id(node_set) not in self._node_set_ids:
                 self._node_set_ids.add(id(node_set))
                 # Only add to roots if the node set hasn't already been removed

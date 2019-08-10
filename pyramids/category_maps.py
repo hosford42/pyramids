@@ -31,15 +31,15 @@ class CategoryMap:
     def size(self):
         return self._size
 
-    def add(self, node: trees.ParseTreeNode):
+    def add(self, node: trees.TreeNode[trees.ParsingPayload]):
         """Add the given parse tree node to the category map and return a
         boolean indicating whether it was something new or was already
         mapped."""
 
         cat = node.payload.category
         name = cat.name
-        start = node.payload.start
-        end = node.payload.end
+        start = node.payload.token_start_index
+        end = node.payload.token_end_index
 
         category_name_map = self._map.get(start)
         if category_name_map is None:
@@ -63,7 +63,7 @@ class CategoryMap:
                     else:
                         # No new node sets were added, so we don't need to do anything else.
                         node_set.add(node)
-                        trees.ParseTreeUtils.update_weighted_score(node_set, node)
+                        trees.TreeUtils.update_weighted_score(node_set, node)
                         return False
 
         category_name_map = self._reverse_map.get(end)
@@ -86,7 +86,7 @@ class CategoryMap:
         self._size += 1
         self._ranges.add((start, end))
 
-        trees.ParseTreeUtils.update_weighted_score(node_set, node)
+        trees.TreeUtils.update_weighted_score(node_set, node)
 
         return True  # It's something new
 
@@ -147,8 +147,8 @@ class CategoryMap:
             return ()
         return node_set,
 
-    def get_node_set(self, node: trees.ParseTreeNode):
-        category_name_map = self._map.get(node.payload.start)
+    def get_node_set(self, node: trees.TreeNode[trees.ParsingPayload]):
+        category_name_map = self._map.get(node.payload.token_start_index)
         if category_name_map is None:
             return None
         category_map = category_name_map.get(node.payload.category.name)
@@ -157,7 +157,7 @@ class CategoryMap:
         end_map = category_map.get(node.payload.category)
         if end_map is None:
             return None
-        return end_map.get(node.payload.end)
+        return end_map.get(node.payload.token_end_index)
 
     def has_start(self, start):
         return start in self._map

@@ -2,8 +2,9 @@
 
 from typing import Tuple
 
-from pyramids.categorization import Property, Category
 from pyramids import trees
+from pyramids.categorization import Property, Category
+from pyramids.rules.branch import BranchRule
 
 
 class LanguageContentHandler:
@@ -56,13 +57,13 @@ class DepthFirstTraverser:
         elif isinstance(element, trees.ParseTreeNodeSet):
             self.traverse(element.best_node, handler, is_root)
         else:
-            assert isinstance(element, trees.ParseTreeNode)
+            assert isinstance(element, trees.TreeNode)
             # Hide the return value, since it's only for internal use.
             self._traverse(element, handler, is_root)
 
     # TODO: Break this method up into comprehensible chunks.
     def _traverse(self, element, handler: LanguageContentHandler, is_root=False):
-        assert isinstance(element, trees.ParseTreeNode)
+        assert isinstance(element, trees.TreeNode)
         payload = element.payload
         assert isinstance(payload, trees.ParsingPayload)
         if element.is_leaf():
@@ -70,8 +71,8 @@ class DepthFirstTraverser:
                 handler.handle_root()
 
             head_token_start = trees.ParseTreeUtils.get_head_token_start(element)
-            handler.handle_token(payload.tokens[payload.start], payload.category, head_token_start,
-                                 payload.tokens.spans[payload.start])
+            handler.handle_token(payload.tokens[payload.token_start_index], payload.category, head_token_start,
+                                 payload.tokens.spans[payload.token_start_index])
 
             need_sources = {}
             for prop in payload.category.positive_properties:
@@ -92,9 +93,10 @@ class DepthFirstTraverser:
         for component in element.components:
             assert isinstance(component, trees.ParseTreeNodeSet)
             component = component.best_node
-            assert isinstance(component, trees.ParseTreeNode)
+            assert isinstance(component, trees.TreeNode)
 
-            component_need_sources = self._traverse(component, handler, is_root and index == payload.head_index)
+            component_need_sources = self._traverse(component, handler,
+                                                    is_root and index == payload.head_component_index)
 
             head_token_start = trees.ParseTreeUtils.get_head_token_start(component)
             nodes.append(head_token_start)
@@ -110,16 +112,18 @@ class DepthFirstTraverser:
                 else:
                     need_sources[property_name] = component_need_sources[property_name]
 
-            if index == payload.head_index:
+            if index == payload.head_component_index:
                 head_need_sources = component_need_sources
             index += 1
 
         # Add the links as appropriate for the rule used to build this tree
         for index in range(len(element.components) - 1):
+            rule = payload.rule
+            assert isinstance(payload.rule, BranchRule)
             links = payload.rule.get_link_types(element, index)
 
             # Skip the head node; there won't be any looping links.
-            if index < payload.head_index:
+            if index < payload.head_component_index:
                 left_side = nodes[index]
                 right_side = head_start
             else:

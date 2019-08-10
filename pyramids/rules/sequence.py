@@ -43,22 +43,23 @@ class SequenceRule(BranchRule):
             else:
                 yield []
 
-    def _find_matches(self, parser_state, index, new_node_set: trees.ParseTreeNodeSet):
+    def _find_matches(self, parser_state, index, new_node_set: trees.ParseTreeNodeSet[trees.ParsingPayload]):
         """Given a starting index in the sequence, attempt to find and add
         all parse node sequences in the parser state that can contain the
         new node at that index."""
         # Check forward halves first, because they're less likely, and if we don't find any, we won't even need to
         # bother looking for backward halves.
         payload = new_node_set.payload
-        forward_halves = list(self._iter_forward_halves(parser_state.category_map, index + 1, payload.end))
+        forward_halves = list(self._iter_forward_halves(parser_state.category_map, index + 1, payload.token_end_index))
         if forward_halves:
-            for backward_half in self._iter_backward_halves(parser_state.category_map, index - 1, payload.start):
+            for backward_half in self._iter_backward_halves(parser_state.category_map, index - 1,
+                                                            payload.token_start_index):
                 for forward_half in forward_halves:
                     subtrees = backward_half + [new_node_set] + forward_half
                     category = self.get_category(parser_state.model, [subtree.payload.category for subtree in subtrees])
                     if self.is_non_recursive(category, subtrees[self._head_index].payload.category):
-                        node = trees.ParseTreeUtils.make_parse_tree_node(parser_state.tokens, self, self._head_index,
-                                                                         category, subtrees)
+                        node = trees.ParseTreeUtils.make_branch_parse_tree_node(
+                            parser_state.tokens, self, self._head_index, category, subtrees)
                         parser_state.add_node(node)
 
     def __call__(self, parser_state, new_node_set: trees.ParseTreeNodeSet):
