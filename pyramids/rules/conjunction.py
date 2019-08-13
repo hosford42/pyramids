@@ -1,5 +1,7 @@
+from typing import FrozenSet
+
 from pyramids import trees, categorization
-from pyramids.categorization import CATEGORY_WILDCARD
+from pyramids.categorization import CATEGORY_WILDCARD, LinkLabel
 from pyramids.rules.branch import BranchRule
 from pyramids.properties import CONJUNCTION_PROPERTY, COMPOUND_PROPERTY, SIMPLE_PROPERTY, SINGLE_PROPERTY
 
@@ -42,6 +44,7 @@ class ConjunctionRule(BranchRule):
         self._references = frozenset(category.name for category_set in subcategory_sets
                                      for category in category_set)
         self._has_wildcard = CATEGORY_WILDCARD in self._references
+        self._all_link_types = frozenset(item[0] for item in self._leadup_link_types | self._followup_link_types)
 
     def _can_match(self, subtree_categories, head_index):
         if not self._match_rules:
@@ -51,39 +54,39 @@ class ConjunctionRule(BranchRule):
                 return True
         return False
 
-    def _iter_forward_halves(self, category_map, state, start):
+    def _iter_forward_halves(self, category_map, state, start, emergency):
         if state == -1:  # Leadup case/exception
-            for category, end in category_map.iter_forward_matches(start, self._leadup_categories):
+            for category, end in category_map.iter_forward_matches(start, self._leadup_categories, emergency):
                 for node_set in category_map.iter_node_sets(start, category, end):
-                    for tail in self._iter_forward_halves(category_map, 0, end):
+                    for tail in self._iter_forward_halves(category_map, 0, end, emergency):
                         yield [node_set] + tail
                     if self._compound:
-                        for tail in self._iter_forward_halves(category_map, -1, end):
+                        for tail in self._iter_forward_halves(category_map, -1, end, emergency):
                             yield [node_set] + tail
         elif state == 0:  # Conjunction
-            for category, end in category_map.iter_forward_matches(start, self._conjunction_categories):
+            for category, end in category_map.iter_forward_matches(start, self._conjunction_categories, emergency):
                 for node_set in category_map.iter_node_sets(start, category, end):
-                    for tail in self._iter_forward_halves(category_map, 1, end):
+                    for tail in self._iter_forward_halves(category_map, 1, end, emergency):
                         yield [node_set] + tail
         elif state == 1:  # Followup case/exception
-            for category, end in category_map.iter_forward_matches(start, self._followup_categories):
+            for category, end in category_map.iter_forward_matches(start, self._followup_categories, emergency):
                 for node_set in category_map.iter_node_sets(start, category, end):
                     yield [node_set]
         else:
             raise Exception("Unexpected state: " + repr(state))
 
-    def _iter_backward_halves(self, category_map, state, end):
+    def _iter_backward_halves(self, category_map, state, end, emergency):
         if state == -1:  # Leadup case/exception
-            for category, start in category_map.iter_backward_matches(end, self._leadup_categories):
+            for category, start in category_map.iter_backward_matches(end, self._leadup_categories, emergency):
                 for node_set in category_map.iter_node_sets(start, category, end):
                     if self._compound:
-                        for tail in self._iter_backward_halves(category_map, -1, start):
+                        for tail in self._iter_backward_halves(category_map, -1, start, emergency):
                             yield tail + [node_set]
                     yield [node_set]
         elif state == 0:  # Conjunction
-            for category, start in category_map.iter_backward_matches(end, self._conjunction_categories):
+            for category, start in category_map.iter_backward_matches(end, self._conjunction_categories, emergency):
                 for node_set in category_map.iter_node_sets(start, category, end):
-                    for tail in self._iter_backward_halves(category_map, -1, start):
+                    for tail in self._iter_backward_halves(category_map, -1, start, emergency):
                         yield tail + [node_set]
                     if self._single:
                         yield [node_set]
@@ -92,13 +95,14 @@ class ConjunctionRule(BranchRule):
             # never call this with that state
             raise Exception("Unexpected state: " + repr(state))
 
-    def _find_matches(self, parser_state, state, new_node_set: trees.ParseTreeNodeSet[trees.ParsingPayload]):
+    def _find_matches(self, parser_state, state, new_node_set: trees.TreeNodeSet[trees.ParsingPayload], emergency):
         """Given a starting state (-1 for leadup, 0 for conjunction, 1 for followup), attempt to find and add all parse
         node sequences in the parser state that can contain the new node in that state."""
         # Check forward halves first, because they're less likely, and if we don't find any, we won't even need to
         # bother looking for backward halves.
         payload = new_node_set.payload
-        forward_halves = list(self._iter_forward_halves(parser_state.category_map, state, payload.token_start_index))
+        forward_halves = list(self._iter_forward_halves(parser_state.category_map, state,
+                                                        payload.token_start_index, emergency))
         if forward_halves:
             if state == -1:  # Leadup case/exception
                 for forward_half in forward_halves:
@@ -112,7 +116,7 @@ class ConjunctionRule(BranchRule):
                             parser_state.add_node(node)
                 if self._compound:
                     for backward_half in self._iter_backward_halves(parser_state.category_map, -1,
-                                                                    payload.token_start_index):
+                                                                    payload.token_start_index, emergency):
                         for forward_half in forward_halves:
                             subtrees = backward_half + forward_half
                             head_offset = len(subtrees) - 2
@@ -135,7 +139,7 @@ class ConjunctionRule(BranchRule):
                                     parser_state.tokens, self, head_offset, category, forward_half)
                                 parser_state.add_node(node)
                 for backward_half in self._iter_backward_halves(parser_state.category_map, -1,
-                                                                payload.token_start_index):
+                                                                payload.token_start_index, emergency):
                     for forward_half in forward_halves:
                         subtrees = backward_half + forward_half
                         head_offset = len(subtrees) - 2
@@ -148,7 +152,7 @@ class ConjunctionRule(BranchRule):
                                 parser_state.add_node(node)
             elif state == 1:  # Followup case/exception
                 for backward_half in self._iter_backward_halves(parser_state.category_map, 0,
-                                                                payload.token_start_index):
+                                                                payload.token_start_index, emergency):
                     for forward_half in forward_halves:
                         subtrees = backward_half + forward_half
                         head_offset = len(subtrees) - 2
@@ -165,14 +169,14 @@ class ConjunctionRule(BranchRule):
     # TODO: Think about it really hard: Why does this method (or SequenceRule's) consider anything other than the final
     #       state/index? Maybe there is a good reason, but shouldn't we skip that if we're strictly appending new
     #       tokens? This may be an opportunity for an extreme speedup.
-    def __call__(self, parser_state, new_node_set: trees.ParseTreeNodeSet):
+    def __call__(self, parser_state, new_node_set: trees.TreeNodeSet, emergency=False):
         if not (self._has_wildcard or new_node_set.payload.category.name in self._references):
             return
         for state, subcategory_set in ((-1, self._leadup_categories), (0, self._conjunction_categories),
                                        (1, self._followup_categories)):
             for subcategory in subcategory_set:
                 if new_node_set.payload.category in subcategory:
-                    self._find_matches(parser_state, state, new_node_set)
+                    self._find_matches(parser_state, state, new_node_set, emergency)
                     break  # We only need to do it once for each state
 
     def __hash__(self):
@@ -278,6 +282,10 @@ class ConjunctionRule(BranchRule):
     def link_type_sets(self):
         return (frozenset([(self._leadup_link_types, True, False)]),
                 frozenset([(self._followup_link_types, False, True)]),)
+
+    @property
+    def all_link_types(self) -> FrozenSet[LinkLabel]:
+        return self._all_link_types
 
     def get_link_types(self, parse_node, link_set_index):
         # If it's the last link set interval

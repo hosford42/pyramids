@@ -1,7 +1,8 @@
-from typing import List, Iterator
+from functools import reduce
+from typing import List, Iterator, FrozenSet
 
 from pyramids import trees, categorization
-from pyramids.categorization import CATEGORY_WILDCARD
+from pyramids.categorization import CATEGORY_WILDCARD, LinkLabel
 from pyramids.rules.branch import BranchRule
 
 
@@ -20,40 +21,43 @@ class SequenceRule(BranchRule):
                       hash(self._link_type_sets))
         self._references = frozenset(c.name for s in self._subcategory_sets for c in s)
         self._has_wildcard = CATEGORY_WILDCARD in self._references
+        self._all_link_types = frozenset(reduce(lambda a, b: a | {item[0] for item in b}, self._link_type_sets, set()))
 
-    def _iter_forward_halves(self, category_map, index, start) -> Iterator[List[trees.ParseTreeNodeSet]]:
+    def _iter_forward_halves(self, category_map, index, start, emergency) -> Iterator[List[trees.TreeNodeSet]]:
         # Otherwise, we can't possibly find a match since it would have to fall off the edge
         if len(self._subcategory_sets) - index <= category_map.max_end - start:
             if index < len(self._subcategory_sets):
-                for category, end in category_map.iter_forward_matches(start, self._subcategory_sets[index]):
-                    for tail in self._iter_forward_halves(category_map, index + 1, end):
+                for category, end in category_map.iter_forward_matches(start, self._subcategory_sets[index], emergency):
+                    for tail in self._iter_forward_halves(category_map, index + 1, end, emergency):
                         for node_set in category_map.iter_node_sets(start, category, end):
                             yield [node_set] + tail
             else:
                 yield []
 
-    def _iter_backward_halves(self, category_map, index, end) -> Iterator[List[trees.ParseTreeNodeSet]]:
+    def _iter_backward_halves(self, category_map, index, end, emergency) -> Iterator[List[trees.TreeNodeSet]]:
         # Otherwise, we can't possibly find a match since it would have to fall off the edge
         if index <= end:
             if index >= 0:
-                for category, start in category_map.iter_backward_matches(end, self._subcategory_sets[index]):
-                    for tail in self._iter_backward_halves(category_map, index - 1, start):
+                for category, start in category_map.iter_backward_matches(end, self._subcategory_sets[index],
+                                                                          emergency):
+                    for tail in self._iter_backward_halves(category_map, index - 1, start, emergency):
                         for node_set in category_map.iter_node_sets(start, category, end):
                             yield tail + [node_set]
             else:
                 yield []
 
-    def _find_matches(self, parser_state, index, new_node_set: trees.ParseTreeNodeSet[trees.ParsingPayload]):
+    def _find_matches(self, parser_state, index, new_node_set: trees.TreeNodeSet[trees.ParsingPayload], emergency):
         """Given a starting index in the sequence, attempt to find and add
         all parse node sequences in the parser state that can contain the
         new node at that index."""
         # Check forward halves first, because they're less likely, and if we don't find any, we won't even need to
         # bother looking for backward halves.
         payload = new_node_set.payload
-        forward_halves = list(self._iter_forward_halves(parser_state.category_map, index + 1, payload.token_end_index))
+        forward_halves = list(self._iter_forward_halves(parser_state.category_map, index + 1,
+                                                        payload.token_end_index, emergency))
         if forward_halves:
             for backward_half in self._iter_backward_halves(parser_state.category_map, index - 1,
-                                                            payload.token_start_index):
+                                                            payload.token_start_index, emergency):
                 for forward_half in forward_halves:
                     subtrees = backward_half + [new_node_set] + forward_half
                     category = self.get_category(parser_state.model, [subtree.payload.category for subtree in subtrees])
@@ -62,13 +66,13 @@ class SequenceRule(BranchRule):
                             parser_state.tokens, self, self._head_index, category, subtrees)
                         parser_state.add_node(node)
 
-    def __call__(self, parser_state, new_node_set: trees.ParseTreeNodeSet):
+    def __call__(self, parser_state, new_node_set: trees.TreeNodeSet, emergency=False):
         if not (self._has_wildcard or new_node_set.payload.category.name in self._references):
             return
         for index, subcategory_set in enumerate(self._subcategory_sets):
             for subcategory in subcategory_set:
                 if new_node_set.payload.category in subcategory:
-                    self._find_matches(parser_state, index, new_node_set)
+                    self._find_matches(parser_state, index, new_node_set, emergency)
                     break
 
     def __hash__(self):
@@ -135,6 +139,10 @@ class SequenceRule(BranchRule):
     def head_category_set(self):
         """The category set for the head of the generated parse tree nodes."""
         return self._subcategory_sets[self._head_index]
+
+    @property
+    def all_link_types(self) -> FrozenSet[LinkLabel]:
+        return self._all_link_types
 
     def get_link_types(self, parse_node, link_set_index):
         return self._link_type_sets[link_set_index]

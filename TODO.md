@@ -34,7 +34,7 @@ When there's time to get around to it:
   given name has a given property (or combination thereof) it also has such-and-such other
   properties. Then remove all rules that just do this from the grammar file and make them a 
   syntax error. The most important thing here is that we eliminate the 1000s of different 
-  ways a single node can end up with the same properties just from adding them in a different 
+  ways a single node can token_end_index up with the same properties just from adding them in a different 
   order. These property inheritance rules should be applied to every node before it is added 
   to the category map. To ensure conflicts don't cause issues due to variation in the order 
   the inheritance rules are applied, strict rules will have to be enforced on the order the 

@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
-
 from itertools import product
 
-import pyramids.rules.conjunction
-import pyramids.rules.leaf
-from pyramids import graphs, rules, trees
-from pyramids.parsing import log
+from pyramids import graphs, trees
+from pyramids.rules import leaf, conjunction
 from pyramids.utils import extend_properties
 
 
@@ -19,8 +16,6 @@ class GenerationAlgorithm:
         head_spelling = sentence[head_node][1]
         head_category = sentence[head_node][3]
 
-        log.debug("%s %s", head_spelling, head_category.to_str(False))
-
         # Find the subnodes of the head node
         subnodes = sentence.get_sinks(head_node)
 
@@ -29,7 +24,7 @@ class GenerationAlgorithm:
 
         # Find all leaves for the head node
         subtrees[head_node] = set()
-        positive_case_properties, negative_case_properties = pyramids.rules.leaf.LeafRule.discover_case_properties(head_spelling)
+        positive_case_properties, negative_case_properties = leaf.LeafRule.discover_case_properties(head_spelling)
         for rule in model.primary_leaf_rules:
             if head_spelling in rule:
                 category = rule.category.promote_properties(positive_case_properties, negative_case_properties)
@@ -153,7 +148,7 @@ class GenerationAlgorithm:
         if not component_head_candidates:
             return None
         component_candidates = set()
-        if isinstance(rule, pyramids.rules.conjunction.ConjunctionRule):
+        if isinstance(rule, conjunction.ConjunctionRule):
             for candidate in component_head_candidates:
                 for subtree in subtrees[candidate]:
                     if subtree.category in head_category:

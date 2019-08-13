@@ -3,10 +3,11 @@
 """
 A parser model, consisting of a set of grammar rules.
 """
+from typing import FrozenSet
+
 import pyramids.rules.sequence
-from pyramids import rules
+from pyramids.categorization import make_property_set, Category, Property, LinkLabel
 from pyramids.config import ModelConfig
-from pyramids.categorization import make_property_set
 
 __author__ = 'Aaron Hosford'
 __version__ = '1.0.0'
@@ -20,8 +21,12 @@ __all__ = [
 class Model:
     """A parser model, consisting of a set of grammar rules."""
 
-    def __init__(self, primary_leaf_rules, secondary_leaf_rules, branch_rules, tokenizer, any_promoted_properties,
-                 all_promoted_properties, property_inheritance_rules, config_info=None):
+    def __init__(self, default_restriction, top_level_properties, link_types, primary_leaf_rules, secondary_leaf_rules,
+                 branch_rules, tokenizer, any_promoted_properties, all_promoted_properties, property_inheritance_rules,
+                 config_info=None):
+        self._default_restriction = default_restriction
+        self._top_level_properties = make_property_set(top_level_properties)
+        self._link_types = link_types
         self._primary_leaf_rules = frozenset(primary_leaf_rules)
         self._secondary_leaf_rules = frozenset(secondary_leaf_rules)
         self._branch_rules = frozenset(branch_rules)
@@ -40,6 +45,20 @@ class Model:
                     if link_type not in self._sequence_rules_by_link_type:
                         self._sequence_rules_by_link_type[link_type] = set()
                     self._sequence_rules_by_link_type[link_type].add((rule, index))
+
+    @property
+    def default_restriction(self) -> Category:
+        """The category that should be used as the restriction for most parsing operations."""
+        return self._default_restriction
+
+    @property
+    def top_level_properties(self) -> FrozenSet[Property]:
+        """Properties that are of relevance at the root of the parse tree."""
+        return self._top_level_properties
+
+    @property
+    def link_types(self) -> FrozenSet[LinkLabel]:
+        return self._link_types
 
     @property
     def any_promoted_properties(self):

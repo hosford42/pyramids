@@ -12,7 +12,7 @@ class LanguageContentHandler:
     ContentHandler class of the xml.sax module."""
 
     def handle_tree_end(self) -> None:
-        """Called to indicate the end of a tree."""
+        """Called to indicate the token_end_index of a tree."""
 
     def handle_token(self, spelling: str, category: Category, index: int = None, span: Tuple[int, int] = None) -> None:
         """Called to indicate the occurrence of a token."""
@@ -26,10 +26,10 @@ class LanguageContentHandler:
         called for both the source and sink."""
 
     def handle_phrase_start(self, category: Category, head_start_index: int = None) -> None:
-        """Called to indicate the start of a phrase."""
+        """Called to indicate the token_start_index of a phrase."""
 
     def handle_phrase_end(self) -> None:
-        """Called to indicate the end of a phrase."""
+        """Called to indicate the token_end_index of a phrase."""
 
 
 class DepthFirstTraverser:
@@ -44,7 +44,7 @@ class DepthFirstTraverser:
             scores = {tree: tree.get_weighted_score() for tree in element.parse_trees}
 
             for tree in sorted(element.parse_trees,
-                               key=lambda tree: (tree.start, -tree.end, -scores[tree][0], -scores[tree][1])):
+                               key=lambda tree: (tree.token_start_index, -tree.token_end_index, -scores[tree][0], -scores[tree][1])):
                 self.traverse(tree, handler)
                 handler.handle_tree_end()
         elif isinstance(element, trees.ParseTree):
@@ -54,7 +54,7 @@ class DepthFirstTraverser:
             #       filtered out then, so we should *never* get a need source
             #       here.
             self.traverse(element.root, handler, True)
-        elif isinstance(element, trees.ParseTreeNodeSet):
+        elif isinstance(element, trees.TreeNodeSet):
             self.traverse(element.best_node, handler, is_root)
         else:
             assert isinstance(element, trees.TreeNode)
@@ -91,7 +91,7 @@ class DepthFirstTraverser:
         head_need_sources = {}
         index = 0
         for component in element.components:
-            assert isinstance(component, trees.ParseTreeNodeSet)
+            assert isinstance(component, trees.TreeNodeSet)
             component = component.best_node
             assert isinstance(component, trees.TreeNode)
 
@@ -132,7 +132,7 @@ class DepthFirstTraverser:
 
             for label, left, right in links:
                 if left:
-                    if label.lower() in head_need_sources:
+                    if str(label).lower() in head_need_sources:
                         #     and not (Property.get('needs_' + label.lower()) in self.category.positive_properties or
                         #              Property.get('takes_' + label.lower()) in self.category.positive_properties):
                         for node in need_sources[label.lower()]:
@@ -144,7 +144,7 @@ class DepthFirstTraverser:
                         handler.handle_link(right_side, left_side, label)
 
                 if right:
-                    if label.lower() in head_need_sources:
+                    if str(label).lower() in head_need_sources:
                         #     and not (Property.get('needs_' + label.lower()) in self.category.positive_properties or
                         #              Property.get('takes_' + label.lower()) in self.category.positive_properties):
                         for node in need_sources[label.lower()]:

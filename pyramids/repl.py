@@ -9,6 +9,11 @@ import time
 import traceback
 from typing import Optional, List, Iterator, Tuple
 
+try:
+    from graphviz import Digraph
+except ImportError:
+    Digraph = None
+
 from pyramids.grammar import GrammarParser
 from pyramids.trees import Parse
 
@@ -32,8 +37,7 @@ __all__ = [
 ]
 
 
-def function_to_profile():
-    """Placeholder function for profiler."""
+function_to_profile = None
 
 
 class ParserCmd(cmd.Cmd):
@@ -51,6 +55,7 @@ class ParserCmd(cmd.Cmd):
         self._parse_index = 0
         self._fast = False
         self._timeout_interval = 5
+        self._emergency_mode = False
         self._benchmark_path = None
         self._benchmark = None  # type: Optional[SampleSet]
         self._benchmark_dirty = False
@@ -328,12 +333,12 @@ class ParserCmd(cmd.Cmd):
         else:
             print("Set parsing timeout duration to " + str(self._timeout_interval) + " seconds.")
 
-    def _do_parse(self, line, timeout, new_parser_state=True, restriction_category=None, fast=None):
+    def _do_parse(self, line, timeout, new_parser_state=True, restriction_category=None, fast=None, emergency=False):
         if fast is None:
             fast = self._fast
         if new_parser_state or self._parser_state is None:
             self._parser_state = ParsingAlgorithm.new_parser_state(self._model)
-        parse = ParsingAlgorithm.parse(self._parser_state, line, fast, timeout)
+        parse = ParsingAlgorithm.parse(self._parser_state, line, fast, timeout, emergency)
         parse_timed_out = time.time() >= timeout
         emergency_disambiguation = False
         if restriction_category:
@@ -352,7 +357,7 @@ class ParserCmd(cmd.Cmd):
         self._last_input_text = line
         return emergency_disambiguation, parse_timed_out, disambiguation_timed_out
 
-    def _handle_parse(self, line, new_parser_state=True, restriction_category=None, fast=None):
+    def _handle_parse(self, line, new_parser_state=True, restriction_category=None, fast=None, emergency=False):
         """Handle parsing on behalf of do_parse, do_as, and do_extend."""
         if not line:
             print("Nothing to parse.")
@@ -360,7 +365,7 @@ class ParserCmd(cmd.Cmd):
         start_time = time.time()
         timeout = start_time + self._timeout_interval
         emergency_disambig, parse_timed_out, disambig_timed_out = self._do_parse(line, timeout, new_parser_state,
-                                                                                 restriction_category, fast)
+                                                                                 restriction_category, fast, emergency)
         end_time = time.time()
         print('')
         if parse_timed_out:
@@ -379,7 +384,7 @@ class ParserCmd(cmd.Cmd):
 
     def do_parse(self, line):
         """Parse an input string and print the highest-scoring parse for it."""
-        self._handle_parse(line)
+        self._handle_parse(line, emergency=self._emergency_mode)
 
     def do_as(self, line):
         """Parse an input string as a particular category and print the highest-scoring parse for it."""
@@ -389,12 +394,12 @@ class ParserCmd(cmd.Cmd):
         category_definition = line.split()[0]
         category = GrammarParser.parse_category(category_definition)
         line = line[len(category_definition):].strip()
-        self._handle_parse(line, restriction_category=category)
+        self._handle_parse(line, restriction_category=category, emergency=self._emergency_mode)
 
     def do_extend(self, line):
         """Extend the previous input string with additional text and print the highest-scoring parse for the combined
         input strings."""
-        self._handle_parse(line, new_parser_state=False)
+        self._handle_parse(line, new_parser_state=False, emergency=self._emergency_mode)
 
     def do_files(self, line):
         """List the word list files containing a given word."""
@@ -861,8 +866,8 @@ class ParserCmd(cmd.Cmd):
     def _training_attempt_iterator(self, text: Input, target: Target) -> Iterator[Tuple[Attempt, FeedbackReceiver]]:
         print(text)
 
-        # Restrict it to the correct category and start from there. This gives the parser a leg up when it's far
-        # from the correct response.
+        # Restrict it to the correct category and token_start_index from there. This gives the parser a leg up when
+        # it's far from the correct response.
         split_index = target.index(':')
         target_category = GrammarParser.parse_category(target[:split_index])
         start_time = time.time()
@@ -952,7 +957,7 @@ class ParserCmd(cmd.Cmd):
         if line:
             print("'training' command does not accept arguments.")
             return
-        if not self._benchmark.samples:
+        if not self._benchmark:
             print("No benchmarking samples.")
             return
         iteration = 0
@@ -974,8 +979,7 @@ class ParserCmd(cmd.Cmd):
         if not self._benchmark.samples:
             print("No benchmarking samples.")
             return
-        print(str(
-            len(self._benchmark.samples)) + " recorded benchmark samples:")
+        print(str(len(self._benchmark.samples)) + " recorded benchmark samples:")
         max_tokens = 0
         total_tokens = 0
         for input_val in sorted(self._benchmark.samples):
@@ -988,6 +992,38 @@ class ParserCmd(cmd.Cmd):
         print("Longest benchmark sample: " + str(max_tokens) + " tokens")
         print("Average benchmark sample length: " + str(round(total_tokens / float(len(self._benchmark.samples)), 1)) +
               " tokens")
+
+    def do_visualize(self, line):
+        """Visualize the most recent parse."""
+        if line:
+            print("'visualize' command does not accept arguments.")
+            return
+        if Digraph is None:
+            print('The graphviz library is not installed.')
+            return
+        if self.parses_available:
+            parse = self._parses[self._parse_index]
+            gv_graph = Digraph()
+            for graph in parse.get_parse_graphs():
+                with gv_graph.subgraph() as subgraph:
+                    graph.visualize(subgraph)
+            gv_graph.view()
+        else:
+            print("No parses found.")
+
+    def do_emergency(self, line):
+        """Set, clear, or display the emergency parsing mode flag."""
+        line = line.strip()
+        if line == 'on':
+            self._emergency_mode = True
+            print("Emergency mode is on.")
+        elif line == 'off':
+            self._emergency_mode = False
+            print("Emergency mode is off.")
+        elif not line:
+            print('Emergency mode is %s.' % ('on' if self._emergency_mode else 'off'))
+        else:
+            print('Unexpected argument: ' + line)
 
 
 def repl(model_loader: ModelLoader):

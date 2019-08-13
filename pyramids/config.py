@@ -48,6 +48,12 @@ class ModelConfig:
         self._discard_spaces = config_parser.getboolean('Tokenizer', 'Discard Spaces')
 
         # Properties
+        self._default_restriction = config_parser.get('Properties', 'Default Restriction', fallback='sentence')
+        self._top_level_properties = frozenset(
+            categorization.Property.get(prop.strip())
+            for prop in config_parser.get('Properties', 'Top-Level Properties').split(';')
+            if prop.strip()
+        )
         self._any_promoted_properties = frozenset(
             categorization.Property.get(prop.strip())
             for prop in config_parser.get('Properties', 'Any-Promoted Properties').split(';')
@@ -116,6 +122,16 @@ class ModelConfig:
     def discard_spaces(self):
         """Whether to discard spaces when tokenizing"""
         return self._discard_spaces
+
+    @property
+    def default_restriction(self) -> str:
+        """The category that should be used as the restriction for most parsing operations."""
+        return self._default_restriction
+
+    @property
+    def top_level_properties(self):
+        """Properties that are of relevance at the root of the parse tree."""
+        return self._top_level_properties
 
     @property
     def any_promoted_properties(self):

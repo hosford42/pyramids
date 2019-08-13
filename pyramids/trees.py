@@ -30,7 +30,7 @@ __author__ = 'Aaron Hosford'
 __all__ = [
     'TreeNode',
     'BuildTreeNode',
-    'ParseTreeNodeSet',
+    'TreeNodeSet',
     'ParseTree',
     'Parse',
 ]
@@ -60,15 +60,17 @@ _ParsingPayload = NamedTuple('ParsingPayload', [('tokens', TokenSequence), ('rul
 class ParsingPayload(_ParsingPayload, PayloadInterface):
     """Payload used for tree nodes at parse time."""
 
-    def is_compatible_with(self, other: 'ParsingPayload'):
+    def is_compatible_with(self, other: 'PayloadInterface'):
         """Return whether two nodes holding this and the other payload are compatible to share a single node set."""
+        if not isinstance(other, ParsingPayload):
+            return False
         return (other.token_start_index == self.token_start_index and
                 other.token_end_index == self.token_end_index and
                 other.category == self.category)
 
     @property
     def token_index_span(self) -> Tuple[int, int]:
-        """Return the start and end token indices of the phrase covered by this parse tree node."""
+        """Get the start and end token indices of the phrase covered by this parse tree node."""
         return self.token_start_index, self.token_end_index
 
 
@@ -78,9 +80,12 @@ _GenerationPayload = NamedTuple('GenerationPayload', [('rule', ParseRule), ('cat
 
 
 class GenerationPayload(_GenerationPayload, PayloadInterface):
+    """Payload used for tree nodes at generation time."""
 
-    def is_compatible_with(self, other: 'GenerationPayload'):
+    def is_compatible_with(self, other: PayloadInterface):
         """Return whether two nodes holding this and the other payload are compatible to share a single node set."""
+        if not isinstance(other, GenerationPayload):
+            return False
         return self.covered_graph_indices == other.covered_graph_indices and self.category == other.category
 
 
@@ -474,7 +479,7 @@ class BuildTreeNode:
         return result
 
 
-class ParseTreeNodeSet(TreeNodeInterface[PayloadType]):
+class TreeNodeSet(TreeNodeInterface[PayloadType]):
     """A set of tree nodes that cover the same phrase with the same category."""
 
     def __init__(self, nodes: Union[TreeNodeInterface[PayloadType], Iterable[TreeNodeInterface[PayloadType]]]):
@@ -575,7 +580,7 @@ class ParseTreeNodeSet(TreeNodeInterface[PayloadType]):
 
     def add(self, node: TreeNodeInterface[PayloadType]) -> None:
         """Add a new node to this node set."""
-        if isinstance(node, ParseTreeNodeSet):
+        if isinstance(node, TreeNodeSet):
             for member in node:
                 self.add(member)
         else:
@@ -608,12 +613,8 @@ class ParseTreeNodeSet(TreeNodeInterface[PayloadType]):
 class ParseTree:
     """Represents a complete parse tree."""
 
-    def __init__(self, tokens, root):
-        if not isinstance(tokens, tokenization.TokenSequence):
-            raise TypeError(tokens, tokenization.TokenSequence)
+    def __init__(self, tokens: tokenization.TokenSequence, root: TreeNodeSet[ParsingPayload]):
         self._tokens = tokens
-        if not isinstance(root, ParseTreeNodeSet):
-            raise TypeError(root, ParseTreeNodeSet)
         self._root = root
 
     def __repr__(self):
@@ -636,34 +637,30 @@ class ParseTree:
         return not (self == other)
 
     @property
-    def tokens(self):
+    def tokens(self) -> tokenization.TokenSequence:
         return self._tokens
 
     @property
-    def root(self):
+    def root(self) -> TreeNodeSet:
         return self._root
 
     @property
-    def category(self):
+    def category(self) -> Category:
         return self._root.best_node.payload.category
 
     @property
-    def start(self):
+    def token_start_index(self) -> int:
         return self._root.best_node.payload.token_start_index
 
     @property
-    def end(self):
+    def token_end_index(self) -> int:
         return self._root.best_node.payload.token_end_index
 
     @property
-    def span(self):
-        return self._root.best_node.payload.token_index_span
-
-    @property
-    def coverage(self):
+    def coverage(self) -> int:
         return self._root.coverage
 
-    def to_str(self, simplify=True):
+    def to_str(self, simplify=True) -> str:
         return ParseTreeUtils.to_str(self._root.best_node, simplify)
 
     def restrict(self, categories):
@@ -673,7 +670,8 @@ class ParseTree:
         return results
 
     def is_ambiguous_with(self, other):
-        return self.start <= other.start < self.end or other.start <= self.start < other.end
+        return (self.token_start_index <= other.token_start_index < self.token_end_index or
+                other.token_start_index <= self.token_start_index < other.token_end_index)
 
     def get_weighted_score(self):
         return self.root.score
@@ -743,7 +741,7 @@ class Parse:
         return reduce(lambda a, b: a * b, (tree.coverage for tree in self._parse_trees), 1)
 
     def to_str(self, simplify=True):
-        return '\n'.join(tree.to_str(simplify) for tree in sorted(self._parse_trees))
+        return '\n'.join(tree.to_str(simplify) for tree in self._parse_trees)
 
     def get_rank(self):
         score, weight = self.get_weighted_score()
@@ -815,10 +813,11 @@ class Parse:
         elif index < max_index and pieces > 0:
             nearest_end = None
             for tree in self._parse_trees:
-                if tree.start == index:
-                    if nearest_end is None or tree.end < nearest_end:
-                        nearest_end = tree.end
-                    for tail in self._iter_disambiguation_tails(tree.end, max_index, gaps, pieces - 1, timeout):
+                if tree.token_start_index == index:
+                    if nearest_end is None or tree.token_end_index < nearest_end:
+                        nearest_end = tree.token_end_index
+                    for tail in self._iter_disambiguation_tails(tree.token_end_index, max_index, gaps, pieces - 1,
+                                                                timeout):
                         yield [tree] + tail
             if nearest_end is None:
                 if gaps > 0:
@@ -875,7 +874,7 @@ class Parse:
         index = -1
         for index in range(len(self._tokens)):
             for tree in self._parse_trees:
-                if tree.start <= index < tree.end:
+                if tree.token_start_index <= index < tree.token_end_index:
                     if gap_start is not None:
                         yield gap_start, index
                         gap_start = None
@@ -900,7 +899,7 @@ class Parse:
     def max_tree_width(self):
         max_width = 0
         for tree in self._parse_trees:
-            width = tree.end - tree.start
+            width = tree.token_end_index - tree.token_start_index
             if max_width is None or width > max_width:
                 max_width = width
         return max_width

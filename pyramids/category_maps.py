@@ -43,22 +43,22 @@ class CategoryMap:
 
         category_name_map = self._map.get(start)
         if category_name_map is None:
-            node_set = trees.ParseTreeNodeSet(node)
+            node_set = trees.TreeNodeSet(node)
             self._map[start] = {name: {cat: {end: node_set}}}
         else:
             category_map = category_name_map.get(name)
             if category_map is None:
-                node_set = trees.ParseTreeNodeSet(node)
+                node_set = trees.TreeNodeSet(node)
                 category_name_map[name] = {cat: {end: node_set}}
             else:
                 end_map = category_map.get(cat)
                 if end_map is None:
-                    node_set = trees.ParseTreeNodeSet(node)
+                    node_set = trees.TreeNodeSet(node)
                     category_map[cat] = {end: node_set}
                 else:
                     node_set = end_map.get(end)
                     if node_set is None:
-                        node_set = trees.ParseTreeNodeSet(node)
+                        node_set = trees.TreeNodeSet(node)
                         end_map[end] = node_set
                     else:
                         # No new node sets were added, so we don't need to do anything else.
@@ -90,7 +90,7 @@ class CategoryMap:
 
         return True  # It's something new
 
-    def iter_forward_matches(self, start, categories):
+    def iter_forward_matches(self, start, categories, emergency=False):
         category_name_map = self._map.get(start)
         if category_name_map is None:
             return
@@ -98,18 +98,18 @@ class CategoryMap:
             if category.is_wildcard():
                 for category_name, category_map in category_name_map.items():
                     for mapped_category, end_map in category_map.items():
-                        if mapped_category in category:
+                        if emergency or mapped_category in category:
                             for end in end_map:
                                 yield mapped_category, end
             else:
                 category_map = category_name_map.get(category.name)
                 if category_map is not None:
                     for mapped_category, end_map in category_map.items():
-                        if mapped_category in category:
+                        if emergency or mapped_category in category:
                             for end in end_map:
                                 yield mapped_category, end
 
-    def iter_backward_matches(self, end, categories):
+    def iter_backward_matches(self, end, categories, emergency=False):
         category_name_map = self._reverse_map.get(end)
         if category_name_map is None:
             return
@@ -117,14 +117,14 @@ class CategoryMap:
             if category.is_wildcard():
                 for category_name, category_map in category_name_map.items():
                     for mapped_category, start_map in category_map.items():
-                        if mapped_category in category:
+                        if emergency or mapped_category in category:
                             for start in start_map:
                                 yield mapped_category, start
             else:
                 category_map = category_name_map.get(category.name)
                 if category_map is not None:
                     for mapped_category, start_map in category_map.items():
-                        if mapped_category in category:
+                        if emergency or mapped_category in category:
                             for start in start_map:
                                 yield mapped_category, start
 

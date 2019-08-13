@@ -57,7 +57,10 @@ cdef class InternedString:
         return str(a) + str(b)
 
     def startswith(self, other) -> bool:
-        return self.value.startswith(str(other))
+        return self.value.startswith(other)
+
+    def endswith(self, other) -> bool:
+        return self.value.endswith(other)
 
     def __getitem__(self, x):
         return self.value[x]
@@ -101,11 +104,31 @@ cdef class Property(InternedString):
     def __repr__(self) -> str:
         return 'Property.get(%r)' % self.value
 
-#    def __getstate__(self) -> str:
-#        return self.value
-#
-#    def __setstate__(self, state) -> str:
-#        self.value = _property_interner.intern(state).value
+
+cdef class CategoryName(InternedString):
+
+    @staticmethod
+    def get(name) -> CategoryName:
+        if isinstance(name, CategoryName):
+            return name
+        else:
+            return _category_name_interner.intern(name)
+
+    def __repr__(self) -> str:
+        return 'CategoryName.get(%r)' % self.value
+
+
+cdef class LinkLabel(InternedString):
+
+    @staticmethod
+    def get(name) -> LinkLabel:
+        if isinstance(name, LinkLabel):
+            return name
+        else:
+            return _link_label_interner.intern(name)
+
+    def __repr__(self) -> str:
+        return 'LinkLabel.get(%r)' % self.value
 
 
 cpdef frozenset make_property_set(properties):
@@ -305,8 +328,9 @@ cdef class Category:
         return category
 
 
-cdef StringInterner _category_name_interner = StringInterner()
+cdef StringInterner _category_name_interner = StringInterner(CategoryName)
 cdef StringInterner _property_interner = StringInterner(Property)
+cdef StringInterner _link_label_interner = StringInterner(LinkLabel)
 cdef InternedString _CATEGORY_WILDCARD = _category_name_interner.intern("_")
 
 
@@ -319,3 +343,7 @@ def get_all_category_names() -> frozenset:
 
 def get_all_properties() -> frozenset:
     return _property_interner.get_all()
+
+
+def get_all_link_labels() -> frozenset:
+    return _link_label_interner.get_all()

@@ -18,8 +18,6 @@ __all__ = [
     'Parser',
 ]
 
-log = logging.getLogger(__name__)
-
 
 class ParserState:
     """The state of the parser as parsing proceeds."""
@@ -30,7 +28,7 @@ class ParserState:
     #       improve?
     @staticmethod
     def _insertion_key(node: trees.TreeNode):
-        # width = node.end - node.start
+        # width = node.token_end_index - node.token_start_index
         score, confidence = node.score
 
         # same_rule_count = 0
@@ -38,10 +36,10 @@ class ParserState:
         #     if item.rule is node.rule:
         #         same_rule_count += 1
 
-        # no_predecessor = node.start > 0 and not self._category_map.has_range(0, node.start)
+        # no_predecessor = node.token_start_index > 0 and not self._category_map.has_range(0, node.token_start_index)
         # no_successor = (
-        #   node.end < self._category_map.max_end and
-        #   not self._category_map.has_range(node.end, self._category_map.max_end)
+        #   node.token_end_index < self._category_map.max_end and
+        #   not self._category_map.has_range(node.token_end_index, self._category_map.max_end)
         # )
 
         # Always sorts smallest to largest, so make the best the smallest.
@@ -104,7 +102,7 @@ class ParserState:
         """Returns a boolean indicating whether a node exists that covers
         the entire input by itself."""
         for node_set in self._roots:
-            if node_set.end - node_set.start >= len(self._tokens):
+            if node_set.payload.token_end_index - node_set.payload.token_start_index >= len(self._tokens):
                 return True
         return False
 
@@ -123,7 +121,7 @@ class ParserState:
                 leaf_rule(self, token, index)
 
     # TODO: Move to ParsingAlgorithm
-    def process_node(self, timeout=None):
+    def process_node(self, timeout=None, emergency=False):
         """Search for the next parse tree node in the insertion queue that
         makes an original contribution to the parse. If any is found,
         process it. Return a boolean indicating whether there are more
@@ -142,23 +140,24 @@ class ParserState:
                 # Only add to roots if the node set hasn't already been removed
                 self._roots.add(node_set)
             for branch_rule in self._model.branch_rules:
-                branch_rule(self, node_set)
+                branch_rule(self, node_set, emergency)
             break
         return bool(self._insertion_queue)
 
     # TODO: Move to ParserAlgorithm
-    def process_necessary_nodes(self, timeout=None):
+    def process_necessary_nodes(self, timeout=None, emergency=False):
         """Process pending nodes until they are exhausted or the entire
         input is covered by a single tree."""
         # TODO: This isn't always working. Sometimes I don't get a complete
         #       parse. I checked, and is_covered is not the problem.
-        while not self.is_covered() and self.process_node() and (timeout is None or time.time() < timeout):
+        while (not self.is_covered() and self.process_node(timeout, emergency) and
+               (timeout is None or time.time() < timeout)):
             pass  # The condition call does all the work.
 
     # TODO: Move to ParsingAlgorithm
-    def process_all_nodes(self, timeout=None):
+    def process_all_nodes(self, timeout=None, emergency=False):
         """Process all pending nodes."""
-        while self.process_node(timeout) and (timeout is None or time.time() < timeout):
+        while self.process_node(timeout, emergency) and (timeout is None or time.time() < timeout):
             pass  # The condition call does all the work.
 
     def get_parse(self):
@@ -181,14 +180,14 @@ class ParsingAlgorithm:
         return ParserState(model)
 
     @staticmethod
-    def parse(parser_state, text, fast=False, timeout=None):
+    def parse(parser_state, text, fast=False, timeout=None, emergency=False):
         """Parses a piece of text, returning the results."""
         for token, start, end in parser_state.model.tokenizer.tokenize(text):
             parser_state.add_token(token, start, end)
         if fast:
-            parser_state.process_necessary_nodes(timeout)
+            parser_state.process_necessary_nodes(timeout, emergency)
         else:
-            parser_state.process_all_nodes(timeout)
+            parser_state.process_all_nodes(timeout, emergency)
         return parser_state.get_parse()
 
     @staticmethod
@@ -212,14 +211,16 @@ class Parser:
 
     # TODO: Fix this so it returns an empty list, rather than a list containing
     #       an empty parse, if the text could not be parsed.
-    def parse(self, text, category=None, fast=False, timeout=None, fresh=True):
+    def parse(self, text, category=None, fast=False, timeout=None, fresh=True, emergency=False):
         if isinstance(category, str):
             category = GrammarParser.parse_category(category)
+        else:
+            category = self._model.default_restriction
 
         if fresh or not self._parser_state:
             self.clear_state()
 
-        result = ParsingAlgorithm.parse(self._parser_state, text, fast, timeout)
+        result = ParsingAlgorithm.parse(self._parser_state, text, fast, timeout, emergency)
 
         if timeout:
             parse_timed_out = time.time() >= timeout

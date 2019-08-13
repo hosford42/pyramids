@@ -91,6 +91,9 @@ class ModelLoader:
             self.save_scoring_features(model, config_info.score_file)
 
     def _create_model(self, config_info, tokenizer):
+        default_restriction = GrammarParser.parse_category(config_info.default_restriction)
+        top_level_properties = config_info.top_level_properties
+
         # Properties
         property_inheritance_rules = []
         for path in config_info.property_inheritance_files:
@@ -113,9 +116,14 @@ class ModelLoader:
         for case in config_info.name_cases:
             secondary_leaf_rules.append(CaseRule(Category('name'), case))
 
-        return Model(primary_leaf_rules, secondary_leaf_rules, branch_rules, tokenizer,
-                     config_info.any_promoted_properties, config_info.all_promoted_properties,
-                     property_inheritance_rules, config_info)
+        model_link_types = set()
+        for rule in branch_rules:
+            model_link_types.update(rule.all_link_types)
+        model_link_types = frozenset(model_link_types)
+
+        return Model(default_restriction, top_level_properties, model_link_types, primary_leaf_rules,
+                     secondary_leaf_rules, branch_rules, tokenizer, config_info.any_promoted_properties,
+                     config_info.all_promoted_properties, property_inheritance_rules, config_info)
 
     def load_model_config(self, path: str = None) -> ModelConfig:
         """Load the model config info and return it."""

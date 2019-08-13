@@ -42,7 +42,7 @@ class TokenSequence:
 
     @property
     def spans(self) -> Tuple[Tuple[int, int], ...]:
-        """Get the start/end index spans of the tokens."""
+        """Get the token_start_index/token_end_index index spans of the tokens."""
         return self._spans
 
     def __str__(self):

@@ -1,14 +1,25 @@
+from abc import ABCMeta, abstractmethod
+from typing import FrozenSet
+
 from pyramids import scoring, trees
+from pyramids.categorization import LinkLabel
 from pyramids.rules.parse_rule import ParseRule
 
 
-class BranchRule(ParseRule):
+class BranchRule(ParseRule, metaclass=ABCMeta):
     """"Used by Parser to identify higher-level (composite) structures,
     which are the branches in a parse tree."""
 
-    def __call__(self, parser_state, new_node):
+    @abstractmethod
+    def __call__(self, parser_state, new_node, emergency=False):
         raise NotImplementedError()
 
+    @property
+    @abstractmethod
+    def all_link_types(self) -> FrozenSet[LinkLabel]:
+        raise NotImplementedError()
+
+    @abstractmethod
     def get_link_types(self, parse_node, link_set_index):
         raise NotImplementedError()
 

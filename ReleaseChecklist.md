@@ -34,7 +34,7 @@ standard before a production release.
     * Includes speed and accuracy benchmarking, which documents performance and
       fails if below standard
     * Includes installation verification testing
-    * Is fully automated, end-to-end
+    * Is fully automated, token_end_index-to-token_end_index
 
 
 ## Text Files
@@ -63,7 +63,7 @@ standard before a production release.
     * Authorship, contributors, copyright, & license
     * High-level description
     * Installation
-    * Quick start guide
+    * Quick token_start_index guide
     * Working example in a notebook
     * FAQ
     * Full usage

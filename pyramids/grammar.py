@@ -6,7 +6,7 @@ Parsing of grammar files
 
 from typing import Tuple, List, Iterable
 
-from pyramids.categorization import Category, Property
+from pyramids.categorization import Category, Property, LinkLabel
 from pyramids.rules.conjunction import ConjunctionRule
 from pyramids.rules.last_term_match import LastTermMatchRule
 from pyramids.rules.one_term_match import OneTermMatchRule
@@ -153,7 +153,7 @@ class GrammarParser:
             term = term[:-1]
         if not term:
             raise GrammarSyntaxError("Expected: link type", offset=offset + left)
-        return term, left, right
+        return LinkLabel.get(term), left, right
 
     def parse_branch_rule(self, category, definition, offset=1):
         subcategory_sets = []
