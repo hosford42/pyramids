@@ -6,14 +6,13 @@ import threading
 import time
 import traceback
 from io import BytesIO
-from tkinter import Tk, Canvas, mainloop, Text, END, Scrollbar, VERTICAL, HORIZONTAL, Frame, Label, Button, \
+from tkinter import Tk, Canvas, Text, END, Scrollbar, VERTICAL, HORIZONTAL, Frame, Label, Button, \
     Checkbutton, IntVar, TclError
 from tkinter.ttk import Separator, Combobox
 from typing import Union, Tuple, Optional, Dict, List, Sequence
 
 import PIL.Image
 from PIL.ImageTk import PhotoImage
-
 from pyramids.model import Model
 
 try:
@@ -204,45 +203,44 @@ class TokenEditingFrame(Frame):
             self.link_selector_maps.append(link_selector_map)
         assert len(self.link_selector_maps) == len(graph.tokens)
 
-        self.new_link_selectors = [[] for _ in graph.tokens]  # type: List[List[Tuple]]
+        self.new_link_selectors = []  # type: List[Tuple[Combobox, Combobox]]
         for source in range(len(self.graph.tokens)):
-            self.add_link(source)
+            label_drop_down = Combobox(self, values=[''] + self.link_types)
+            label_drop_down.current(0)
+            label_drop_down.bind('<<ComboboxSelected>>',
+                                 (lambda *a, r=(source, None, None): self.modify_link(r, new=True)))
+            sink_drop_down = Combobox(self, values=[''] + self.token_listing)
+            sink_drop_down.current(0)
+            sink_drop_down.bind('<<ComboboxSelected>>',
+                                (lambda *a, r=(source, None, None): self.modify_link(r, new=True)))
+            self.new_link_selectors.append((label_drop_down, sink_drop_down))
 
-    def add_link(self, source):
-        counter = len(self.new_link_selectors[source])
-        label = None
-        sink = None
-        label_drop_down = Combobox(self, values=[''] + self.link_types)
-        label_drop_down.current(0)
-        label_drop_down.bind('<<ComboboxSelected>>',
-                             (lambda *a, r=(source, label, sink), v=label_drop_down, c=counter, **k:
-                              self.modify_link(r, label=v.get() or None, new=c)))
-        sink_drop_down = Combobox(self, values=[''] + self.token_listing)
-        sink_drop_down.current(0)
-        sink_drop_down.bind('<<ComboboxSelected>>',
-                            (lambda *a, r=(source, label, sink), v=sink_drop_down, c=counter, **k:
-                             self.modify_link(r, sink=v.current() - 1 if v.current() else None, new=c)))
-        new_link_selector_list = self.new_link_selectors[source]
-        new_link_selector_list.append((label_drop_down, sink_drop_down))
-        self.refresh()
-
-    def modify_link(self, link, *, source=None, label=None, sink=None, new=None):
+    def modify_link(self, link, *, source=None, label=None, sink=None, new=False):
         old_source, old_label, old_sink = link
         assert old_source is not None
-        if new is None:
+        if new:
+            assert old_label is None and old_sink is None and source is None and sink is None and label is None
+            assert 0 <= old_source < len(self.new_link_selectors)
+            label_drop_down, sink_drop_down = self.new_link_selectors[old_source]
+            label = label_drop_down.get() or None
+            sink_index = sink_drop_down.current()
+            if sink_index > 0:
+                sink = sink_index - 1
+            else:
+                sink = None
+            if label is not None and sink is not None:
+                label_drop_down.current(0)
+                sink_drop_down.current(0)
+            label_drop_down.selection_clear()
+            sink_drop_down.selection_clear()
+        else:
             assert old_sink is not None
             assert old_label is not None
             self.graph.remove_link(old_source, old_label, old_sink)
             items = self.link_selector_maps[old_source].pop((old_label, old_sink))
-        else:
-            assert old_label is None or old_sink is None
-            items = self.new_link_selectors[old_source][new]
-            self.new_link_selectors[old_source][new] = ()
-            while self.new_link_selectors[old_source] and not self.new_link_selectors[old_source][-1]:
-                self.new_link_selectors[old_source].pop()
-        for item in items:
-            if hasattr(item, 'destroy'):
-                item.destroy()
+            for item in items:
+                if hasattr(item, 'destroy'):
+                    item.destroy()
         if source is not None or label is not None or sink is not None:
             if source is None:
                 source = old_source
@@ -252,6 +250,8 @@ class TokenEditingFrame(Frame):
                 sink = old_sink
             assert source is not None
             if sink is not None and label is not None:
+                if label not in self.link_types:
+                    self.link_types.append(label)
                 label_drop_down = Combobox(self, values=self.link_types)
                 label_drop_down.current(self.link_types.index(label))
                 label_drop_down.bind("<<ComboboxSelected>>",
@@ -265,23 +265,8 @@ class TokenEditingFrame(Frame):
                 remove_button = Button(self, text='-', command=lambda r=(source, label, sink): self.modify_link(r))
                 self.graph.add_link(source, label, sink)
                 self.link_selector_maps[source][label, sink] = label_drop_down, sink_drop_down, remove_button
-            else:
-                counter = len(self.new_link_selectors[source])
-                label_drop_down = Combobox(self, values=[''] + self.link_types)
-                label_drop_down.current(self.link_types.index(label) + 1 if label else 0)
-                label_drop_down.bind("<<ComboboxSelected>>",
-                                     (lambda *a, r=(source, label, sink), v=label_drop_down, c=counter, **k:
-                                      self.modify_link(r, label=v.get() or None, new=c)))
-                sink_drop_down = Combobox(self, values=[''] + self.token_listing)
-                sink_drop_down.current(sink + 1 if sink is not None else 0)
-                sink_drop_down.bind('<<ComboboxSelected>>',
-                                    (lambda *a, r=(source, label, sink), v=sink_drop_down, c=counter, **k:
-                                     self.modify_link(r, sink=v.current() - 1 if v.current() else None, new=c)))
-                self.new_link_selectors[source].append((label_drop_down, sink_drop_down))
-        if source is None or self.new_link_selectors[source]:
+        if new or source is None:
             self.refresh()
-        else:
-            self.add_link(source)
         if self.graph_change_callback:
             self.graph_change_callback()
 
@@ -299,15 +284,38 @@ class TokenEditingFrame(Frame):
                 sink_drop_down.grid(row=current_row, column=3, sticky='nwe')
                 remove_button.grid(row=current_row, column=4, sticky='nwe')
                 current_row += 1
-            for entry in self.new_link_selectors[token_index]:
-                if not entry:
-                    continue
-                label_drop_down, sink_drop_down = entry
-                label_drop_down.grid(row=current_row, column=2, sticky='nwe')
-                sink_drop_down.grid(row=current_row, column=3, sticky='nwe')
-                current_row += 1
+            label_drop_down, sink_drop_down = self.new_link_selectors[token_index]
+            label_drop_down.grid(row=current_row, column=2, sticky='nwe')
+            sink_drop_down.grid(row=current_row, column=3, sticky='nwe')
+            current_row += 1
             if not self.link_selector_maps[token_index]:
                 current_row += 1
+
+
+class ScrollableFrame(Frame):
+
+    def __init__(self, parent, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
+
+        self.canvas = Canvas(self)
+        self.inner_frame = Frame(self.canvas)
+        self.vertical_scrollbar = Scrollbar(self, orient=VERTICAL, command=self.canvas.yview)
+        self.horizontal_scrollbar = Scrollbar(self, orient=HORIZONTAL, command=self.canvas.xview)
+        self.canvas.configure(yscrollcommand=self.vertical_scrollbar.set, xscrollcommand=self.horizontal_scrollbar.set)
+
+        self.canvas.grid(row=0, column=0, sticky='news')
+        self.vertical_scrollbar.grid(row=0, column=1, sticky='ns')
+        self.horizontal_scrollbar.grid(row=1, column=0, stick='we')
+
+        self.canvas.create_window((4, 4), window=self.inner_frame, anchor='nw')
+        self.inner_frame.bind("<Configure>", self._on_frame_configure)
+
+    # noinspection PyUnusedLocal
+    def _on_frame_configure(self, event):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
 
 class GraphEditingFrame(Frame):
@@ -327,22 +335,29 @@ class GraphEditingFrame(Frame):
         self.category_frame.grid(row=0, column=0, sticky='wen')
         self.property_frame = Frame(self)
         self.property_frame.grid(row=1, column=0, sticky='wen')
-        self.token_editing_frame = TokenEditingFrame(self, model, self._graph,
-                                                     graph_change_callback=graph_change_callback)
-        self.token_editing_frame.grid(row=2, column=0, sticky='wens')
+
+        self.scrollable_tef_container = ScrollableFrame(self)
+        self.scrollable_tef_container.grid(row=2, column=0, sticky='wens')
+        self.scrollable_tef_container.inner_frame.rowconfigure(0, weight=1)
+        self.scrollable_tef_container.inner_frame.columnconfigure(0, weight=1)
+        self.token_editing_frame = TokenEditingFrame(self.scrollable_tef_container.inner_frame, model,
+                                                     self._graph, graph_change_callback=graph_change_callback)
+        self.token_editing_frame.grid(row=0, column=0, sticky='nwes')
 
         self.category_readout = ReadoutFrame(self.category_frame, ['Category'])
         self.category_readout.grid(row=0, column=0, sticky='nw')
         self.category_readout.set('Category', self.category)
 
+        props_per_row = 5
+        top_row = {'statement', 'question', 'command', 'complete'}
         self.properties = {}
-        for index, prop in enumerate(sorted(model.top_level_properties, key=str)):
+        for index, prop in enumerate(sorted(model.top_level_properties, key=lambda p: (str(p) not in top_row, str(p)))):
             variable = IntVar()
             checkbox = Checkbutton(self.property_frame, text=str(prop), variable=variable,
                                    command=self.on_property_change)
             checkbox.property_name = prop
             checkbox.variable = variable
-            checkbox.grid(row=index // 4, column=index % 4, sticky='nw')
+            checkbox.grid(row=index // props_per_row, column=index % props_per_row, sticky='nw')
             self.properties[prop] = variable, checkbox
 
     @property
@@ -364,9 +379,9 @@ class GraphEditingFrame(Frame):
             self.properties[prop][0].set(has_prop)
 
         self.token_editing_frame.destroy()
-        self.token_editing_frame = TokenEditingFrame(self, self.model, graph,
+        self.token_editing_frame = TokenEditingFrame(self.scrollable_tef_container.inner_frame, self.model, graph,
                                                      graph_change_callback=self.graph_change_callback)
-        self.token_editing_frame.grid(row=2, column=0, sticky='wens')
+        self.token_editing_frame.grid(row=0, column=0, sticky='nwes')
         self.on_property_change()
 
     def on_property_change(self):
@@ -404,7 +419,8 @@ class GraphVisualizationFrame(Frame):
         self.horizontal_scrollbar.grid(row=1, column=0, sticky='wes')
 
         self.canvas = Canvas(self, width=300, height=300,
-                             xscrollcommand=self.horizontal_scrollbar.set, yscrollcommand=self.vertical_scrollbar.set,
+                             xscrollcommand=self.horizontal_scrollbar.set,
+                             yscrollcommand=self.vertical_scrollbar.set,
                              background='white')
         self.canvas.grid(row=0, column=0, sticky='news')
 
@@ -510,7 +526,7 @@ class AnnotationFrame(Frame):
         self.middle_frame = Frame(self)
         self.middle_frame.grid(row=1, column=0, sticky='news')
         self.left_frame = Frame(self.middle_frame, relief='groove', borderwidth=1)
-        self.left_frame.grid(row=0, column=0, sticky='wn')  # se')
+        self.left_frame.grid(row=0, column=0, sticky='wnse')
         self.right_frame = Frame(self.middle_frame, relief='groove', borderwidth=1)
         self.right_frame.grid(row=0, column=1, sticky='ensw')
         self.footer_frame = Frame(self, relief='groove', borderwidth=1)
@@ -536,8 +552,8 @@ class AnnotationFrame(Frame):
         self.visualization_frame.grid(row=0, column=0, sticky='news')
 
         # Left
-        self.tree_editing_frame = GraphEditingFrame(self.left_frame, model, graph_change_callback=self.on_graph_change)
-        self.tree_editing_frame.grid(row=0, column=0, sticky='news')
+        self.editing_frame = GraphEditingFrame(self.left_frame, model, graph_change_callback=self.on_graph_change)
+        self.editing_frame.grid(row=0, column=0, sticky='news')
 
         # Footer
         self.first_button = Button(self.footer_frame, text='<<', state='disabled', command=self.go_to_first)
@@ -581,7 +597,7 @@ class AnnotationFrame(Frame):
             revised_category = Category(self.model.default_restriction.name, props, ())
             combined_graph.set_phrase_category(index, revised_category)
         self._graph = combined_graph
-        self.tree_editing_frame.graph = combined_graph
+        self.editing_frame.graph = combined_graph
         self.visualization_frame.graph = combined_graph
         self.on_graph_change()
         self.reset_button['state'] = 'normal'
@@ -630,11 +646,11 @@ class AnnotationFrame(Frame):
         self.go_to_next()
 
     def on_graph_change(self):
-        self.tree_editing_frame.refresh()
+        self.editing_frame.refresh()
         self.visualization_frame.refresh()
         annotations = self.graph.get_annotations()
         annotation_string = ('[%s]' % ']  ['.join(annotations)) if annotations else ''
-        self.readout_frame.set('Annotation', annotations)
+        self.readout_frame.set('Annotation', annotation_string)
         self.accept_button['state'] = 'normal' if self.on_accept and self._graph.is_tree() else 'disabled'
         self.reject_button['state'] = 'normal' if self.on_reject else 'disabled'
         if self.on_modify:
@@ -659,8 +675,9 @@ class AnnotatorApp(Tk):
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
 
-        self.annotation_frame = AnnotationFrame(self, model, self.settings, self.utterances,
-                                                self.accept, self.reject, self.modify)
+        # TODO: This is a kludge. We lie to the frame about having utterances until after we can grab the
+        # window size, below.
+        self.annotation_frame = AnnotationFrame(self, model, self.settings, [], self.accept, self.reject, self.modify)
         self.annotation_frame.grid(row=0, column=0, sticky='news')
 
         self.text_box = Text(self, height=1)
@@ -671,7 +688,7 @@ class AnnotatorApp(Tk):
 
         # TODO: This feels kludgy. What's a better way?
         # Capture the size of the window just after everything has been initialized, and set it to the minimum size.
-        threading.Timer(1, self._size_callback).start()
+        threading.Timer(1, self._init_callback).start()
 
     def close(self):
         if self.annotation_database is not None:
@@ -686,8 +703,10 @@ class AnnotatorApp(Tk):
         self.close()
         super().__del__()
 
-    def _size_callback(self):
+    def _init_callback(self):
         self.wm_minsize(self.winfo_width(), self.winfo_height())
+        self.annotation_frame.utterances = self.utterances
+        self.annotation_frame.go_to_first()
 
     # noinspection PyUnusedLocal
     def submit(self, event):
@@ -752,7 +771,7 @@ def main():
     Parser(model).parse("hello")  # Prime the parser to make sure categories and properties are all loaded.
     app = AnnotatorApp(model, '/home/hosford42/PycharmProjects/NLU/Data/annotations.dbm', utterances)
     app.settings['timeout'] = 10
-    mainloop()
+    app.mainloop()
 
 
 if __name__ == '__main__':
