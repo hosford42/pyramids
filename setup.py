@@ -67,5 +67,5 @@ setup(
     packages=['pyramids'],
     package_data={'packages': ['*.txt', '*.ctg', '*.ini']},
     include_package_data=True,
-    install_requires=['sortedcontainers']
+    install_requires=['sortedcontainers', 'cython']
 )

@@ -5,9 +5,10 @@
 from abc import ABCMeta, abstractmethod
 from functools import reduce
 from sys import intern
-from typing import Tuple
+from typing import Tuple, Optional
 
 from pyramids.config import ModelConfig
+from pyramids.language import Language
 
 __author__ = 'Aaron Hosford'
 __all__ = [
@@ -112,4 +113,10 @@ class Tokenizer(metaclass=ABCMeta):
     @abstractmethod
     def tokenize(self, text: str) -> TokenSequence:
         """Tokenize a piece of text."""
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def language(self) -> Optional[Language]:
+        """Get the language this tokenizer is designed for, if indicated."""
         raise NotImplementedError()

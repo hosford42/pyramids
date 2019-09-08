@@ -11,7 +11,11 @@ __author__ = 'Aaron Hosford'
 __all__ = [
     'Property',
     'Category',
-    'CATEGORY_WILDCARD'
+    'LinkLabel',
+    'CATEGORY_WILDCARD',
+    'get_all_properties',
+    'get_all_category_names',
+    'get_all_link_labels',
 ]
 
 
@@ -21,7 +25,9 @@ EMPTY_SET = frozenset()
 cdef class InternedString:
     cdef str value
 
-    def __cinit__(self, str value):
+    # The __interner argument is present to ensure interned strings aren't created via direct construction
+    # by accident, which is a common occurrence.
+    def __cinit__(self, str value, *, StringInterner __interner):
         Py_INCREF(value)
         self.value = value
 
@@ -83,7 +89,7 @@ cdef class StringInterner:
         if s in self._intern_map:
             return self._intern_map[s]
         else:
-            result = self._subtype(s)
+            result = self._subtype(s, __interner=self)
             self._intern_map[s] = result
             self._all |= {result}
             return result

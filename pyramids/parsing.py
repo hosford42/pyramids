@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 
-import logging
 import time
 from sys import intern
-
-from sortedcontainers import SortedSet
+from typing import Optional, NamedTuple, List
 
 from pyramids import trees, tokenization
 from pyramids.category_maps import CategoryMap
 from pyramids.grammar import GrammarParser
+from pyramids.language import Language
 from pyramids.model import Model
+from pyramids.trees import Parse
+from sortedcontainers import SortedSet
 
 __author__ = 'Aaron Hosford'
 __all__ = [
@@ -17,6 +18,10 @@ __all__ = [
     'ParsingAlgorithm',
     'Parser',
 ]
+
+
+ParseResult = NamedTuple('ParseResult', [('forests', List[Parse]), ('emergency_disambiguation', bool),
+                                         ('parse_timed_out', bool), ('disambiguation_timed_out', bool)])
 
 
 class ParserState:
@@ -198,13 +203,21 @@ class ParsingAlgorithm:
 
 class Parser:
 
-    def __init__(self, model):
+    def __init__(self, model: Model):
         self._model = model
         self._parser_state = None
 
     @property
     def state(self):
         return self._parser_state
+
+    @property
+    def model(self) -> Model:
+        return self._model
+
+    @property
+    def language(self) -> Optional[Language]:
+        return self._model.language
 
     def clear_state(self):
         self._parser_state = ParsingAlgorithm.new_parser_state(self._model)
@@ -243,4 +256,4 @@ class Parser:
         else:
             disambiguation_timed_out = False
 
-        return forests, emergency_disambiguation, parse_timed_out, disambiguation_timed_out
+        return ParseResult(forests, emergency_disambiguation, parse_timed_out, disambiguation_timed_out)

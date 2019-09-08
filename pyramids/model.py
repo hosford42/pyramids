@@ -3,11 +3,12 @@
 """
 A parser model, consisting of a set of grammar rules.
 """
-from typing import FrozenSet
+from typing import FrozenSet, Optional
 
 import pyramids.rules.sequence
 from pyramids.categorization import make_property_set, Category, Property, LinkLabel
 from pyramids.config import ModelConfig
+from pyramids.language import Language
 
 __author__ = 'Aaron Hosford'
 __version__ = '1.0.0'
@@ -23,7 +24,7 @@ class Model:
 
     def __init__(self, default_restriction, top_level_properties, link_types, primary_leaf_rules, secondary_leaf_rules,
                  branch_rules, tokenizer, any_promoted_properties, all_promoted_properties, property_inheritance_rules,
-                 config_info=None):
+                 language, config_info=None):
         self._default_restriction = default_restriction
         self._top_level_properties = make_property_set(top_level_properties)
         self._link_types = link_types
@@ -34,6 +35,7 @@ class Model:
         self._any_promoted_properties = make_property_set(any_promoted_properties)
         self._all_promoted_properties = make_property_set(all_promoted_properties)
         self._property_inheritance_rules = frozenset(property_inheritance_rules)
+        self._language = language
         self._config_info = config_info
         self._sequence_rules_by_link_type = {}
 
@@ -79,6 +81,11 @@ class Model:
     def sequence_rules_by_link_type(self):
         """The sequence rules of the model, organized by link type for rapid lookup."""
         return self._sequence_rules_by_link_type
+
+    @property
+    def language(self) -> Optional[Language]:
+        """Get the language this parser model is designed for, if indicated."""
+        return self._language
 
     @property
     def config_info(self) -> ModelConfig:

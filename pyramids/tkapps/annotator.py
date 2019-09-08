@@ -1,3 +1,5 @@
+# TODO: Add this as an entry point in setup.py, so it can be run directly.
+
 """Tkinter-based app for annotating samples."""
 import bz2
 import dbm
@@ -762,13 +764,13 @@ class AnnotatorApp(Tk):
 
 # TODO: Make the app support choosing a model instead of assuming English.
 def main():
-    from pyramids_english import load_model
-    model = load_model()
+    from pyramids_english.convenience import PARSER
+    model = PARSER.model
     with open(r'/home/hosford42/PycharmProjects/NLU/Data/sentences.txt', encoding='utf-8') as file:
         utterances = {line.strip() for line in file if line.strip()}
     print("Loaded", len(utterances), "utterances...")
     # TODO: We shouldn't have to prime the parser by calling it. Make an initialize() method, or do it in __init__.
-    Parser(model).parse("hello")  # Prime the parser to make sure categories and properties are all loaded.
+    PARSER.parse("hello")  # Prime the parser to make sure categories and properties are all loaded.
     app = AnnotatorApp(model, '/home/hosford42/PycharmProjects/NLU/Data/annotations.dbm', utterances)
     app.settings['timeout'] = 10
     app.mainloop()

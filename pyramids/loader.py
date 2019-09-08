@@ -8,30 +8,23 @@ from typing import List, Iterable, Set, Tuple, Dict
 
 from sortedcontainers import SortedSet
 
-import pkg_resources
-
 from pyramids.categorization import Category
 from pyramids.config import ModelConfig
 from pyramids.grammar import GrammarParser
 from pyramids.model import Model
-from pyramids.rules.conjunction import ConjunctionRule
 from pyramids.rules.case import CaseRule
+from pyramids.rules.conjunction import ConjunctionRule
+from pyramids.rules.property_inheritance import PropertyInheritanceRule
 from pyramids.rules.suffix import SuffixRule
 from pyramids.rules.token_set import SetRule
-from pyramids.rules.property_inheritance import PropertyInheritanceRule
 from pyramids.scoring import ScoringFeature
 from pyramids.tokenization import Tokenizer
 from pyramids.word_sets import WordSetUtils
 
 __all__ = [
     'ModelLoader',
+    'ScoreMap',
 ]
-
-
-TOKENIZER_TYPES = {
-    entry_point.name: entry_point.load()
-    for entry_point in pkg_resources.iter_entry_points('pyramids.tokenizers')
-}
 
 
 ScoreMap = Dict[str, Dict[ScoringFeature, Tuple[float, float, int]]]
@@ -54,14 +47,17 @@ class ModelLoader:
 
     def load_tokenizer(self, config_info: ModelConfig = None) -> Tokenizer:
         """Load an appropriately configured tokenizer instance."""
+        from pyramids import plugins
         if config_info is None:
             config_info = self._model_config_info
 
         # Tokenizer
-        if config_info.tokenizer_type not in TOKENIZER_TYPES:
-            raise ValueError("Tokenizer type not supported: " + config_info.tokenizer_type)
-
-        return TOKENIZER_TYPES[config_info.tokenizer_type].from_config(self._model_config_info)
+        tokenizer = plugins.get_tokenizer(config_info.tokenizer_provider, config_info.tokenizer_type,
+                                          self._model_config_info)
+        if tokenizer is None:
+            raise ValueError("Unrecognized tokenizer type: " + config_info.tokenizer_type +
+                             "\nDo you have the required plugin package installed?")
+        return tokenizer
 
     def load_model(self, config_info: ModelConfig = None) -> Model:
         """Load the model and return it."""
@@ -123,23 +119,21 @@ class ModelLoader:
 
         return Model(default_restriction, top_level_properties, model_link_types, primary_leaf_rules,
                      secondary_leaf_rules, branch_rules, tokenizer, config_info.any_promoted_properties,
-                     config_info.all_promoted_properties, property_inheritance_rules, config_info)
+                     config_info.all_promoted_properties, property_inheritance_rules, config_info.model_language,
+                     config_info)
 
     def load_model_config(self, path: str = None) -> ModelConfig:
         """Load the model config info and return it."""
-        if path:
-            if not os.path.isfile(path):
-                raise FileNotFoundError(path)
-        else:
-            for search_path in (os.path.abspath('pyramids_%s.ini' % self._name),
-                                os.path.abspath(os.path.expanduser('~/pyramids_%s.ini') % self._name),
-                                os.path.join(self._model_path, 'pyramids_%s.ini' % self._name)):
-                if os.path.isfile(search_path):
-                    path = search_path
-                    break
-            else:
-                raise FileNotFoundError('pyramids_%s.ini' % self._name)
-        return ModelConfig(path)
+        if path and os.path.isfile(path):
+            return ModelConfig(path)
+        for search_path in path, os.path.abspath('.'), os.path.abspath(os.path.expanduser('~')), self._model_path:
+            if search_path is None:
+                continue
+            for file_name in 'pyramids_%s.ini' % self._name, '%s.ini' % self._name:
+                file_path = os.path.join(search_path, file_name)
+                if os.path.isfile(file_path):
+                    return ModelConfig(file_path)
+        raise FileNotFoundError(path or '%s.ini' % self._name)
 
     def load_word_sets_folder(self, folder: str) -> List[SetRule]:
         """Load an entire folder of word sets in one go."""
