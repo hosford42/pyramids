@@ -19,21 +19,22 @@ PYLAMA_OPTION_OVERRIDES = {
     'linters': ['pep257', 'pydocstyle', 'pycodestyle', 'pyflakes', 'mccabe',
                 'pylint', 'radon', 'eradicate', 'mypy'],
     'ignore': [
-        'W0212',  # pylint can't tell the difference between same-type and different-type protected member
+        'W0212',  # pylint can't tell between same- and different-type protected member
         # access based on inferred types.
 
-        'D102',  # pylint, pydocstyle, and pep257 are redundant on this one. Pylint has its own code, while
-        # the other two share this code.
+        'D102',  # pylint, pydocstyle, and pep257 are redundant on this one. Pylint has its own
+                 # code, while the other two share this code.
         'D103',  # Likewise for this one.
 
-        'D105',  # I disagree with the standard. Magic methods don't need docstrings. They are universal
-        # and can easily be googled.
+        'D105',  # I disagree with the standard. Magic methods don't need docstrings. They are
+                 # universal and can easily be googled.
         'D107',  # Same with __init__. The class's docstring is sufficient.
 
         'D212',  # This is optional and directly conflicts with an alternative one.
         'D203',  # Likewise.
 
-        'W0611',  # PyFlakes gets confused by MyPy type annotations, which require imports to be present.
+        'W0611',  # PyFlakes gets confused by MyPy type annotations, which require imports to be
+                  # present.
     ],
     'async': True,
     'concurrent': True,
