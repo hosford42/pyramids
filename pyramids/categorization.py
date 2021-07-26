@@ -4,7 +4,7 @@
 # TODO: Get rid of the weird imports via renaming and then assignment.
 # TODO: Have pure Python code as a fallback.
 import pyximport
-pyximport.install()
+pyximport.install(language_level="3")
 
 # noinspection PyUnresolvedReferences
 from _categorization import Property as _Property, Category as _Category, \

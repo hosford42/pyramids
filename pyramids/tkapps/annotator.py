@@ -56,7 +56,8 @@ MM_PER_INCH = 25.4
 #       * Undo (bound to Ctrl-Z)
 #       * Redo (bound to Shift-Ctrl-Z)
 #   * View: (only in annotation window)
-#       * Stats (parser accuracy, annotation completion, etc. on the annotation set, broken out by utterance list)
+#       * Stats (parser accuracy, annotation completion, etc. on the annotation set, broken out by
+#         utterance list)
 #       * Toggle show/hide parse visualization
 #   * Task:
 #       * New annotation task (annotation set to add to, and utterance list to add from)
@@ -65,7 +66,8 @@ MM_PER_INCH = 25.4
 #   * Settings: (only in annotation window)
 #       * Parser timeout
 #       * Restriction category
-#       * Utterance ordering (original, random, shortest/longest first, alphabetical, parser uncertainty-sorted)
+#       * Utterance ordering (original, random, shortest/longest first, alphabetical, parser
+#         uncertainty-sorted)
 #       * Utterance filtering
 #   * Parser:
 #       * Train (entire annotation set or particular utterance list)
@@ -77,7 +79,8 @@ MM_PER_INCH = 25.4
 #       * Current utterance list
 #       * Utterance list stats
 #       * Add utterance area:
-#           * Utterance tex box (sorts utterance listing to put nearest matches at top as utterance is typed)
+#           * Utterance text box (sorts utterance listing to put nearest matches at top as utterance
+#             is typed)
 #           * Add button (bound to <Return>)
 #           * Clear button (bound to <Escape>)
 #   * Body:
@@ -107,7 +110,8 @@ MM_PER_INCH = 25.4
 #               * Delete button
 #           * New link button
 #   * Right panel:
-#       * Tree visualization (optional, depending on whether graphviz is installed & view is enabled)
+#       * Tree visualization (optional, depending on whether graphviz is installed & view is
+#         enabled)
 #   * Footer:
 #       * Reset (clears manual annotations and re-queries the model)
 #       * Accept/reject
@@ -159,7 +163,8 @@ class ReadoutFrame(Frame):
 
 class TokenEditingFrame(Frame):
 
-    def __init__(self, parent, model: Model, graph: BuildGraph, *args, graph_change_callback=None, **kwargs):
+    def __init__(self, parent, model: Model, graph: BuildGraph, *args, graph_change_callback=None,
+                 **kwargs):
         super().__init__(parent, *args, **kwargs)
 
         self.model = model
@@ -167,7 +172,8 @@ class TokenEditingFrame(Frame):
         self.link_types = sorted(str(label) for label in self.model.link_types)
         self.graph_change_callback = graph_change_callback
 
-        self.token_listing = ['%s [%s]' % (token.spelling, index) for index, token in enumerate(graph.tokens)]
+        self.token_listing = ['%s [%s]' % (token.spelling, index)
+                              for index, token in enumerate(graph.tokens)]
         assert len(self.token_listing) == len(graph.tokens)
 
         self.token_labels = [Label(self, text='%s [%s]' % (token.spelling, index))
@@ -200,7 +206,8 @@ class TokenEditingFrame(Frame):
                 sink_drop_down.bind('<<ComboboxSelected>>',
                                     (lambda *a, r=(source, label, sink), v=sink_drop_down, **k:
                                      self.modify_link(r, sink=self.token_listing.index(v.get()))))
-                remove_button = Button(self, text='-', command=lambda r=(source, label, sink): self.modify_link(r))
+                remove_button = Button(self, text='-',
+                                       command=lambda r=(source, label, sink): self.modify_link(r))
                 link_selector_map[label, sink] = label_drop_down, sink_drop_down, remove_button
             self.link_selector_maps.append(link_selector_map)
         assert len(self.link_selector_maps) == len(graph.tokens)
@@ -221,7 +228,11 @@ class TokenEditingFrame(Frame):
         old_source, old_label, old_sink = link
         assert old_source is not None
         if new:
-            assert old_label is None and old_sink is None and source is None and sink is None and label is None
+            assert old_label is None
+            assert old_sink is None
+            assert source is None
+            assert sink is None
+            assert label is None
             assert 0 <= old_source < len(self.new_link_selectors)
             label_drop_down, sink_drop_down = self.new_link_selectors[old_source]
             label = label_drop_down.get() or None
@@ -264,9 +275,11 @@ class TokenEditingFrame(Frame):
                 sink_drop_down.bind('<<ComboboxSelected>>',
                                     (lambda *a, r=(source, label, sink), v=sink_drop_down, **k:
                                      self.modify_link(r, sink=v.current())))
-                remove_button = Button(self, text='-', command=lambda r=(source, label, sink): self.modify_link(r))
+                remove_button = Button(self, text='-',
+                                       command=lambda r=(source, label, sink): self.modify_link(r))
                 self.graph.add_link(source, label, sink)
-                self.link_selector_maps[source][label, sink] = label_drop_down, sink_drop_down, remove_button
+                self.link_selector_maps[source][label, sink] = (label_drop_down, sink_drop_down,
+                                                                remove_button)
         if new or source is None:
             self.refresh()
         if self.graph_change_callback:
@@ -279,7 +292,8 @@ class TokenEditingFrame(Frame):
             current_row += 1
             self.token_labels[token_index].grid(row=current_row, column=0, sticky='wn')
             # self.add_buttons[token_index].grid(row=current_row, column=1, sticky='nwe')
-            for label, sink in sorted(self.link_selector_maps[token_index], key=lambda l: (l[1], l[0])):
+            for label, sink in sorted(self.link_selector_maps[token_index],
+                                      key=lambda l: (l[1], l[0])):
                 entry = self.link_selector_maps[token_index][label, sink]
                 label_drop_down, sink_drop_down, remove_button = entry
                 label_drop_down.grid(row=current_row, column=2, sticky='nwe')
@@ -306,7 +320,8 @@ class ScrollableFrame(Frame):
         self.inner_frame = Frame(self.canvas)
         self.vertical_scrollbar = Scrollbar(self, orient=VERTICAL, command=self.canvas.yview)
         self.horizontal_scrollbar = Scrollbar(self, orient=HORIZONTAL, command=self.canvas.xview)
-        self.canvas.configure(yscrollcommand=self.vertical_scrollbar.set, xscrollcommand=self.horizontal_scrollbar.set)
+        self.canvas.configure(yscrollcommand=self.vertical_scrollbar.set,
+                              xscrollcommand=self.horizontal_scrollbar.set)
 
         self.canvas.grid(row=0, column=0, sticky='news')
         self.vertical_scrollbar.grid(row=0, column=1, sticky='ns')
@@ -342,8 +357,9 @@ class GraphEditingFrame(Frame):
         self.scrollable_tef_container.grid(row=2, column=0, sticky='wens')
         self.scrollable_tef_container.inner_frame.rowconfigure(0, weight=1)
         self.scrollable_tef_container.inner_frame.columnconfigure(0, weight=1)
-        self.token_editing_frame = TokenEditingFrame(self.scrollable_tef_container.inner_frame, model,
-                                                     self._graph, graph_change_callback=graph_change_callback)
+        self.token_editing_frame = TokenEditingFrame(self.scrollable_tef_container.inner_frame,
+                                                     model, self._graph,
+                                                     graph_change_callback=graph_change_callback)
         self.token_editing_frame.grid(row=0, column=0, sticky='nwes')
 
         self.category_readout = ReadoutFrame(self.category_frame, ['Category'])
@@ -353,7 +369,8 @@ class GraphEditingFrame(Frame):
         props_per_row = 5
         top_row = {'statement', 'question', 'command', 'complete'}
         self.properties = {}
-        for index, prop in enumerate(sorted(model.top_level_properties, key=lambda p: (str(p) not in top_row, str(p)))):
+        for index, prop in enumerate(sorted(model.top_level_properties,
+                                            key=lambda p: (str(p) not in top_row, str(p)))):
             variable = IntVar()
             checkbox = Checkbutton(self.property_frame, text=str(prop), variable=variable,
                                    command=self.on_property_change)
@@ -370,7 +387,8 @@ class GraphEditingFrame(Frame):
     def graph(self, graph: BuildGraph) -> None:
         self._graph = graph
         for index in range(len(graph.tokens)):
-            props = self.model.top_level_properties & graph.get_phrase_category(index).positive_properties
+            props = (self.model.top_level_properties &
+                     graph.get_phrase_category(index).positive_properties)
             category = Category(self.model.default_restriction.name, props)
             self.graph.set_phrase_category(index, category)
         self.category = self.model.default_restriction
@@ -381,8 +399,11 @@ class GraphEditingFrame(Frame):
             self.properties[prop][0].set(has_prop)
 
         self.token_editing_frame.destroy()
-        self.token_editing_frame = TokenEditingFrame(self.scrollable_tef_container.inner_frame, self.model, graph,
-                                                     graph_change_callback=self.graph_change_callback)
+        self.token_editing_frame = TokenEditingFrame(
+            self.scrollable_tef_container.inner_frame,
+            self.model, graph,
+            graph_change_callback=self.graph_change_callback
+        )
         self.token_editing_frame.grid(row=0, column=0, sticky='nwes')
         self.on_property_change()
 
@@ -462,7 +483,8 @@ class GraphVisualizationFrame(Frame):
         width_inches = (width / width_pixels_per_inch)
 
         gv_graph = Digraph()
-        gv_graph.graph_attr.update(size="%s,%s" % (width_inches / 2, height_inches / 2), ratio="expand",
+        gv_graph.graph_attr.update(size="%s,%s" % (width_inches / 2, height_inches / 2),
+                                   ratio="expand",
                                    dpi=str(2 * max(height_pixels_per_mm, width_pixels_per_inch)))
 
         self._graph.visualize(gv_graph)
@@ -508,8 +530,8 @@ class GraphVisualizationFrame(Frame):
 
 class AnnotationFrame(Frame):
 
-    def __init__(self, parent, model, settings, utterances: Sequence[str], on_accept, on_reject, on_modify,
-                 *args, **kwargs):
+    def __init__(self, parent, model, settings, utterances: Sequence[str], on_accept, on_reject,
+                 on_modify, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
 
         self.model = model
@@ -546,7 +568,8 @@ class AnnotationFrame(Frame):
 
         # Header
         self.readout_frame = ReadoutFrame(self.header_frame,
-                                          ['Annotation Set', 'Utterance List', 'Utterance', 'Annotation'])
+                                          ['Annotation Set', 'Utterance List', 'Utterance',
+                                           'Annotation'])
         self.readout_frame.grid(row=0, column=0, sticky='we')
 
         # Right
@@ -554,23 +577,31 @@ class AnnotationFrame(Frame):
         self.visualization_frame.grid(row=0, column=0, sticky='news')
 
         # Left
-        self.editing_frame = GraphEditingFrame(self.left_frame, model, graph_change_callback=self.on_graph_change)
+        self.editing_frame = GraphEditingFrame(self.left_frame, model,
+                                               graph_change_callback=self.on_graph_change)
         self.editing_frame.grid(row=0, column=0, sticky='news')
 
         # Footer
-        self.first_button = Button(self.footer_frame, text='<<', state='disabled', command=self.go_to_first)
+        self.first_button = Button(self.footer_frame, text='<<', state='disabled',
+                                   command=self.go_to_first)
         self.first_button.grid(row=0, column=0, sticky='n')
-        self.previous_button = Button(self.footer_frame, text='<', state='disabled', command=self.go_to_previous)
+        self.previous_button = Button(self.footer_frame, text='<', state='disabled',
+                                      command=self.go_to_previous)
         self.previous_button.grid(row=0, column=1, sticky='n')
-        self.reset_button = Button(self.footer_frame, text='Reset', state='disabled', command=self.reset_graph)
+        self.reset_button = Button(self.footer_frame, text='Reset', state='disabled',
+                                   command=self.reset_graph)
         self.reset_button.grid(row=0, column=2, sticky='n')
-        self.reject_button = Button(self.footer_frame, text='Reject', state='disabled', command=self.reject)
+        self.reject_button = Button(self.footer_frame, text='Reject', state='disabled',
+                                    command=self.reject)
         self.reject_button.grid(row=0, column=3, sticky='n')
-        self.accept_button = Button(self.footer_frame, text='Accept', state='disabled', command=self.accept)
+        self.accept_button = Button(self.footer_frame, text='Accept', state='disabled',
+                                    command=self.accept)
         self.accept_button.grid(row=0, column=4, sticky='n')
-        self.next_button = Button(self.footer_frame, text='>', state='disabled', command=self.go_to_next)
+        self.next_button = Button(self.footer_frame, text='>', state='disabled',
+                                  command=self.go_to_next)
         self.next_button.grid(row=0, column=5, sticky='n')
-        self.last_button = Button(self.footer_frame, text='>>', state='disabled', command=self.go_to_last)
+        self.last_button = Button(self.footer_frame, text='>>', state='disabled',
+                                  command=self.go_to_last)
         self.last_button.grid(row=0, column=6, sticky='n')
 
         self.go_to_first()
@@ -583,7 +614,8 @@ class AnnotationFrame(Frame):
     def utterance(self, utterance: str) -> None:
         self._utterance = utterance
         self.readout_frame.set('Utterance', utterance)
-        forests = Parser(self.model).parse(utterance, timeout=time.time() + self.settings['timeout'])[0]
+        forests = Parser(self.model).parse(utterance,
+                                           timeout=time.time() + self.settings['timeout'])[0]
         if forests and not forests[0].has_gaps():
             graphs = tuple(forests[0].get_parse_graphs())
             combined_graph = BuildGraph.from_parse_graphs(graphs)
@@ -595,7 +627,8 @@ class AnnotationFrame(Frame):
             combined_graph.clear_token_category(index)  # Not interested in these...
         for index in combined_graph.find_roots():
             category = combined_graph.get_phrase_category(index)
-            props = self.model.default_restriction.positive_properties & category.positive_properties
+            props = (self.model.default_restriction.positive_properties &
+                     category.positive_properties)
             revised_category = Category(self.model.default_restriction.name, props, ())
             combined_graph.set_phrase_category(index, revised_category)
         self._graph = combined_graph
@@ -639,12 +672,14 @@ class AnnotationFrame(Frame):
 
     def accept(self):
         if self.on_accept:
-            self.on_accept(self._utterance_index, self._utterance, self._graph, self.readout_frame.get('Annotation'))
+            self.on_accept(self._utterance_index, self._utterance, self._graph,
+                           self.readout_frame.get('Annotation'))
         self.go_to_next()
 
     def reject(self):
         if self.on_reject:
-            self.on_reject(self._utterance_index, self._utterance, self._graph, self.readout_frame.get('Annotation'))
+            self.on_reject(self._utterance_index, self._utterance, self._graph,
+                           self.readout_frame.get('Annotation'))
         self.go_to_next()
 
     def on_graph_change(self):
@@ -653,7 +688,8 @@ class AnnotationFrame(Frame):
         annotations = self.graph.get_annotations()
         annotation_string = ('[%s]' % ']  ['.join(annotations)) if annotations else ''
         self.readout_frame.set('Annotation', annotation_string)
-        self.accept_button['state'] = 'normal' if self.on_accept and self._graph.is_tree() else 'disabled'
+        self.accept_button['state'] = ('normal' if self.on_accept and self._graph.is_tree()
+                                       else 'disabled')
         self.reject_button['state'] = 'normal' if self.on_reject else 'disabled'
         if self.on_modify:
             self.on_modify(self._utterance_index, self._utterance, self._graph, annotation_string)
@@ -677,9 +713,10 @@ class AnnotatorApp(Tk):
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
 
-        # TODO: This is a kludge. We lie to the frame about having utterances until after we can grab the
-        # window size, below.
-        self.annotation_frame = AnnotationFrame(self, model, self.settings, [], self.accept, self.reject, self.modify)
+        # TODO: This is a kludge. We lie to the frame about having utterances until after we can
+        #       grab the window size, below.
+        self.annotation_frame = AnnotationFrame(self, model, self.settings, [], self.accept,
+                                                self.reject, self.modify)
         self.annotation_frame.grid(row=0, column=0, sticky='news')
 
         self.text_box = Text(self, height=1)
@@ -689,7 +726,8 @@ class AnnotatorApp(Tk):
         self.text_box.focus_set()
 
         # TODO: This feels kludgy. What's a better way?
-        # Capture the size of the window just after everything has been initialized, and set it to the minimum size.
+        # Capture the size of the window just after everything has been initialized, and set it to
+        # the minimum size.
         threading.Timer(1, self._init_callback).start()
 
     def close(self):
@@ -755,11 +793,14 @@ class AnnotatorApp(Tk):
         encoded_utterance = utterance.encode()
         with self.file_access_lock:
             if encoded_utterance in self.annotation_database:
-                status = json.loads(bz2.decompress(self.annotation_database[encoded_utterance]).decode()).get('status')
+                status = json.loads(
+                    bz2.decompress(self.annotation_database[encoded_utterance]).decode()
+                ).get('status')
             else:
                 status = None
             result['status'] = status
-            self.annotation_database[utterance.encode()] = bz2.compress(json.dumps(result, sort_keys=True).encode())
+            self.annotation_database[utterance.encode()] = \
+                bz2.compress(json.dumps(result, sort_keys=True).encode())
 
 
 # TODO: Make the app support choosing a model instead of assuming English.
@@ -769,9 +810,11 @@ def main():
     with open(r'/home/hosford42/PycharmProjects/NLU/Data/sentences.txt', encoding='utf-8') as file:
         utterances = {line.strip() for line in file if line.strip()}
     print("Loaded", len(utterances), "utterances...")
-    # TODO: We shouldn't have to prime the parser by calling it. Make an initialize() method, or do it in __init__.
+    # TODO: We shouldn't have to prime the parser by calling it. Make an initialize() method, or do
+    #       it in __init__.
     PARSER.parse("hello")  # Prime the parser to make sure categories and properties are all loaded.
-    app = AnnotatorApp(model, '/home/hosford42/PycharmProjects/NLU/Data/annotations.dbm', utterances)
+    app = AnnotatorApp(model, '/home/hosford42/PycharmProjects/NLU/Data/annotations.dbm',
+                       utterances)
     app.settings['timeout'] = 10
     app.mainloop()
 
