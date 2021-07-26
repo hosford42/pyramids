@@ -24,13 +24,14 @@ class BranchRule(ParseRule, metaclass=ABCMeta):
         raise NotImplementedError()
 
     def iter_scoring_features(self, parse_node: 'trees.TreeNode'):
-        # CAREFUL!!! Scoring features must be perfectly recoverable via ast.literal_eval(repr(feature))
+        # CAREFUL!!! Scoring features must be perfectly recoverable via
+        # ast.literal_eval(repr(feature))
 
         # Possible Head Features: category name, property names, token spelling
         # Component Features: category name, ordering, token spelling, property names
 
-        # We have to look not at individual features, but at specific combinations thereof which might affect
-        # the quality of the parse.
+        # We have to look not at individual features, but at specific combinations thereof which
+        # might affect the quality of the parse.
 
         head_cat = str(parse_node.payload.category.name)
         head_token = parse_node.payload.head_spelling
@@ -41,5 +42,6 @@ class BranchRule(ParseRule, metaclass=ABCMeta):
             component_cat = str(component.payload.category.name)
             yield scoring.ScoringFeature(('body category', (head_cat, component_cat)))
             for other_component in parse_node.components[index + 1:]:
-                yield scoring.ScoringFeature(('body category sequence', (head_cat, component_cat,
-                                                                         str(other_component.payload.category.name))))
+                yield scoring.ScoringFeature(('body category sequence',
+                                              (head_cat, component_cat,
+                                               str(other_component.payload.category.name))))

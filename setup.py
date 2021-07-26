@@ -29,7 +29,8 @@ Pyramids Parser
 # Get the long description from the relevant file. First try README.rst,
 # then fall back on the default string defined here in this file.
 if path.isfile(path.join(HERE, 'README.rst')):
-    with codecs_open(path.join(HERE, 'README.rst'), encoding='utf-8', mode='rU') as description_file:
+    with codecs_open(path.join(HERE, 'README.rst'),
+                     encoding='utf-8', mode='rU') as description_file:
         LONG_DESCRIPTION = description_file.read()
 
 

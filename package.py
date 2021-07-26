@@ -13,7 +13,7 @@ import build_readme
 
 # TODO: This is the only line in this script that depends on the specific
 #       module/package that is being packaged for PyPI. Figure out a way
-#       to genericize it. One possibility: Use setup.py to tell this module
+#       to generalize it. One possibility: Use setup.py to tell this module
 #       what module/package is being processed.
 from pyramids import __version__, __file__ as module_path
 

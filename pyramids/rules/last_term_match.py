@@ -6,7 +6,8 @@ from pyramids.rules.subtree_match import SubtreeMatchRule
 class LastTermMatchRule(SubtreeMatchRule):
 
     def __str__(self):
-        return str(categorization.Category('last_term', self._positive_properties, self._negative_properties))
+        return str(categorization.Category('last_term', self._positive_properties,
+                                           self._negative_properties))
 
     def __call__(self, category_list, head_index):
         return ((self._positive_properties <= category_list[-1].positive_properties) and

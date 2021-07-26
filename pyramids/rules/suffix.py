@@ -16,7 +16,8 @@ class SuffixRule(LeafRule):
         if not isinstance(other, SuffixRule):
             return NotImplemented
         return self is other or (self._hash == other._hash and self._positive == other._positive and
-                                 self._category == other._category and self._suffixes == other._suffixes)
+                                 self._category == other._category and
+                                 self._suffixes == other._suffixes)
 
     def __ne__(self, other):
         if not isinstance(other, SuffixRule):
@@ -31,11 +32,12 @@ class SuffixRule(LeafRule):
         return not self._positive
 
     def __repr__(self):
-        return (type(self).__name__ + "(" + repr(self.category) + ", " + repr(sorted(self.suffixes)) + ", " +
-                repr(self.positive) + ")")
+        return (type(self).__name__ + "(" + repr(self.category) + ", " +
+                repr(sorted(self.suffixes)) + ", " + repr(self.positive) + ")")
 
     def __str__(self):
-        return str(self.category) + ': ' + '-+'[self.positive] + ' ' + ' '.join(sorted(self.suffixes))
+        return (str(self.category) + ': ' + '-+'[self.positive] + ' ' +
+                ' '.join(sorted(self.suffixes)))
 
     @property
     def suffixes(self):

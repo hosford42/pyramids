@@ -1,7 +1,8 @@
 # TODO:
 #   * Update setup.py to handle the extension module properly.
 #   * Update pyramids.categorization to assume the package is already compiled.
-#   * Put the pure Python implementation of pyramids.categories back, and use it as a fallback if compilation fails.
+#   * Put the pure Python implementation of pyramids.categories back, and use it as a fallback if
+#     compilation fails.
 
 
 from cpython cimport Py_INCREF, Py_DECREF
@@ -25,8 +26,8 @@ EMPTY_SET = frozenset()
 cdef class InternedString:
     cdef str value
 
-    # The __interner argument is present to ensure interned strings aren't created via direct construction
-    # by accident, which is a common occurrence.
+    # The __interner argument is present to ensure interned strings aren't created via direct
+    # construction # by accident, which is a common occurrence.
     def __cinit__(self, str value, *, StringInterner __interner):
         Py_INCREF(value)
         self.value = value
@@ -59,7 +60,8 @@ cdef class InternedString:
         return id(self.value)
 
     def __add__(a, b) -> str:
-        # Cython doesn't do __radd__. Instead it just calls the same method with the operands reversed.
+        # Cython doesn't do __radd__. Instead it just calls the same method with the operands
+        # reversed.
         return str(a) + str(b)
 
     def startswith(self, other) -> bool:
@@ -203,7 +205,8 @@ cdef class Category:
 
         both = positives & negatives
         if both:
-            raise ValueError("Property is both positive and negative: %s" % ', '.join(str(prop) for prop in both))
+            raise ValueError("Property is both positive and negative: %s" % ', '.join(str(prop)
+                             for prop in both))
 
         Py_INCREF(i_name)
         Py_INCREF(positives)
@@ -259,7 +262,8 @@ cdef class Category:
         return self.to_str()
 
     def __repr__(self) -> str:
-        return 'Category(%r, %r, %r)' % (str(self._name), sorted(str(prop) for prop in self._positive_properties),
+        return 'Category(%r, %r, %r)' % (str(self._name),
+                                         sorted(str(prop) for prop in self._positive_properties),
                                          sorted(str(prop) for prop in self._negative_properties))
 
     def __hash__(self) -> int:
@@ -329,7 +333,8 @@ cdef class Category:
 
         positives = make_property_set(positive)
         negatives = make_property_set(negative)
-        category = Category(self._name, (self._positive_properties | (positives - self._negative_properties)),
+        category = Category(self._name, (self._positive_properties |
+                                         (positives - self._negative_properties)),
                             (self._negative_properties | (negatives - self._positive_properties)))
         return category
 
