@@ -1,6 +1,6 @@
 # Plugins
 
-The Pyramids parser attempts to be language-agnostic. The tokenizer and
+The Pyramids Parser attempts to be language-agnostic. The tokenizer and
 parser model determine a parser instance's supported language. Models and
 tokenizers are provided by separately installed plugins.
 
