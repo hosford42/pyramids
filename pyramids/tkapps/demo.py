@@ -1,13 +1,14 @@
 """Tkinter-based app for demoing the parser."""
 
-# TODO: Behavior & functionality should roughly parallel that of the command line interface. In fact, it might make
-#       sense to factor out the interaction controller and have both be front-ends for it.
+# TODO: Behavior & functionality should roughly parallel that of the command line interface. In
+#       fact, it might make sense to factor out the interaction controller and have both be
+#       front-ends for it.
 
 import threading
 import time
 from io import BytesIO
-from tkinter import Tk, Canvas, mainloop, N, W, Text, END, Scrollbar, VERTICAL, HORIZONTAL, Frame, TOP, RIGHT, BOTTOM, \
-    Y, X, BOTH
+from tkinter import Tk, Canvas, mainloop, N, W, Text, END, Scrollbar, VERTICAL, HORIZONTAL, Frame, \
+    TOP, RIGHT, BOTTOM, Y, X, BOTH
 
 import PIL.Image
 from PIL.ImageTk import PhotoImage
@@ -121,7 +122,7 @@ class DemoApp:
 
 # TODO: Make the app support choosing a model instead of assuming English.
 def main():
-    from pyramids_english import parse
+    from pyramids_english.convenience import parse
     root = Tk()
     # noinspection PyUnusedLocal
     app = DemoApp(root, lambda text: parse(text, fast=True, timeout=time.time() + 10))

@@ -858,8 +858,7 @@ class Parse:
     def get_disambiguations(self, gaps=None, pieces=None, timeout=None):
         return set(self.iter_disambiguations(gaps, pieces, timeout))
 
-    def get_ranked_disambiguations(self, gaps=None, pieces=None,
-                                   timeout=None):
+    def get_ranked_disambiguations(self, gaps=None, pieces=None, timeout=None):
         ranks = {}
         for disambiguation in self.get_disambiguations(gaps, pieces, timeout):
             ranks[disambiguation] = disambiguation.get_rank()
