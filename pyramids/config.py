@@ -51,7 +51,8 @@ class ModelConfig:
             if not language_section.startswith('Language:'):
                 continue
             language_header_name = language_section[9:].strip()
-            language_name = config_parser.get(language_section, 'Name', fallback=language_header_name).strip()
+            language_name = config_parser.get(language_section, 'Name',
+                                              fallback=language_header_name).strip()
             if not language_name:
                 continue
             iso639_1 = config_parser.get(language_section, 'ISO 639-1', fallback=None)
@@ -61,17 +62,22 @@ class ModelConfig:
         # Model
         self._model_name = config_parser.get('Model', 'Name').strip()
         language_section_name = config_parser.get('Model', 'Language', fallback='').strip()
-        self._model_language = languages.get(language_section_name, None) if language_section_name else None
+        self._model_language = (languages.get(language_section_name, None)
+                                if language_section_name
+                                else None)
 
         # Tokenizer
         self._tokenizer_provider = config_parser.get('Tokenizer', 'Provider').strip()
         self._tokenizer_type = config_parser.get('Tokenizer', 'Tokenizer Type').strip()
         self._discard_spaces = config_parser.getboolean('Tokenizer', 'Discard Spaces')
         language_section_name = config_parser.get('Tokenizer', 'Language', fallback='').strip()
-        self._tokenizer_language = languages.get(language_section_name, None) if language_section_name else None
+        self._tokenizer_language = (languages.get(language_section_name, None)
+                                    if language_section_name
+                                    else None)
 
         # Properties
-        self._default_restriction = config_parser.get('Properties', 'Default Restriction', fallback='sentence')
+        self._default_restriction = config_parser.get('Properties', 'Default Restriction',
+                                                      fallback='sentence')
         self._top_level_properties = frozenset(
             categorization.Property.get(prop.strip())
             for prop in config_parser.get('Properties', 'Top-Level Properties').split(';')
@@ -129,7 +135,8 @@ class ModelConfig:
         self._score_file = os.path.join(data_folder, config_parser.get('Scoring', 'Score File'))
 
         # Benchmarking
-        self._benchmark_file = os.path.join(data_folder, config_parser.get('Benchmarking', 'Benchmark File'))
+        self._benchmark_file = os.path.join(data_folder,
+                                            config_parser.get('Benchmarking', 'Benchmark File'))
 
     @property
     def config_file_path(self):

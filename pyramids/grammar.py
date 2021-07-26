@@ -41,9 +41,11 @@ class GrammarParserError(Exception):
         self.text = text
 
     def __repr__(self):
-        return type(self).__name__ + repr((self.msg, (self.filename, self.lineno, self.offset, self.text)))
+        return type(self).__name__ + repr((self.msg,
+                                           (self.filename, self.lineno, self.offset, self.text)))
 
-    def set_info(self, filename: str = None, lineno: int = None, offset: int = None, text: str = None):
+    def set_info(self, filename: str = None, lineno: int = None, offset: int = None,
+                 text: str = None):
         """Set additional information on the exception after it has been raised."""
         if filename is not None:
             self.filename = filename
@@ -59,7 +61,8 @@ class GrammarParserError(Exception):
 class GrammarSyntaxError(GrammarParserError, SyntaxError):
     """A syntax error detected in a grammar file"""
 
-    def __init__(self, msg: str, filename: str = None, lineno: int = 1, offset: int = 1, text: str = None):
+    def __init__(self, msg: str, filename: str = None, lineno: int = 1, offset: int = 1,
+                 text: str = None):
         super().__init__(msg, (filename, lineno, offset, text))
 
     def __repr__(self):
@@ -75,13 +78,16 @@ class GrammarParser:
         definition = definition.strip()
         if '(' in definition:
             if not definition.endswith(')'):
-                raise GrammarSyntaxError("Expected: ')' in category definition", offset=offset + len(definition))
+                raise GrammarSyntaxError("Expected: ')' in category definition",
+                                         offset=offset + len(definition))
             if definition.count('(') > 1:
                 raise GrammarSyntaxError("Unexpected: '(' in category definition",
-                                         offset=offset + definition.find("(", definition.find("(") + 1))
+                                         offset=offset + definition.find("(",
+                                                                         definition.find("(") + 1))
             if definition.count(')') > 1:
                 raise GrammarSyntaxError("Unexpected: ')' in category definition",
-                                         offset=offset + definition.find(")", definition.find(")") + 1))
+                                         offset=offset + definition.find(")",
+                                                                         definition.find(")") + 1))
             name, properties = definition[:-1].split('(')
             if ',' in name:
                 raise GrammarSyntaxError("Unexpected: ',' in category definition",
@@ -93,27 +99,35 @@ class GrammarParser:
             for prop in properties:
                 if not prop.strip():
                     if ",," in definition:
-                        raise GrammarSyntaxError("Unexpected: ','", offset=offset + definition.find(",,") + 1)
+                        raise GrammarSyntaxError("Unexpected: ','",
+                                                 offset=offset + definition.find(",,") + 1)
                     elif "(," in definition:
-                        raise GrammarSyntaxError("Unexpected: ','", offset=offset + definition.find("(,") + 1)
+                        raise GrammarSyntaxError("Unexpected: ','",
+                                                 offset=offset + definition.find("(,") + 1)
                     elif ",)" in definition:
-                        raise GrammarSyntaxError("Unexpected: ')'", offset=offset + definition.find(",)") + 1)
+                        raise GrammarSyntaxError("Unexpected: ')'",
+                                                 offset=offset + definition.find(",)") + 1)
                     else:
-                        raise GrammarSyntaxError("Unexpected: ')'", offset=offset + definition.find("()") + 1)
+                        raise GrammarSyntaxError("Unexpected: ')'",
+                                                 offset=offset + definition.find("()") + 1)
             positive = [prop for prop in properties if not prop.startswith('-')]
             negative = [prop[1:] for prop in properties if prop.startswith('-')]
             for prop in negative:
                 if prop.startswith('-'):
-                    raise GrammarSyntaxError("Unexpected: '-'", offset=offset + definition.find('-' + prop))
+                    raise GrammarSyntaxError("Unexpected: '-'",
+                                             offset=offset + definition.find('-' + prop))
                 if prop in positive:
                     raise GrammarSyntaxError("Unexpected: prop is both positive and negative",
                                              offset=offset + definition.find(prop))
-            return Category(name, [Property.get(n) for n in positive], [Property.get(n) for n in negative])
+            return Category(name, [Property.get(n) for n in positive],
+                            [Property.get(n) for n in negative])
         else:
             if ')' in definition:
-                raise GrammarSyntaxError("Unexpected: ')' in category definition", offset=offset + definition.find(")"))
+                raise GrammarSyntaxError("Unexpected: ')' in category definition",
+                                         offset=offset + definition.find(")"))
             if ',' in definition:
-                raise GrammarSyntaxError("Unexpected: ',' in category definition", offset=offset + definition.find(","))
+                raise GrammarSyntaxError("Unexpected: ',' in category definition",
+                                         offset=offset + definition.find(","))
             if len(definition.split()) > 1:
                 raise GrammarSyntaxError("Unexpected: white space in category definition",
                                          offset=offset + len(definition.split()[0]) + 1)
@@ -142,7 +156,8 @@ class GrammarParser:
     @staticmethod
     def parse_branch_rule_link_type(term, offset=1):
         if '<' in term[1:]:
-            raise GrammarSyntaxError("Unexpected: '<'", offset=offset + term.find('<', term.find('<') + 1))
+            raise GrammarSyntaxError("Unexpected: '<'",
+                                     offset=offset + term.find('<', term.find('<') + 1))
         if '>' in term[:-1]:
             raise GrammarSyntaxError("Unexpected: '<'", offset=offset + term.find('>'))
         left = term.startswith('<')
@@ -168,20 +183,26 @@ class GrammarParser:
                     continue
                 if '>' in term or '<' in term:
                     if not subcategory_sets:
-                        raise GrammarSyntaxError("Unexpected: link type", offset=offset + term_start)
-                    link_type, left, right = self.parse_branch_rule_link_type(term, offset + term_start)
+                        raise GrammarSyntaxError("Unexpected: link type",
+                                                 offset=offset + term_start)
+                    link_type, left, right = self.parse_branch_rule_link_type(term,
+                                                                              offset + term_start)
                     if head_index is None:
                         if right:
-                            raise GrammarSyntaxError("Unexpected: right link", offset=offset + term_start)
+                            raise GrammarSyntaxError("Unexpected: right link",
+                                                     offset=offset + term_start)
                     else:
                         if left:
-                            raise GrammarSyntaxError("Unexpected: left link", offset=offset + term_start)
+                            raise GrammarSyntaxError("Unexpected: left link",
+                                                     offset=offset + term_start)
                     link_types[-1].add((link_type, left, right))
                 else:
-                    is_head, subcategories = self.parse_branch_rule_term(term, offset=offset + term_start)
+                    is_head, subcategories = self.parse_branch_rule_term(term,
+                                                                         offset=offset + term_start)
                     if is_head:
                         if head_index is not None:
-                            raise GrammarSyntaxError("Unexpected: '*'", offset=(offset + term_start + term.find('*')))
+                            raise GrammarSyntaxError("Unexpected: '*'",
+                                                     offset=(offset + term_start + term.find('*')))
                         head_index = len(subcategory_sets)
                     subcategory_sets.append(subcategories)
                     link_types.append(set())
@@ -194,7 +215,8 @@ class GrammarParser:
             is_head, subcategories = self.parse_branch_rule_term(term, offset=offset + term_start)
             if is_head:
                 if head_index is not None:
-                    raise GrammarSyntaxError("Unexpected: '*'", offset=offset + term_start + term.find('*'))
+                    raise GrammarSyntaxError("Unexpected: '*'",
+                                             offset=offset + term_start + term.find('*'))
                 head_index = len(subcategory_sets)
             subcategory_sets.append(subcategories)
             link_types.append(set())
@@ -224,9 +246,11 @@ class GrammarParser:
                     if ':' in line:
                         raise GrammarSyntaxError("Unexpected: ':'", offset=1 + line.find(':'))
                     if not category:
-                        raise GrammarSyntaxError("Expected: category header", offset=1 + line.find(line.strip()))
+                        raise GrammarSyntaxError("Expected: category header",
+                                                 offset=1 + line.find(line.strip()))
                     branch_rules.append(
-                        self.parse_branch_rule(category, line.lstrip(), offset=1 + line.find(line.lstrip())))
+                        self.parse_branch_rule(category, line.lstrip(),
+                                               offset=1 + line.find(line.lstrip())))
                     sequence_found = True
                 else:
                     if category is not None and not sequence_found:
@@ -234,12 +258,15 @@ class GrammarParser:
                     if ':' not in line:
                         raise GrammarSyntaxError("Expected: ':'", offset=1 + len(line))
                     if line.count(':') > 1:
-                        raise GrammarSyntaxError("Unexpected: ':'", offset=1 + line.find(':', line.find(':') + 1))
+                        raise GrammarSyntaxError("Unexpected: ':'",
+                                                 offset=1 + line.find(':', line.find(':') + 1))
                     header, sequence = line.split(':')
                     category = self.parse_category(header)
                     if sequence.strip():
-                        branch_rules.append(self.parse_branch_rule(category, sequence.lstrip(),
-                                                                   offset=1 + sequence.find(sequence.lstrip())))
+                        branch_rules.append(
+                            self.parse_branch_rule(category, sequence.lstrip(),
+                                                   offset=1 + sequence.find(sequence.lstrip()))
+                        )
                         sequence_found = True
                     else:
                         sequence_found = False
@@ -247,7 +274,8 @@ class GrammarParser:
                 error.set_info(filename=filename, lineno=line_number, text=raw_line)
                 raise error
             except Exception as original_exception:
-                raise GrammarParserError(filename=filename, lineno=line_number, text=raw_line) from original_exception
+                raise GrammarParserError(filename=filename,
+                                         lineno=line_number, text=raw_line) from original_exception
         return branch_rules
 
     def parse_match_rule(self, definition, offset=1):
@@ -265,7 +293,8 @@ class GrammarParser:
         }
         rule_list = []
         for category_definition in definition[1:-1].split():
-            category = self.parse_category(category_definition, offset=1 + definition.find(category_definition))
+            category = self.parse_category(category_definition,
+                                           offset=1 + definition.find(category_definition))
             generator = generator_map.get(str(category.name), None)
             if generator is None:
                 raise GrammarSyntaxError("Unexpected: " + repr(category),
@@ -302,22 +331,29 @@ class GrammarParser:
                     continue
                 if '>' in term or '<' in term:
                     if not subcategory_sets:
-                        raise GrammarSyntaxError("Unexpected: link type", offset=offset + term_start)
-                    link_type, left, right = self.parse_branch_rule_link_type(term, offset + term_start)
+                        raise GrammarSyntaxError("Unexpected: link type",
+                                                 offset=offset + term_start)
+                    link_type, left, right = self.parse_branch_rule_link_type(term,
+                                                                              offset + term_start)
                     if head_index is None:
                         if right:
-                            raise GrammarSyntaxError("Unexpected: right link", offset=offset + term_start)
+                            raise GrammarSyntaxError("Unexpected: right link",
+                                                     offset=offset + term_start)
                     else:
                         if left:
-                            raise GrammarSyntaxError("Unexpected: left link", offset=offset + term_start)
+                            raise GrammarSyntaxError("Unexpected: left link",
+                                                     offset=offset + term_start)
                     link_types[-1].add((link_type, left, right))
                 else:
                     if len(subcategory_sets) >= 3:
-                        raise GrammarSyntaxError("Unexpected: category", offset=offset + term_start)
-                    is_head, subcategories = self.parse_branch_rule_term(term, offset=offset + term_start)
+                        raise GrammarSyntaxError("Unexpected: category",
+                                                 offset=offset + term_start)
+                    is_head, subcategories = self.parse_branch_rule_term(term,
+                                                                         offset=offset + term_start)
                     if is_head:
                         if head_index is not None:
-                            raise GrammarSyntaxError("Unexpected: '*'", offset=offset + term_start + term.find('*'))
+                            raise GrammarSyntaxError("Unexpected: '*'",
+                                                     offset=offset + term_start + term.find('*'))
                         head_index = len(subcategory_sets)
                     subcategory_sets.append(subcategories)
                     link_types.append(set())
@@ -332,7 +368,8 @@ class GrammarParser:
             is_head, subcategories = self.parse_branch_rule_term(term, offset=offset + term_start)
             if is_head:
                 if head_index is not None:
-                    raise GrammarSyntaxError("Unexpected: '*'", offset=offset + term_start + term.find('*'))
+                    raise GrammarSyntaxError("Unexpected: '*'",
+                                             offset=offset + term_start + term.find('*'))
                 head_index = len(subcategory_sets)
             subcategory_sets.append(subcategories)
             link_types.append(set())
@@ -359,8 +396,9 @@ class GrammarParser:
             conjunction_cats, followup_cats = subcategory_sets
             leadup_link_types = set()
             followup_link_types = link_types[0]
-        return ConjunctionRule(category, match_rules, property_rules, leadup_cats, conjunction_cats, followup_cats,
-                               leadup_link_types, followup_link_types, single, compound)
+        return ConjunctionRule(category, match_rules, property_rules, leadup_cats, conjunction_cats,
+                               followup_cats, leadup_link_types, followup_link_types, single,
+                               compound)
 
     def parse_property_inheritance_file(self, lines: Iterable[str],
                                         filename: str = None) -> List[PropertyInheritanceRule]:
@@ -375,7 +413,8 @@ class GrammarParser:
                 if ':' not in line:
                     raise GrammarSyntaxError("Expected: ':'", offset=1 + len(line))
                 if line.count(':') > 1:
-                    raise GrammarSyntaxError("Unexpected: ':'", offset=1 + line.find(':', line.find(':') + 1))
+                    raise GrammarSyntaxError("Unexpected: ':'",
+                                             offset=1 + line.find(':', line.find(':') + 1))
                 definition, additions = line.split(':')
                 try:
                     category = self.parse_category(definition)
@@ -387,8 +426,10 @@ class GrammarParser:
                 additions = additions.split()
                 if not additions:
                     raise GrammarSyntaxError("Expected: property", offset=1 + line.find(':') + 1)
-                positive_additions = [addition for addition in additions if not addition.startswith('-')]
-                negative_additions = [addition[1:] for addition in additions if addition.startswith('-')]
+                positive_additions = [addition for addition in additions
+                                      if not addition.startswith('-')]
+                negative_additions = [addition[1:] for addition in additions
+                                      if addition.startswith('-')]
                 # Double-negatives are not allowed
                 if any(addition.startswith('-') for addition in negative_additions):
                     raise GrammarSyntaxError("Unexpected: '-'", offset=2 + line.find('--'))
@@ -396,8 +437,10 @@ class GrammarParser:
                 for addition in negative_additions:
                     if addition in positive_additions:
                         raise GrammarSyntaxError("Conflicting property signs: %s" % addition,
-                                                 offset=1 + line.find(addition, line.find(addition) + 1))
-                inheritance_rules.append(PropertyInheritanceRule(category, positive_additions, negative_additions))
+                                                 offset=1 + line.find(addition,
+                                                                      line.find(addition) + 1))
+                inheritance_rules.append(PropertyInheritanceRule(category, positive_additions,
+                                                                 negative_additions))
             except GrammarParserError as error:
                 if error.text is None:
                     error.set_info(text=raw_line)
@@ -405,7 +448,8 @@ class GrammarParser:
                 raise error
         return inheritance_rules
 
-    def parse_conjunctions_file(self, lines: Iterable[str], filename: str = None) -> List[ConjunctionRule]:
+    def parse_conjunctions_file(self, lines: Iterable[str],
+                                filename: str = None) -> List[ConjunctionRule]:
         """Load a conjunction grammar file, returning the conjunction rules parsed from it."""
         branch_rules = []
         category = None
@@ -425,13 +469,17 @@ class GrammarParser:
                     if ':' in line:
                         raise GrammarSyntaxError("Unexpected: ':'", offset=1 + line.find(':'))
                     if not category:
-                        raise GrammarSyntaxError("Expected: category header", offset=1 + line.find(line.strip()))
+                        raise GrammarSyntaxError("Expected: category header",
+                                                 offset=1 + line.find(line.strip()))
                     if line.endswith(']') and '[' in line:
                         if line.lstrip().startswith('['):
                             if match_rules_closed:
-                                raise GrammarSyntaxError("Unexpected: matching rule", offset=1 + line.find('['))
-                            match_rules.append(self.parse_match_rule(line.lstrip(),
-                                                                     offset=1 + line.find(line.lstrip())))
+                                raise GrammarSyntaxError("Unexpected: matching rule",
+                                                         offset=1 + line.find('['))
+                            match_rules.append(
+                                self.parse_match_rule(line.lstrip(),
+                                                      offset=1 + line.find(line.lstrip()))
+                            )
                         else:
                             if property_rules_closed:
                                 raise GrammarSyntaxError("Unexpected: property rule",
@@ -448,8 +496,10 @@ class GrammarParser:
                             line_remainder = line[left_bracket_index:]
                             property_rules.append(
                                 (frozenset(properties),
-                                 self.parse_match_rule(line_remainder.lstrip(),
-                                                       offset=1 + line.find(line_remainder.strip()))))
+                                 self.parse_match_rule(
+                                     line_remainder.lstrip(),
+                                     offset=1 + line.find(line_remainder.strip()))
+                                 ))
                     else:
                         match_rules_closed = True
                         property_rules_closed = True
@@ -457,9 +507,11 @@ class GrammarParser:
                             raise GrammarSyntaxError("Unexpected: '['", offset=1 + line.find('['))
                         if ']' in line:
                             raise GrammarSyntaxError("Unexpected: ']'", offset=1 + line.find(']'))
-                        branch_rules.append(self.parse_conjunction_rule(category, match_rules, property_rules,
-                                                                        line.lstrip(),
-                                                                        offset=1 + line.find(line.lstrip())))
+                        branch_rules.append(
+                            self.parse_conjunction_rule(category, match_rules, property_rules,
+                                                        line.lstrip(),
+                                                        offset=1 + line.find(line.lstrip()))
+                        )
                         sequence_found = True
                 else:
                     if category is not None and not sequence_found:
@@ -467,7 +519,8 @@ class GrammarParser:
                     if ':' not in line:
                         raise GrammarSyntaxError("Expected: ':'", offset=1 + len(line))
                     if line.count(':') > 1:
-                        raise GrammarSyntaxError("Unexpected: ':'", offset=1 + line.find(':', line.find(':') + 1))
+                        raise GrammarSyntaxError("Unexpected: ':'",
+                                                 offset=1 + line.find(':', line.find(':') + 1))
                     header, sequence = line.split(':')
                     category = self.parse_category(header)
                     match_rules = []
@@ -476,8 +529,11 @@ class GrammarParser:
                     property_rules_closed = False
                     if sequence.strip():
                         branch_rules.append(
-                            self.parse_conjunction_rule(category, match_rules, property_rules, sequence.lstrip(),
-                                                        offset=1 + sequence.find(sequence.lstrip())))
+                            self.parse_conjunction_rule(
+                                category, match_rules, property_rules, sequence.lstrip(),
+                                offset=1 + sequence.find(sequence.lstrip())
+                            )
+                        )
                         sequence_found = True
                     else:
                         sequence_found = False
@@ -485,7 +541,8 @@ class GrammarParser:
                 error.set_info(filename=filename, lineno=line_number, text=raw_line)
                 raise error
             except Exception as original_exception:
-                raise GrammarParserError(filename=filename, lineno=line_number, text=raw_line) from original_exception
+                raise GrammarParserError(filename=filename, lineno=line_number,
+                                         text=raw_line) from original_exception
         return branch_rules
 
     def parse_suffix_file(self, lines: Iterable[str], filename: str = None) -> List[SuffixRule]:
@@ -501,7 +558,8 @@ class GrammarParser:
                 if ':' not in line:
                     raise GrammarSyntaxError("Expected: ':'", offset=1 + len(line))
                 if line.count(':') > 1:
-                    raise GrammarSyntaxError("Unexpected: ':'", offset=1 + line.find(':', line.find(':') + 1))
+                    raise GrammarSyntaxError("Unexpected: ':'",
+                                             offset=1 + line.find(':', line.find(':') + 1))
                 definition, suffixes = line.split(':')
                 category = self.parse_category(definition)
                 suffixes = suffixes.split()
@@ -516,7 +574,8 @@ class GrammarParser:
                 error.set_info(filename=filename, lineno=line_number, text=raw_line)
                 raise error
             except Exception as original_exception:
-                raise GrammarParserError(filename=filename, lineno=line_number, text=raw_line) from original_exception
+                raise GrammarParserError(filename=filename, lineno=line_number,
+                                         text=raw_line) from original_exception
         return leaf_rules
 
     def parse_special_words_file(self, lines: Iterable[str], filename: str = None) -> List[SetRule]:
@@ -541,5 +600,6 @@ class GrammarParser:
                 error.set_info(filename=filename, lineno=line_number, text=raw_line)
                 raise error
             except Exception as original_exception:
-                raise GrammarParserError(filename=filename, lineno=line_number, text=raw_line) from original_exception
+                raise GrammarParserError(filename=filename, lineno=line_number,
+                                         text=raw_line) from original_exception
         return leaf_rules

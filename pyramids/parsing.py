@@ -20,8 +20,10 @@ __all__ = [
 ]
 
 
-ParseResult = NamedTuple('ParseResult', [('forests', List[Parse]), ('emergency_disambiguation', bool),
-                                         ('parse_timed_out', bool), ('disambiguation_timed_out', bool)])
+ParseResult = NamedTuple('ParseResult', [('forests', List[Parse]),
+                                         ('emergency_disambiguation', bool),
+                                         ('parse_timed_out', bool),
+                                         ('disambiguation_timed_out', bool)])
 
 
 class ParserState:
@@ -41,7 +43,8 @@ class ParserState:
         #     if item.rule is node.rule:
         #         same_rule_count += 1
 
-        # no_predecessor = node.token_start_index > 0 and not self._category_map.has_range(0, node.token_start_index)
+        # no_predecessor = (node.token_start_index > 0 and
+        #                   not self._category_map.has_range(0, node.token_start_index))
         # no_successor = (
         #   node.token_end_index < self._category_map.max_end and
         #   not self._category_map.has_range(node.token_end_index, self._category_map.max_end)
@@ -107,7 +110,8 @@ class ParserState:
         """Returns a boolean indicating whether a node exists that covers
         the entire input by itself."""
         for node_set in self._roots:
-            if node_set.payload.token_end_index - node_set.payload.token_start_index >= len(self._tokens):
+            if (node_set.payload.token_end_index -
+                    node_set.payload.token_start_index) >= len(self._tokens):
                 return True
         return False
 
@@ -169,7 +173,8 @@ class ParserState:
         """Create a tree for each node that doesn't get included as a
         component to some other one. Then it make a Parse instance with
         those trees."""
-        return trees.Parse(self.tokens, [trees.ParseTree(self.tokens, node) for node in self._roots])
+        return trees.Parse(self.tokens,
+                           [trees.ParseTree(self.tokens, node) for node in self._roots])
 
 
 class ParsingAlgorithm:
@@ -243,7 +248,8 @@ class Parser:
         if category:
             result = result.restrict(category)
 
-        forests = [disambiguation for (disambiguation, rank) in result.get_sorted_disambiguations(None, None, timeout)]
+        forests = [disambiguation for (disambiguation, rank)
+                   in result.get_sorted_disambiguations(None, None, timeout)]
 
         if forests:
             emergency_disambiguation = False
@@ -256,4 +262,5 @@ class Parser:
         else:
             disambiguation_timed_out = False
 
-        return ParseResult(forests, emergency_disambiguation, parse_timed_out, disambiguation_timed_out)
+        return ParseResult(forests, emergency_disambiguation, parse_timed_out,
+                           disambiguation_timed_out)

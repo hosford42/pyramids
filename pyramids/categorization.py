@@ -10,7 +10,8 @@ pyximport.install()
 from _categorization import Property as _Property, Category as _Category, \
     CATEGORY_WILDCARD as _CATEGORY_WILDCARD, make_property_set as _make_property_set, \
     get_all_category_names as _get_all_category_names, get_all_properties as _get_all_properties, \
-    LinkLabel as _LinkLabel, get_all_link_labels as _get_all_link_labels, CategoryName as _CategoryName
+    LinkLabel as _LinkLabel, get_all_link_labels as _get_all_link_labels, \
+    CategoryName as _CategoryName
 
 
 __author__ = 'Aaron Hosford'

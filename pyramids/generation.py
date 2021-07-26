@@ -24,10 +24,12 @@ class GenerationAlgorithm:
 
         # Find all leaves for the head node
         subtrees[head_node] = set()
-        positive_case_properties, negative_case_properties = leaf.LeafRule.discover_case_properties(head_spelling)
+        positive_case_properties, negative_case_properties = \
+            leaf.LeafRule.discover_case_properties(head_spelling)
         for rule in model.primary_leaf_rules:
             if head_spelling in rule:
-                category = rule.category.promote_properties(positive_case_properties, negative_case_properties)
+                category = rule.category.promote_properties(positive_case_properties,
+                                                            negative_case_properties)
                 category = extend_properties(model, category)
                 if category in head_category:
                     tree = trees.BuildTreeNode(rule, category, head_spelling, head_node)
@@ -35,7 +37,8 @@ class GenerationAlgorithm:
         if not subtrees[head_node]:
             for rule in model.secondary_leaf_rules:
                 if head_spelling in rule:
-                    category = rule.category.promote_properties(positive_case_properties, negative_case_properties)
+                    category = rule.category.promote_properties(positive_case_properties,
+                                                                negative_case_properties)
                     category = extend_properties(model, category)
                     if category in head_category:
                         tree = trees.BuildTreeNode(rule, category, head_spelling, head_node)
@@ -85,13 +88,16 @@ class GenerationAlgorithm:
                     required_incoming = set()
                     required_outgoing = set()
                     for link_type, left, right in rule.link_type_sets[index]:
-                        if (right and index < rule.head_index) or (left and index >= rule.head_index):
+                        if (right and index < rule.head_index) or (left and
+                                                                   index >= rule.head_index):
                             required_incoming.add(link_type)
-                        if (left and index < rule.head_index) or (right and index >= rule.head_index):
+                        if (left and index < rule.head_index) or (right and
+                                                                  index >= rule.head_index):
                             required_outgoing.add(link_type)
-                    component_candidates = self.get_component_candidates(model, head_category, head_node, index,
-                                                                         required_incoming, required_outgoing, rule,
-                                                                         sentence, subnodes, subtrees)
+                    component_candidates = self.get_component_candidates(
+                        model, head_category, head_node, index, required_incoming,
+                        required_outgoing, rule, sentence, subnodes, subtrees
+                    )
                     if not component_candidates:
                         failed = True
                         break
@@ -106,13 +112,17 @@ class GenerationAlgorithm:
                             break
                         covered |= component.node_coverage
                     else:
-                        category = rule.get_category(model, [component.category for component in component_combination])
+                        category = rule.get_category(model,
+                                                     [component.category
+                                                      for component in component_combination])
                         if rule.is_non_recursive(category, head_tree.category):
                             new_tree = trees.BuildTreeNode(rule, category, head_tree.head_spelling,
-                                                           head_tree.head_index, component_combination)
+                                                           head_tree.head_index,
+                                                           component_combination)
                             if new_tree not in results:
                                 if subnodes <= new_tree.node_coverage:
-                                    if new_tree.head_index != sentence.root_index or category in sentence.root_category:
+                                    if (new_tree.head_index != sentence.root_index or
+                                            category in sentence.root_category):
                                         results.add(new_tree)
                                     else:
                                         backup_results.add(new_tree)
@@ -126,8 +136,8 @@ class GenerationAlgorithm:
             return emergency_results
 
     @staticmethod
-    def get_component_candidates(model, head_category, head_node, index, required_incoming, required_outgoing,
-                                 rule, sentence, subnodes, subtrees):
+    def get_component_candidates(model, head_category, head_node, index, required_incoming,
+                                 required_outgoing, rule, sentence, subnodes, subtrees):
         component_head_candidates = subnodes.copy()
         for link_type in required_incoming:
             if link_type not in model.sequence_rules_by_link_type:
@@ -160,7 +170,8 @@ class GenerationAlgorithm:
                         break
         else:
             cat_names = {category.name
-                         for category in rule.subcategory_sets[index if index < rule.head_index else index + 1]}
+                         for category
+                         in rule.subcategory_sets[index if index < rule.head_index else index + 1]}
             for candidate in component_head_candidates:
                 for subtree in subtrees[candidate]:
                     if subtree.category.name in cat_names:

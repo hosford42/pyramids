@@ -5,9 +5,9 @@ from pyramids.categorization import Category
 
 
 class CategoryMap:
-    """The category map tracked & used by a parser state. This data structure holds a mapping from text ranges
-    to the grammatical categories and parse sub-trees associated with them. The data is structured to minimize
-    query & update time during the parser's search."""
+    """The category map tracked & used by a parser state. This data structure holds a mapping from
+    text ranges to the grammatical categories and parse sub-trees associated with them. The data is
+    structured to minimize query & update time during the parser's search."""
 
     def __init__(self):
         self._map = {}
@@ -128,9 +128,10 @@ class CategoryMap:
                             for start in start_map:
                                 yield mapped_category, start
 
-    # TODO: Why does this even exist? Either convert it to a simple getter, or make it match wildcards like its name
-    #       seems to imply. For now, I've changed it to return a sequence instead of working as a generator, which
-    #       doesn't break anything and should improve performance slightly.
+    # TODO: Why does this even exist? Either convert it to a simple getter, or make it match
+    #       wildcards like its name seems to imply. For now, I've changed it to return a sequence
+    #       instead of working as a generator, which doesn't break anything and should improve
+    #       performance slightly.
     def iter_node_sets(self, start: int, category: Category, end: int):
         assert not category.is_wildcard()
         category_name_map = self._map.get(start)

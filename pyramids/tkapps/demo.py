@@ -44,8 +44,8 @@ class DemoApp:
         self.horizontal_scrollbar = Scrollbar(self.canvas_frame, orient=HORIZONTAL)
         self.horizontal_scrollbar.pack(side=BOTTOM, fill=X)
         self.canvas = Canvas(self.canvas_frame, width=300, height=300,
-                             xscrollcommand=self.horizontal_scrollbar.set, yscrollcommand=self.vertical_scrollbar.set,
-                             background='white')
+                             xscrollcommand=self.horizontal_scrollbar.set,
+                             yscrollcommand=self.vertical_scrollbar.set, background='white')
         self.canvas.pack(side=TOP, fill=BOTH, expand=True)
         self.vertical_scrollbar.config(command=self.canvas.yview)
         self.horizontal_scrollbar.config(command=self.canvas.xview)
@@ -83,7 +83,8 @@ class DemoApp:
         width_inches = (width / width_pixels_per_inch)
 
         graph = Digraph()
-        graph.graph_attr.update(size="%s,%s" % (width_inches / 2, height_inches / 2), ratio="expand",
+        graph.graph_attr.update(size="%s,%s" % (width_inches / 2, height_inches / 2),
+                                ratio="expand",
                                 dpi=str(2 * max(height_pixels_per_mm, width_pixels_per_inch)))
         self.parse_result.visualize(graph)
 

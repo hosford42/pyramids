@@ -32,7 +32,8 @@ class ParseGraph:
 
     @classmethod
     def from_json(cls, json_data) -> 'ParseGraph':
-        """Constructs a ParseGraph from a JSON-serializable data structure produced by ParseGraph.to_json()."""
+        """Constructs a ParseGraph from a JSON-serializable data structure produced by
+        ParseGraph.to_json()."""
         from pyramids.grammar import GrammarParser
         root = json_data['roots'][-1]
         tokens = [Token(token.get('index', index), token['spelling'], token['span'],
@@ -60,12 +61,14 @@ class ParseGraph:
         self._tokens = tuple(tokens)
         self._links = tuple({sink: frozenset(labels) for sink, labels in dict(sink_map).items()}
                             for sink_map in links)
-        self._phrases = tuple(tuple((category, frozenset((source, sink) for source, sink in phrase_links))
+        self._phrases = tuple(tuple((category, frozenset((source, sink)
+                                                         for source, sink in phrase_links))
                                     for category, phrase_links in phrase_stack)
                               for phrase_stack in phrases)
         assert self._phrases and self._phrases[-1]
 
-        self._reversed_links = tuple({source: self._links[source][sink] for source in range(len(self._tokens))
+        self._reversed_links = tuple({source: self._links[source][sink]
+                                      for source in range(len(self._tokens))
                                       if sink in self._links[source]}
                                      for sink in range(len(self._tokens)))
 
@@ -105,15 +108,16 @@ class ParseGraph:
         """Returns a JSON-serializable data structure that represents the contents of the graph."""
         return {
             'roots': [self._root],
-            'tokens': [{'spelling': token.spelling, 'span': list(token.span), 'category': str(token.category),
-                        'index': token.index}
+            'tokens': [{'spelling': token.spelling, 'span': list(token.span),
+                        'category': str(token.category), 'index': token.index}
                        for token in self._tokens],
             'links': [{'source': source, 'sink': sink, 'label': str(label)}
                       for source, links in enumerate(self._links)
                       for sink, labels in links.items()
                       for label in labels],
-            'phrases': [[{'category': str(category), 'links': [{'source': source, 'sink': sink}
-                                                               for source, sink in sorted(phrase_links)]}
+            'phrases': [[{'category': str(category),
+                          'links': [{'source': source, 'sink': sink}
+                                    for source, sink in sorted(phrase_links)]}
                          for category, phrase_links in phrase_stack]
                         for phrase_stack in self._phrases]
         }
@@ -139,8 +143,8 @@ class ParseGraph:
         return set(self._reversed_links[sink])
 
     def get_labels(self, source: int, sink: int) -> FrozenSet[str]:
-        """Get the labels for all edges that originate at the given source index and terminate at the given sink
-        index."""
+        """Get the labels for all edges that originate at the given source index and terminate at
+        the given sink index."""
         assert 0 <= source <= len(self._tokens)
         assert 0 <= sink <= len(self._tokens)
         return self._links[source].get(sink, frozenset())
@@ -225,13 +229,15 @@ class BuildGraph:
                     adjusted_sink = graph_offset + sink
                     for label in graph.get_labels(source, sink):
                         combined_graph.add_link(adjusted_source, label, adjusted_sink)
-                combined_graph.set_phrase_category(adjusted_source, graph.get_phrase_category(source))
+                combined_graph.set_phrase_category(adjusted_source,
+                                                   graph.get_phrase_category(source))
             graph_offset += len(graph.tokens)
         return combined_graph
 
     @classmethod
     def from_json(cls, json_data) -> 'BuildGraph':
-        """Constructs a ParseGraph from a JSON-serializable data structure produced by ParseGraph.to_json()."""
+        """Constructs a ParseGraph from a JSON-serializable data structure produced by
+        ParseGraph.to_json()."""
         from pyramids.grammar import GrammarParser
         result = BuildGraph()
         for token in json_data['tokens']:
@@ -266,11 +272,13 @@ class BuildGraph:
         return tuple(self._tokens)
 
     def get_annotations(self) -> List[str]:
-        phrase_map = [token.spelling.replace('(', '\\(').replace(')', '\\)') for token in self._tokens]
+        phrase_map = [token.spelling.replace('(', '\\(').replace(')', '\\)')
+                      for token in self._tokens]
         new = self.find_leaves()
         covered = new.copy()
         while new:
-            new = {source for source, outbound in enumerate(self._links) if outbound.keys() <= covered} - covered
+            new = {source for source, outbound in enumerate(self._links)
+                   if outbound.keys() <= covered} - covered
             covered.update(new)
             links = set()
             for source in new:
@@ -326,7 +334,8 @@ class BuildGraph:
     def set_phrase_category(self, index: int, category: Category) -> None:
         self._phrase_categories[index] = category
 
-    def append_token(self, spelling: str, category: Category = None, span: Tuple[int, int] = None) -> int:
+    def append_token(self, spelling: str, category: Category = None,
+                     span: Tuple[int, int] = None) -> int:
         index = len(self._tokens)
         token = Token(index, spelling, span, category)
         self._phrase_categories.append(Category('_'))
@@ -449,8 +458,8 @@ class BuildGraph:
         return sources
 
     def get_labels(self, source: int, sink: int) -> FrozenSet[LinkLabel]:
-        """Get the labels for all edges that originate at the given source index and terminate at the given sink
-        index."""
+        """Get the labels for all edges that originate at the given source index and terminate at
+        the given sink index."""
         return self._links[source].get(sink, frozenset())
 
     def _get_phrase_tokens(self, head: int, indices: Set[int]) -> None:
@@ -551,7 +560,8 @@ class ParseGraphBuilder(LanguageContentHandler):
         self._index_map.clear()
         self._phrase_stack.clear()
 
-    def handle_token(self, spelling: str, category: Category, index: int = None, span: Tuple[int, int] = None) -> int:
+    def handle_token(self, spelling: str, category: Category, index: int = None,
+                     span: Tuple[int, int] = None) -> int:
         """Called to indicate the occurrence of a token."""
         if index is None:
             index = self._counter

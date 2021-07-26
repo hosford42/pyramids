@@ -52,7 +52,8 @@ class ModelLoader:
             config_info = self._model_config_info
 
         # Tokenizer
-        tokenizer = plugins.get_tokenizer(config_info.tokenizer_provider, config_info.tokenizer_type,
+        tokenizer = plugins.get_tokenizer(config_info.tokenizer_provider,
+                                          config_info.tokenizer_type,
                                           self._model_config_info)
         if tokenizer is None:
             raise ValueError("Unrecognized tokenizer type: " + config_info.tokenizer_type +
@@ -117,16 +118,19 @@ class ModelLoader:
             model_link_types.update(rule.all_link_types)
         model_link_types = frozenset(model_link_types)
 
-        return Model(default_restriction, top_level_properties, model_link_types, primary_leaf_rules,
-                     secondary_leaf_rules, branch_rules, tokenizer, config_info.any_promoted_properties,
-                     config_info.all_promoted_properties, property_inheritance_rules, config_info.model_language,
-                     config_info)
+        return Model(default_restriction, top_level_properties, model_link_types,
+                     primary_leaf_rules, secondary_leaf_rules, branch_rules, tokenizer,
+                     config_info.any_promoted_properties, config_info.all_promoted_properties,
+                     property_inheritance_rules, config_info.model_language, config_info)
 
     def load_model_config(self, path: str = None) -> ModelConfig:
         """Load the model config info and return it."""
         if path and os.path.isfile(path):
             return ModelConfig(path)
-        for search_path in path, os.path.abspath('.'), os.path.abspath(os.path.expanduser('~')), self._model_path:
+        for search_path in (path,
+                            os.path.abspath('.'),
+                            os.path.abspath(os.path.expanduser('~')),
+                            self._model_path):
             if search_path is None:
                 continue
             for file_name in 'pyramids_%s.ini' % self._name, '%s.ini' % self._name:
@@ -149,7 +153,8 @@ class ModelLoader:
     def load_property_inheritance_file(self, path: str) -> List[PropertyInheritanceRule]:
         """Load a property inheritance file as a list of property inheritance rules."""
         with open(path, encoding='utf-8') as inheritance_file:
-            return self._grammar_parser.parse_property_inheritance_file(inheritance_file, filename=path)
+            return self._grammar_parser.parse_property_inheritance_file(inheritance_file,
+                                                                        filename=path)
 
     def load_grammar_definition_file(self, path: str):
         """Load a grammar definition file as a list of branch rules."""
@@ -201,7 +206,8 @@ class ModelLoader:
             return os.path.join(folder_path, str(category) + '.ctg')
         raise IOError("Could not find a word sets folder.")
 
-    def add_words(self, config_info: ModelConfig, category: Category, added: Iterable[str]) -> Set[str]:
+    def add_words(self, config_info: ModelConfig, category: Category,
+                  added: Iterable[str]) -> Set[str]:
         """Add words to the word set file associated with a particular category."""
         path = self.find_word_set_path(config_info, category)
         if os.path.isfile(path):
@@ -214,7 +220,8 @@ class ModelLoader:
         WordSetUtils.save_word_set(path, known_words)
         return added
 
-    def remove_words(self, config_info: ModelConfig, category: Category, removed: Iterable[str]) -> Set[str]:
+    def remove_words(self, config_info: ModelConfig, category: Category,
+                     removed: Iterable[str]) -> Set[str]:
         """Remove words from the word set file associated with a particular category."""
         path = self.find_word_set_path(config_info, category)
         if not os.path.isfile(path):
@@ -227,7 +234,8 @@ class ModelLoader:
 
     @staticmethod
     def load_scoring_features(model: Model, path: str = None) -> ScoreMap:
-        """Load the scoring features for a model, assigning them to the appropriate rules of the model."""
+        """Load the scoring features for a model, assigning them to the appropriate rules of the
+        model."""
         if path is None:
             path = model.config_info.score_file
         scores = {}  # type: ScoreMap
@@ -242,7 +250,8 @@ class ModelLoader:
 
     @staticmethod
     def update_model_scoring_features(model: Model, scores: ScoreMap) -> None:
-        """Update the mode's scoring features in place, from a score map returned by load_scoring_features."""
+        """Update the mode's scoring features in place, from a score map returned by
+        load_scoring_features."""
         for rule in model.primary_leaf_rules | model.secondary_leaf_rules | model.branch_rules:
             rule_str = repr(str(rule))
             if rule_str not in scores:
@@ -256,14 +265,18 @@ class ModelLoader:
         if path is None:
             path = model.config_info.score_file
         with open(path, 'w', encoding='utf-8') as save_file:
-            for rule in sorted(model.primary_leaf_rules | model.secondary_leaf_rules | model.branch_rules, key=str):
+            for rule in sorted(model.primary_leaf_rules |
+                               model.secondary_leaf_rules |
+                               model.branch_rules,
+                               key=str):
                 for feature in rule.iter_all_scoring_features():
                     score, accuracy, count = rule.get_score(feature)
                     if isinstance(feature, ScoringFeature):
                         feature = feature.key
                     if not count:
                         continue
-                    save_file.write('\t'.join(repr(item) for item in (str(rule), feature, score, accuracy, count)))
+                    save_file.write('\t'.join(repr(item) for item in (str(rule), feature, score,
+                                                                      accuracy, count)))
                     save_file.write('\n')
 
     def load_conjunctions_file(self, path: str) -> List[ConjunctionRule]:

@@ -22,9 +22,9 @@ __all__ = [
 class Model:
     """A parser model, consisting of a set of grammar rules."""
 
-    def __init__(self, default_restriction, top_level_properties, link_types, primary_leaf_rules, secondary_leaf_rules,
-                 branch_rules, tokenizer, any_promoted_properties, all_promoted_properties, property_inheritance_rules,
-                 language, config_info=None):
+    def __init__(self, default_restriction, top_level_properties, link_types, primary_leaf_rules,
+                 secondary_leaf_rules, branch_rules, tokenizer, any_promoted_properties,
+                 all_promoted_properties, property_inheritance_rules, language, config_info=None):
         self._default_restriction = default_restriction
         self._top_level_properties = make_property_set(top_level_properties)
         self._link_types = link_types
