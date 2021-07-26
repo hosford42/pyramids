@@ -813,7 +813,7 @@ def main():
     # TODO: We shouldn't have to prime the parser by calling it. Make an initialize() method, or do
     #       it in __init__.
     PARSER.parse("hello")  # Prime the parser to make sure categories and properties are all loaded.
-    app = AnnotatorApp(model, '/home/hosford42/PycharmProjects/NLU/Data/annotations.dbm',
+    app = AnnotatorApp(model, '~/PycharmProjects/NLU/Data/annotations.dbm',
                        utterances)
     app.settings['timeout'] = 10
     app.mainloop()
