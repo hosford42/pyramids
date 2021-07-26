@@ -19,7 +19,8 @@ import weakref
 from abc import ABCMeta, abstractmethod
 from collections import deque
 from functools import reduce
-from typing import Sequence, Tuple, NamedTuple, Optional, Iterable, Iterator, Union, Set, FrozenSet, TypeVar, Generic
+from typing import Sequence, Tuple, NamedTuple, Optional, Iterable, Iterator, Union, Set, \
+    FrozenSet, TypeVar, Generic
 
 from pyramids import categorization, graphs, tokenization, traversal
 from pyramids.categorization import Category
@@ -44,24 +45,29 @@ class PayloadInterface(metaclass=ABCMeta):
 
     @abstractmethod
     def is_compatible_with(self, other: 'PayloadInterface') -> bool:
-        """Return whether two nodes holding this and the other payload are compatible to share a single node set."""
+        """Return whether two nodes holding this and the other payload are compatible to share a
+        single node set."""
         raise NotImplementedError()
 
 
 PayloadType = TypeVar('PayloadType', bound=PayloadInterface)
 
 
-_ParsingPayload = NamedTuple('ParsingPayload', [('tokens', TokenSequence), ('rule', ParseRule),
-                                                ('head_component_index', Optional[int]), ('category', Category),
+_ParsingPayload = NamedTuple('ParsingPayload', [('tokens', TokenSequence),
+                                                ('rule', ParseRule),
+                                                ('head_component_index', Optional[int]),
+                                                ('category', Category),
                                                 ('head_spelling', str),
-                                                ('token_start_index', int), ('token_end_index', int)])
+                                                ('token_start_index', int),
+                                                ('token_end_index', int)])
 
 
 class ParsingPayload(_ParsingPayload, PayloadInterface):
     """Payload used for tree nodes at parse time."""
 
     def is_compatible_with(self, other: 'PayloadInterface'):
-        """Return whether two nodes holding this and the other payload are compatible to share a single node set."""
+        """Return whether two nodes holding this and the other payload are compatible to share a
+        single node set."""
         if not isinstance(other, ParsingPayload):
             return False
         return (other.token_start_index == self.token_start_index and
@@ -74,8 +80,10 @@ class ParsingPayload(_ParsingPayload, PayloadInterface):
         return self.token_start_index, self.token_end_index
 
 
-_GenerationPayload = NamedTuple('GenerationPayload', [('rule', ParseRule), ('category', Category),
-                                                      ('head_spelling', str), ('head_graph_index', int),
+_GenerationPayload = NamedTuple('GenerationPayload', [('rule', ParseRule),
+                                                      ('category', Category),
+                                                      ('head_spelling', str),
+                                                      ('head_graph_index', int),
                                                       ('covered_graph_indices', FrozenSet[int])])
 
 
@@ -83,17 +91,20 @@ class GenerationPayload(_GenerationPayload, PayloadInterface):
     """Payload used for tree nodes at generation time."""
 
     def is_compatible_with(self, other: PayloadInterface):
-        """Return whether two nodes holding this and the other payload are compatible to share a single node set."""
+        """Return whether two nodes holding this and the other payload are compatible to share a
+        single node set."""
         if not isinstance(other, GenerationPayload):
             return False
-        return self.covered_graph_indices == other.covered_graph_indices and self.category == other.category
+        return (self.covered_graph_indices == other.covered_graph_indices and
+                self.category == other.category)
 
 
 class TreeUtils:
     """Utility methods for operating on trees at any time."""
 
     @staticmethod
-    def restrict(node: 'TreeNodeInterface', categories: Iterable[Category]) -> Iterator['TreeNodeInterface']:
+    def restrict(node: 'TreeNodeInterface',
+                 categories: Iterable[Category]) -> Iterator['TreeNodeInterface']:
         """Restrict a tree node to a particular category at parse time."""
         payload = node.payload
         for category in categories:
@@ -111,7 +122,8 @@ class TreeUtils:
         """
         Update the parse-time score of the tree node.
 
-        If recurse is True (default) then propagate the score upward through all trees containing this node.
+        If recurse is True (default) then propagate the score upward through all trees containing
+        this node.
         """
         if node.recompute_weighted_score(affected_child) and recurse:
             for parent in node.iter_parents():
@@ -146,8 +158,10 @@ class ParseTreeUtils:
         return node
 
     @staticmethod
-    def make_branch_parse_tree_node(tokens: TokenSequence, rule: ParseRule, head_index: int, category: Category,
-                                    components: Sequence['TreeNodeInterface[ParsingPayload]']) -> 'TreeNode':
+    def make_branch_parse_tree_node(tokens: TokenSequence, rule: ParseRule, head_index: int,
+                                    category: Category,
+                                    components: Sequence['TreeNodeInterface[ParsingPayload]']) \
+            -> 'TreeNode':
         """Create a tree node with a parse-time payload."""
         components = tuple(components)
         if not components:
@@ -169,7 +183,9 @@ class ParseTreeUtils:
         payload = node.payload
         if node.is_leaf():
             return payload.token_start_index
-        return ParseTreeUtils.get_head_token_start(node.components[payload.head_component_index].best_node)
+        return ParseTreeUtils.get_head_token_start(
+            node.components[payload.head_component_index].best_node
+        )
 
     @staticmethod
     def to_str(node: 'TreeNodeInterface[ParsingPayload]', simplify: bool = False) -> str:
@@ -177,7 +193,9 @@ class ParseTreeUtils:
         payload = node.payload
         result = payload.category.to_str(simplify) + ':'
         if node.is_leaf():
-            covered_tokens = ' '.join(payload.tokens[payload.token_start_index:payload.token_end_index])
+            covered_tokens = ' '.join(
+                payload.tokens[payload.token_start_index:payload.token_end_index]
+            )
             result += ' ' + repr(covered_tokens) + ' ' + repr(payload.token_index_span)
             if not simplify:
                 result += ' [' + str(payload.rule) + ']'
@@ -187,7 +205,8 @@ class ParseTreeUtils:
             if not simplify:
                 result += ' [' + str(payload.rule) + ']'
             for component in node.components:
-                result += '\n    ' + ParseTreeUtils.to_str(component, simplify).replace('\n', '\n    ')
+                result += '\n    ' + ParseTreeUtils.to_str(component, simplify).replace('\n',
+                                                                                        '\n    ')
         return result
 
 
@@ -209,7 +228,8 @@ class TreeNodeInterface(Generic[PayloadType], metaclass=ABCMeta):
     @property
     @abstractmethod
     def coverage(self) -> int:
-        """Compute the number of unique combinatoric variations of the subtree rooted at this node."""
+        """Compute the number of unique combinatoric variations of the subtree rooted at this
+        node."""
         raise NotImplementedError()
 
     @abstractmethod
@@ -234,7 +254,8 @@ class TreeNodeInterface(Generic[PayloadType], metaclass=ABCMeta):
 
     @abstractmethod
     def has_ancestor(self, ancestor: 'TreeNodeInterface[PayloadType]') -> bool:
-        """Return a boolean indicating whether the subtree rooted at the given ancestor contains this node."""
+        """Return a boolean indicating whether the subtree rooted at the given ancestor contains
+        this node."""
         raise NotImplementedError()
 
     @property
@@ -248,7 +269,8 @@ class TreeNodeInterface(Generic[PayloadType], metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def recompute_weighted_score(self, affected_child: 'TreeNodeInterface[PayloadType]' = None) -> bool:
+    def recompute_weighted_score(self,
+                                 affected_child: 'TreeNodeInterface[PayloadType]' = None) -> bool:
         """Recompute the score of the tree node."""
         raise NotImplementedError()
 
@@ -256,7 +278,8 @@ class TreeNodeInterface(Generic[PayloadType], metaclass=ABCMeta):
 class TreeNode(TreeNodeInterface[PayloadType]):
     """Represents a branch or leaf node in a parse tree during parsing."""
 
-    def __init__(self, payload: PayloadInterface, components: Optional[Tuple[TreeNodeInterface[PayloadType], ...]]):
+    def __init__(self, payload: PayloadInterface,
+                 components: Optional[Tuple[TreeNodeInterface[PayloadType], ...]]):
         self._payload = payload
         self._components = components
         self._hash = (hash(self._payload) * 5) ^ (hash(self._components) * 2)
@@ -265,8 +288,8 @@ class TreeNode(TreeNodeInterface[PayloadType]):
         self._raw_score = None  # type: Optional[Tuple[int, float, float]]
 
         if components:
-            # This has to happen after the hash is determined, since the node will be added to the components'
-            # parent sets.
+            # This has to happen after the hash is determined, since the node will be added to the
+            # components' parent sets.
             for component in components:
                 component.add_parent(self)
 
@@ -300,7 +323,8 @@ class TreeNode(TreeNodeInterface[PayloadType]):
 
     @property
     def coverage(self) -> int:
-        """Compute the number of unique combinatoric variations of the subtree rooted at this node."""
+        """Compute the number of unique combinatoric variations of the subtree rooted at this
+        node."""
         return 1 if self.is_leaf() else reduce(lambda a, b: a * b.coverage, self.components, 1)
 
     @property
@@ -339,18 +363,21 @@ class TreeNode(TreeNodeInterface[PayloadType]):
             self._parents.add(parent)
 
     def has_ancestor(self, ancestor: TreeNodeInterface[PayloadType]) -> bool:
-        """Return a boolean indicating whether the subtree rooted at the given ancestor contains this node."""
+        """Return a boolean indicating whether the subtree rooted at the given ancestor contains
+        this node."""
         if ancestor is self:
             return True
         if not self._parents:
             return False
         return any(parent.has_ancestor(ancestor) for parent in self._parents)
 
-    def recompute_weighted_score(self, affected_child: TreeNodeInterface[PayloadType] = None) -> bool:
+    def recompute_weighted_score(self,
+                                 affected_child: TreeNodeInterface[PayloadType] = None) -> bool:
         """
         Update the parse-time score of the tree node.
 
-        If recurse is True (default) then propagate the score upward through all trees containing this node.
+        If recurse is True (default) then propagate the score upward through all trees containing
+        this node.
         """
         # TODO: Take advantage of the affected_child argument.
         total_weighted_score, total_weight = self.payload.rule.calculate_weighted_score(self)
@@ -402,17 +429,20 @@ class BuildTreeNode:
 
     def __repr__(self):
         if self.is_leaf():
-            return (type(self).__name__ + "(" + repr(self._rule) + ", " + repr(self.category) + ", " +
-                    repr(self._head_node[0]) + ", " + repr(self._head_node[1]) + ")")
+            return (type(self).__name__ + "(" + repr(self._rule) + ", " +
+                    repr(self.category) + ", " + repr(self._head_node[0]) + ", " +
+                    repr(self._head_node[1]) + ")")
         return (type(self).__name__ + "(" + repr(self._rule) + ", " + repr(self.category) + ", " +
-                repr(self._head_node[0]) + ", " + repr(self._head_node[1]) + ", " + repr(self.components) + ")")
+                repr(self._head_node[0]) + ", " + repr(self._head_node[1]) + ", " +
+                repr(self.components) + ")")
 
     def __str__(self):
         return self.to_str()
 
     def __hash__(self):
         if self._hash is None:
-            self._hash = hash(self._rule) ^ hash(self._category) ^ hash(self._head_node) ^ hash(self._components)
+            self._hash = (hash(self._rule) ^ hash(self._category) ^ hash(self._head_node) ^
+                          hash(self._components))
         return self._hash
 
     def __eq__(self, other):
@@ -424,8 +454,8 @@ class BuildTreeNode:
     def __ne__(self, other):
         if not isinstance(other, BuildTreeNode):
             return NotImplemented
-        return (self._rule != other._rule or self._category != other._category or self._head_node != other._head_node or
-                self._components != other._components)
+        return (self._rule != other._rule or self._category != other._category or
+                self._head_node != other._head_node or self._components != other._components)
 
     @property
     def rule(self):
@@ -482,7 +512,8 @@ class BuildTreeNode:
 class TreeNodeSet(TreeNodeInterface[PayloadType]):
     """A set of tree nodes that cover the same phrase with the same category."""
 
-    def __init__(self, nodes: Union[TreeNodeInterface[PayloadType], Iterable[TreeNodeInterface[PayloadType]]]):
+    def __init__(self, nodes: Union[TreeNodeInterface[PayloadType],
+                                    Iterable[TreeNodeInterface[PayloadType]]]):
         self._nodes = set()  # type: Set[TreeNodeInterface[PayloadType]]
         self._parents = weakref.WeakSet()
 
@@ -532,7 +563,8 @@ class TreeNodeSet(TreeNodeInterface[PayloadType]):
 
     @property
     def coverage(self):
-        """Compute the number of unique combinatoric variations of the subtree rooted at this node set."""
+        """Compute the number of unique combinatoric variations of the subtree rooted at this node
+        set."""
         return sum(node.coverage for node in self._nodes)
 
     @property
@@ -548,14 +580,16 @@ class TreeNodeSet(TreeNodeInterface[PayloadType]):
     def raw_score(self) -> Tuple[int, float, float]:
         return self._best_node.raw_score
 
-    def recompute_weighted_score(self, affected_child: 'TreeNodeInterface[PayloadType]' = None) -> bool:
+    def recompute_weighted_score(self,
+                                 affected_child: 'TreeNodeInterface[PayloadType]' = None) -> bool:
         """
         Update the parse-time score of the tree node set.
 
-        If an affected_node is provided, the update is performed in a more efficient way that assumes that the
-        affected_node is the only member of the node set whose score changed.
+        If an affected_node is provided, the update is performed in a more efficient way that
+        assumes that the affected_node is the only member of the node set whose score changed.
 
-        If recurse is True (default) then propagate the score upward through all trees containing this node set.
+        If recurse is True (default) then propagate the score upward through all trees containing
+        this node set.
         """
         if affected_child is None or affected_child is self._best_node:
             self._best_node = max(self._nodes, key=lambda n: n.score)
@@ -584,7 +618,8 @@ class TreeNodeSet(TreeNodeInterface[PayloadType]):
             for member in node:
                 self.add(member)
         else:
-            if self._best_node is not None and not self._best_node.payload.is_compatible_with(node.payload):
+            if (self._best_node is not None and
+                    not self._best_node.payload.is_compatible_with(node.payload)):
                 raise ValueError("Node is not compatible.")
             self._nodes.add(node)
             node.add_parent(self)
@@ -602,7 +637,8 @@ class TreeNodeSet(TreeNodeInterface[PayloadType]):
         self._parents.add(parent)
 
     def has_ancestor(self, ancestor: TreeNodeInterface[PayloadType]):
-        """Return a boolean indicating whether the subtree rooted at the given ancestor contains this node."""
+        """Return a boolean indicating whether the subtree rooted at the given ancestor contains
+        this node."""
         if ancestor is self:
             return True
         if not self._parents:
@@ -714,7 +750,8 @@ class Parse:
     def __eq__(self, other):
         if not isinstance(other, Parse):
             return NotImplemented
-        return self is other or (self._tokens == other._tokens and self._parse_trees == other._parse_trees)
+        return self is other or (self._tokens == other._tokens and
+                                 self._parse_trees == other._parse_trees)
 
     def __ne__(self, other):
         if not isinstance(other, Parse):
@@ -816,16 +853,18 @@ class Parse:
                 if tree.token_start_index == index:
                     if nearest_end is None or tree.token_end_index < nearest_end:
                         nearest_end = tree.token_end_index
-                    for tail in self._iter_disambiguation_tails(tree.token_end_index, max_index, gaps, pieces - 1,
-                                                                timeout):
+                    for tail in self._iter_disambiguation_tails(tree.token_end_index, max_index,
+                                                                gaps, pieces - 1, timeout):
                         yield [tree] + tail
             if nearest_end is None:
                 if gaps > 0:
-                    for tail in self._iter_disambiguation_tails(index + 1, max_index, gaps - 1, pieces, timeout):
+                    for tail in self._iter_disambiguation_tails(index + 1, max_index, gaps - 1,
+                                                                pieces, timeout):
                         yield tail
             else:
                 for overlap_index in range(index + 1, nearest_end):
-                    for tail in self._iter_disambiguation_tails(overlap_index, nearest_end, gaps, pieces, timeout):
+                    for tail in self._iter_disambiguation_tails(overlap_index, nearest_end, gaps,
+                                                                pieces, timeout):
                         yield tail
 
     # TODO: This fails if we have a partial parse in the *middle* of the
@@ -843,7 +882,8 @@ class Parse:
             success = False
             for gaps in gaps_seq:
                 for pieces in pieces_seq:
-                    for tail in self._iter_disambiguation_tails(0, len(self._tokens), gaps, pieces, timeout):
+                    for tail in self._iter_disambiguation_tails(0, len(self._tokens), gaps, pieces,
+                                                                timeout):
                         yield type(self)(self._tokens, tail)
                         success = True
                     if success:
@@ -866,7 +906,8 @@ class Parse:
 
     def get_sorted_disambiguations(self, gaps=None, pieces=None, timeout=None):
         ranks = self.get_ranked_disambiguations(gaps, pieces, timeout)
-        return [(disambiguation, ranks[disambiguation]) for disambiguation in sorted(ranks, key=ranks.get)]
+        return [(disambiguation, ranks[disambiguation])
+                for disambiguation in sorted(ranks, key=ranks.get)]
 
     def iter_gaps(self):
         gap_start = None

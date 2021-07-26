@@ -14,7 +14,8 @@ class Plugin:
         self._model_languages = {}
         self._model_loaders = {}
 
-    def register_tokenizer_type(self, name: str, language: Language, tokenizer_type: Type[Tokenizer]) -> None:
+    def register_tokenizer_type(self, name: str, language: Language,
+                                tokenizer_type: Type[Tokenizer]) -> None:
         self._tokenizer_languages[name] = language
         self._tokenizer_types[name] = tokenizer_type
 

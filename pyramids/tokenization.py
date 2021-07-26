@@ -34,7 +34,8 @@ class TokenSequence:
             spans.append((start, end))
         self._tokens = tuple(interned_tokens)
         self._spans = tuple(spans)
-        self._hash = reduce(lambda a, b: a ^ id(b), self._tokens, 0) ^ reduce(lambda a, b: a ^ hash(b), self._spans, 0)
+        self._hash = (reduce(lambda a, b: a ^ id(b), self._tokens, 0) ^
+                      reduce(lambda a, b: a ^ hash(b), self._spans, 0))
 
     @property
     def tokens(self) -> Tuple[str, ...]:

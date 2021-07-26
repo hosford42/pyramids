@@ -14,7 +14,8 @@ class LanguageContentHandler:
     def handle_tree_end(self) -> None:
         """Called to indicate the token_end_index of a tree."""
 
-    def handle_token(self, spelling: str, category: Category, index: int = None, span: Tuple[int, int] = None) -> None:
+    def handle_token(self, spelling: str, category: Category, index: int = None,
+                     span: Tuple[int, int] = None) -> None:
         """Called to indicate the occurrence of a token."""
 
     def handle_root(self) -> None:
@@ -44,7 +45,8 @@ class DepthFirstTraverser:
             scores = {tree: tree.get_weighted_score() for tree in element.parse_trees}
 
             for tree in sorted(element.parse_trees,
-                               key=lambda tree: (tree.token_start_index, -tree.token_end_index, -scores[tree][0], -scores[tree][1])):
+                               key=lambda tree: (tree.token_start_index, -tree.token_end_index,
+                                                 -scores[tree][0], -scores[tree][1])):
                 self.traverse(tree, handler)
                 handler.handle_tree_end()
         elif isinstance(element, trees.ParseTree):
@@ -71,8 +73,8 @@ class DepthFirstTraverser:
                 handler.handle_root()
 
             head_token_start = trees.ParseTreeUtils.get_head_token_start(element)
-            handler.handle_token(payload.tokens[payload.token_start_index], payload.category, head_token_start,
-                                 payload.tokens.spans[payload.token_start_index])
+            handler.handle_token(payload.tokens[payload.token_start_index], payload.category,
+                                 head_token_start, payload.tokens.spans[payload.token_start_index])
 
             need_sources = {}
             for prop in payload.category.positive_properties:
@@ -95,8 +97,11 @@ class DepthFirstTraverser:
             component = component.best_node
             assert isinstance(component, trees.TreeNode)
 
-            component_need_sources = self._traverse(component, handler,
-                                                    is_root and index == payload.head_component_index)
+            component_need_sources = self._traverse(
+                component,
+                handler,
+                is_root and index == payload.head_component_index
+            )
 
             head_token_start = trees.ParseTreeUtils.get_head_token_start(component)
             nodes.append(head_token_start)
@@ -133,8 +138,10 @@ class DepthFirstTraverser:
             for label, left, right in links:
                 if left:
                     if str(label).lower() in head_need_sources:
-                        #     and not (Property.get('needs_' + label.lower()) in self.category.positive_properties or
-                        #              Property.get('takes_' + label.lower()) in self.category.positive_properties):
+                        #     and not ((Property.get('needs_' + label.lower())
+                        #               in self.category.positive_properties) or
+                        #              (Property.get('takes_' + label.lower())
+                        #               in self.category.positive_properties)):
                         for node in need_sources[label.lower()]:
                             handler.handle_link(node, left_side, label)
                     elif label[-3:].lower() == '_of' and label[:-3].lower() in head_need_sources:
@@ -145,8 +152,10 @@ class DepthFirstTraverser:
 
                 if right:
                     if str(label).lower() in head_need_sources:
-                        #     and not (Property.get('needs_' + label.lower()) in self.category.positive_properties or
-                        #              Property.get('takes_' + label.lower()) in self.category.positive_properties):
+                        #     and not ((Property.get('needs_' + label.lower())
+                        #               in self.category.positive_properties) or
+                        #              (Property.get('takes_' + label.lower())
+                        #               in self.category.positive_properties)):
                         for node in need_sources[label.lower()]:
                             handler.handle_link(node, right_side, label)
                     elif label[-3:].lower() == '_of' and label[:-3].lower() in head_need_sources:

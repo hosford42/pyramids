@@ -53,5 +53,6 @@ class ScoringFeature:
 
     @property
     def key(self):
-        """Get the unique key that distinguishes this scoring feature from others appearing in the same context."""
+        """Get the unique key that distinguishes this scoring feature from others appearing in the
+        same context."""
         return self._key

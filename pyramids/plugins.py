@@ -1,8 +1,9 @@
-# TODO: Create a registry for officially-supported models. Allow these to be automatically installed on request,
-#       instead of having to use pip.
-# TODO: Make the annotator app consult the plugins to choose a parser model before annotating begins.
-# TODO: Make the repl package allow switching between parser models from the command line instead of requiring
-#       a model loader as a parameter. (Keep it as an optional parameter, though.)
+# TODO: Create a registry for officially-supported models. Allow these to be automatically installed
+#       on request, instead of having to use pip.
+# TODO: Make the annotator app consult the plugins to choose a parser model before annotating
+#       begins.
+# TODO: Make the repl package allow switching between parser models from the command line instead of
+#       requiring a model loader as a parameter. (Keep it as an optional parameter, though.)
 import logging
 from typing import Type, Set, NamedTuple
 
@@ -30,7 +31,8 @@ PLUGIN_ENTRY_POINT = 'pyramids.plugins'
 LOGGER = logging.getLogger(__name__)
 
 
-def get_available_tokenizers(language_name: str = None, iso639_1: str = None, iso639_2: str = None) -> Set[PluginEntry]:
+def get_available_tokenizers(language_name: str = None, iso639_1: str = None,
+                             iso639_2: str = None) -> Set[PluginEntry]:
     results = set()
     for plugin_name in _PLUGINS:
         plugin: Plugin = _PLUGINS[plugin_name]
@@ -45,7 +47,8 @@ def get_available_tokenizers(language_name: str = None, iso639_1: str = None, is
     return results
 
 
-def get_available_models(language_name: str = None, iso639_1: str = None, iso639_2: str = None) -> Set[PluginEntry]:
+def get_available_models(language_name: str = None, iso639_1: str = None,
+                         iso639_2: str = None) -> Set[PluginEntry]:
     results = set()
     for plugin_name in _PLUGINS:
         plugin: Plugin = _PLUGINS[plugin_name]
@@ -60,7 +63,8 @@ def get_available_models(language_name: str = None, iso639_1: str = None, iso639
     return results
 
 
-def get_tokenizer(plugin_name: str, tokenizer_name: str, config_info: ModelConfig = None) -> Tokenizer:
+def get_tokenizer(plugin_name: str, tokenizer_name: str,
+                  config_info: ModelConfig = None) -> Tokenizer:
     plugin: Plugin = _PLUGINS[plugin_name]
     tokenizer_type: Type[Tokenizer] = plugin.get_tokenizer_type(tokenizer_name)
     if config_info is None:
