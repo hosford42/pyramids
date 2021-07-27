@@ -5,7 +5,7 @@
 # TODO: Make the repl package allow switching between parser models from the command line instead of
 #       requiring a model loader as a parameter. (Keep it as an optional parameter, though.)
 import logging
-from typing import Type, Set, NamedTuple
+from typing import Type, Set, NamedTuple, Dict
 
 import pkg_resources
 
@@ -85,7 +85,7 @@ def load_model(plugin_name: str, model_name: str) -> Model:
     return plugin.load_model(model_name)
 
 
-def _load_plugins():
+def _load_plugins() -> Dict[str, Plugin]:
     plugins = {}
     for entry_point in pkg_resources.iter_entry_points(PLUGIN_ENTRY_POINT):
         name = entry_point.name

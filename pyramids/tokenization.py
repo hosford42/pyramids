@@ -5,10 +5,12 @@
 from abc import ABCMeta, abstractmethod
 from functools import reduce
 from sys import intern
-from typing import Tuple, Optional
+from typing import Tuple, Optional, TYPE_CHECKING, Iterable, Union, Iterator
 
-from pyramids.config import ModelConfig
-from pyramids.language import Language
+if TYPE_CHECKING:
+    from pyramids.config import ModelConfig
+    from pyramids.language import Language
+
 
 __author__ = 'Aaron Hosford'
 __all__ = [
@@ -20,7 +22,7 @@ __all__ = [
 class TokenSequence:
     """A sequence of tokens generated for the parse input."""
 
-    def __init__(self, tokens):
+    def __init__(self, tokens: Iterable[Tuple[str, int, int]]):
         interned_tokens = []
         spans = []
         for token, start, end in tokens:
@@ -47,28 +49,28 @@ class TokenSequence:
         """Get the token_start_index/token_end_index index spans of the tokens."""
         return self._spans
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ' '.join(self._tokens)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return type(self).__name__ + "(" + repr(self._tokens) + ")"
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return self._hash
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'TokenSequence') -> bool:
         if not isinstance(other, TokenSequence):
             return NotImplemented
         return self is other or (self._hash == other._hash and
                                  self._tokens == other._tokens and
                                  self._spans == other._spans)
 
-    def __ne__(self, other):
+    def __ne__(self, other: 'TokenSequence') -> bool:
         if not isinstance(other, TokenSequence):
             return NotImplemented
         return not self == other
 
-    def __le__(self, other):
+    def __le__(self, other: 'TokenSequence') -> bool:
         if not isinstance(other, TokenSequence):
             return NotImplemented
         if len(self._tokens) != len(other._tokens):
@@ -77,28 +79,28 @@ class TokenSequence:
             return self._tokens < other._tokens
         return self._spans <= other._spans
 
-    def __gt__(self, other):
+    def __gt__(self, other: 'TokenSequence') -> bool:
         if not isinstance(other, TokenSequence):
             return NotImplemented
         return not self <= other
 
-    def __ge__(self, other):
+    def __ge__(self, other: 'TokenSequence') -> bool:
         if not isinstance(other, TokenSequence):
             return NotImplemented
         return other <= self
 
-    def __lt__(self, other):
+    def __lt__(self, other: 'TokenSequence') -> bool:
         if not isinstance(other, TokenSequence):
             return NotImplemented
         return not self >= other
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: Union[int, slice]) -> Union[str, Tuple[str, ...]]:
         return self._tokens[index]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._tokens)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self._tokens)
 
 
@@ -107,7 +109,7 @@ class Tokenizer(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def from_config(cls, config_info: ModelConfig) -> 'Tokenizer':
+    def from_config(cls, config_info: 'ModelConfig') -> 'Tokenizer':
         """Create a tokenizer instance from the given configuration info."""
         raise NotImplementedError()
 
@@ -118,6 +120,6 @@ class Tokenizer(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def language(self) -> Optional[Language]:
+    def language(self) -> 'Optional[Language]':
         """Get the language this tokenizer is designed for, if indicated."""
         raise NotImplementedError()

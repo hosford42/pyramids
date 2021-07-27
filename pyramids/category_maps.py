@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+from typing import Iterator, Tuple, Iterable, TYPE_CHECKING, Optional
 
 from pyramids import trees
-from pyramids.categorization import Category
+
+if TYPE_CHECKING:
+    from pyramids.categorization import Category
 
 
 class CategoryMap:
@@ -16,7 +19,7 @@ class CategoryMap:
         self._size = 0
         self._ranges = set()
 
-    def __iter__(self):
+    def __iter__(self) -> 'Iterator[Tuple[int, Category, int]]':
         for start, category_name_map in self._map.items():
             for category_name, category_map in category_name_map.items():
                 for category, end_map in category_map.items():
@@ -24,14 +27,14 @@ class CategoryMap:
                         yield start, category, end
 
     @property
-    def max_end(self):
+    def max_end(self) -> int:
         return self._max_end
 
     @property
-    def size(self):
+    def size(self) -> int:
         return self._size
 
-    def add(self, node: trees.TreeNode[trees.ParsingPayload]):
+    def add(self, node: 'trees.TreeNode[trees.ParsingPayload]') -> bool:
         """Add the given parse tree node to the category map and return a
         boolean indicating whether it was something new or was already
         mapped."""
@@ -90,7 +93,8 @@ class CategoryMap:
 
         return True  # It's something new
 
-    def iter_forward_matches(self, start, categories, emergency=False):
+    def iter_forward_matches(self, start: int, categories: 'Iterable[Category]',
+                             emergency: bool = False) -> 'Iterator[Tuple[Category, int]]':
         category_name_map = self._map.get(start)
         if category_name_map is None:
             return
@@ -109,7 +113,8 @@ class CategoryMap:
                             for end in end_map:
                                 yield mapped_category, end
 
-    def iter_backward_matches(self, end, categories, emergency=False):
+    def iter_backward_matches(self, end: int, categories: 'Iterable[Category]',
+                              emergency: bool = False) -> 'Iterator[Tuple[Category, int]]':
         category_name_map = self._reverse_map.get(end)
         if category_name_map is None:
             return
@@ -132,7 +137,8 @@ class CategoryMap:
     #       wildcards like its name seems to imply. For now, I've changed it to return a sequence
     #       instead of working as a generator, which doesn't break anything and should improve
     #       performance slightly.
-    def iter_node_sets(self, start: int, category: Category, end: int):
+    def iter_node_sets(self, start: int, category: 'Category',
+                       end: int) -> 'Tuple[trees.TreeNodeSet, ...]':
         assert not category.is_wildcard()
         category_name_map = self._map.get(start)
         if category_name_map is None:
@@ -148,7 +154,8 @@ class CategoryMap:
             return ()
         return node_set,
 
-    def get_node_set(self, node: trees.TreeNode[trees.ParsingPayload]):
+    def get_node_set(self, node: 'trees.TreeNode[trees.ParsingPayload]') \
+            -> 'Optional[trees.TreeNodeSet[trees.ParsingPayload]]':
         category_name_map = self._map.get(node.payload.token_start_index)
         if category_name_map is None:
             return None
@@ -160,11 +167,11 @@ class CategoryMap:
             return None
         return end_map.get(node.payload.token_end_index)
 
-    def has_start(self, start):
+    def has_start(self, start: int) -> bool:
         return start in self._map
 
-    def has_end(self, end):
+    def has_end(self, end: int) -> bool:
         return end in self._reverse_map
 
-    def has_range(self, start, end):
+    def has_range(self, start: int, end: int) -> bool:
         return (start, end) in self._ranges

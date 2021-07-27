@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 
-from typing import Tuple
+from typing import Tuple, Dict, Set
 
 from pyramids import trees
 from pyramids.categorization import Property, Category
-from pyramids.rules.branch import BranchRule
+from pyramids.rules import branch
+
+TraversableElement = 'Union[trees.Parse, trees.ParseTree, trees.TreeNodeInterface]'
 
 
 class LanguageContentHandler:
@@ -35,7 +37,8 @@ class LanguageContentHandler:
 
 class DepthFirstTraverser:
 
-    def traverse(self, element, handler, is_root=False):
+    def traverse(self, element: TraversableElement, handler: LanguageContentHandler,
+                 is_root: bool = False) -> None:
         """Visit this node with a LanguageContentHandler."""
         # TODO: Should we let the handler know that there's a dangling
         #       needs_* or takes_* property that hasn't been satisfied at
@@ -64,7 +67,8 @@ class DepthFirstTraverser:
             self._traverse(element, handler, is_root)
 
     # TODO: Break this method up into comprehensible chunks.
-    def _traverse(self, element, handler: LanguageContentHandler, is_root=False):
+    def _traverse(self, element: TraversableElement, handler: LanguageContentHandler,
+                  is_root: bool = False) -> Dict[Property, Set[int]]:
         assert isinstance(element, trees.TreeNode)
         payload = element.payload
         assert isinstance(payload, trees.ParsingPayload)
@@ -124,8 +128,8 @@ class DepthFirstTraverser:
         # Add the links as appropriate for the rule used to build this tree
         for index in range(len(element.components) - 1):
             rule = payload.rule
-            assert isinstance(payload.rule, BranchRule)
-            links = payload.rule.get_link_types(element, index)
+            assert isinstance(rule, branch.BranchRule)
+            links = rule.get_link_types(element, index)
 
             # Skip the head node; there won't be any looping links.
             if index < payload.head_component_index:

@@ -75,7 +75,8 @@ class ModelBatchController:
         return BatchTally(len(samples), len(samples) - successes, total / len(samples),
                           successes / len(samples))
 
-    def run_one(self, input_val, target, attempt_generator):
+    def run_one(self, input_val: Input, target: Target,
+                attempt_generator: AttemptGenerator) -> IndividualTally:
         """Run a single sample and record the results."""
         first = None
         first_score = None

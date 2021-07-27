@@ -32,8 +32,10 @@ __all__ = [
     'TreeNode',
     'BuildTreeNode',
     'TreeNodeSet',
+    'TreeNodeInterface',
     'ParseTree',
     'Parse',
+    'ParseTreeUtils'
 ]
 
 
@@ -293,21 +295,21 @@ class TreeNode(TreeNodeInterface[PayloadType]):
             for component in components:
                 component.add_parent(self)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return self._hash
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'TreeNode') -> bool:
         if not isinstance(other, TreeNode):
             return NotImplemented
         return self is other or (self._hash == other._hash and self._payload == other._payload and
                                  self._components == other._components)
 
-    def __ne__(self, other):
+    def __ne__(self, other: 'TreeNode') -> bool:
         if not isinstance(other, TreeNode):
             return NotImplemented
         return not self == other
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = (self._payload, self._components)
         return '%s%r' % (type(self).__name__, args)
 
@@ -337,7 +339,7 @@ class TreeNode(TreeNodeInterface[PayloadType]):
         assert self._raw_score is not None
         return self._raw_score
 
-    def iter_parents(self) -> Iterator[TreeNodeInterface[PayloadType]]:
+    def iter_parents(self) -> Iterator['TreeNode[PayloadType]']:
         """Iterate over the parents of this node."""
         if self._parents:
             yield from self._parents
@@ -415,7 +417,8 @@ class TreeNode(TreeNodeInterface[PayloadType]):
 class BuildTreeNode:
     """Represents a branch or leaf node in a parse tree during reconstruction."""
 
-    def __init__(self, rule, category, head_spelling, head_index, components=None):
+    def __init__(self, rule: ParseRule, category: Category, head_spelling: str, head_index: int,
+                 components: Iterable['BuildTreeNode'] = None):
         self._rule = rule
         self._category = category
         self._head_node = (head_spelling, head_index)
@@ -427,7 +430,7 @@ class BuildTreeNode:
         self._tokens = tuple(spelling for spelling, index in self._nodes)
         self._hash = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.is_leaf():
             return (type(self).__name__ + "(" + repr(self._rule) + ", " +
                     repr(self.category) + ", " + repr(self._head_node[0]) + ", " +
@@ -436,63 +439,63 @@ class BuildTreeNode:
                 repr(self._head_node[0]) + ", " + repr(self._head_node[1]) + ", " +
                 repr(self.components) + ")")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.to_str()
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         if self._hash is None:
             self._hash = (hash(self._rule) ^ hash(self._category) ^ hash(self._head_node) ^
                           hash(self._components))
         return self._hash
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'BuildTreeNode') -> bool:
         if not isinstance(other, BuildTreeNode):
             return NotImplemented
         return (self._rule == other._rule and self._category == other._category and
                 self._head_node == other._head_node and self._components == other._components)
 
-    def __ne__(self, other):
+    def __ne__(self, other: 'BuildTreeNode') -> bool:
         if not isinstance(other, BuildTreeNode):
             return NotImplemented
         return (self._rule != other._rule or self._category != other._category or
                 self._head_node != other._head_node or self._components != other._components)
 
     @property
-    def rule(self):
+    def rule(self) -> ParseRule:
         return self._rule
 
     @property
-    def category(self):
+    def category(self) -> Category:
         return self._category
 
     @property
-    def head_spelling(self):
+    def head_spelling(self) -> str:
         return self._head_node[0]
 
     @property
-    def head_index(self):
+    def head_index(self) -> int:
         return self._head_node[1]
 
     @property
-    def components(self):
+    def components(self) -> Optional[Tuple['BuildTreeNode', ...]]:
         return self._components
 
     @property
-    def nodes(self):
+    def nodes(self) -> Tuple[Tuple[str, int], ...]:
         return self._nodes
 
     @property
-    def node_coverage(self):
+    def node_coverage(self) -> FrozenSet[int]:
         return self._node_coverage
 
     @property
-    def tokens(self):
+    def tokens(self) -> Tuple[str, ...]:
         return self._tokens
 
-    def is_leaf(self):
+    def is_leaf(self) -> bool:
         return self._components is None
 
-    def to_str(self, simplify=False):
+    def to_str(self, simplify: bool = False) -> str:
         result = self.category.to_str(simplify) + ':'
         if self.is_leaf():
             covered_tokens = ' '.join(self.tokens)
@@ -533,16 +536,16 @@ class TreeNodeSet(TreeNodeInterface[PayloadType]):
             for node in node_iterator:
                 self.add(node)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return type(self).__name__ + "(" + repr(self._nodes) + ")"
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[TreeNodeInterface[PayloadType]]:
         return iter(self._nodes)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._nodes)
 
-    def __contains__(self, node):
+    def __contains__(self, node: 'TreeNodeInterface[PayloadType]') -> bool:
         return node in self._nodes
 
     @property
@@ -562,7 +565,7 @@ class TreeNodeSet(TreeNodeInterface[PayloadType]):
         return self._best_node.payload
 
     @property
-    def coverage(self):
+    def coverage(self) -> int:
         """Compute the number of unique combinatoric variations of the subtree rooted at this node
         set."""
         return sum(node.coverage for node in self._nodes)
@@ -599,7 +602,7 @@ class TreeNodeSet(TreeNodeInterface[PayloadType]):
             return True
         return False
 
-    def is_leaf(self):
+    def is_leaf(self) -> bool:
         """Return a boolean indicating whether this node is a leaf."""
         return self._best_node.is_leaf()
 
@@ -626,17 +629,17 @@ class TreeNodeSet(TreeNodeInterface[PayloadType]):
             if self._best_node is None:
                 self._best_node = node
 
-    def iter_leaves(self):
+    def iter_leaves(self) -> Iterator[TreeNode[PayloadType]]:
         """Iterate over the leaves of the subtree rooted at this node from left to right."""
         for node in self._nodes:
             yield from node.iter_leaves()
 
-    def add_parent(self, parent):
+    def add_parent(self, parent: TreeNode[PayloadType]) -> None:
         """Add a weak reference to a parent of this node."""
         assert not parent.has_ancestor(self)
         self._parents.add(parent)
 
-    def has_ancestor(self, ancestor: TreeNodeInterface[PayloadType]):
+    def has_ancestor(self, ancestor: TreeNodeInterface[PayloadType]) -> bool:
         """Return a boolean indicating whether the subtree rooted at the given ancestor contains
         this node."""
         if ancestor is self:
@@ -653,21 +656,21 @@ class ParseTree:
         self._tokens = tokens
         self._root = root
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return type(self).__name__ + "(" + repr(self._tokens) + ", " + repr(self._root) + ")"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.to_str()
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._tokens) ^ hash(self._root)
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'ParseTree') -> bool:
         if not isinstance(other, ParseTree):
             return NotImplemented
         return self is other or (self._tokens == other._tokens and self._root == other._root)
 
-    def __ne__(self, other):
+    def __ne__(self, other: 'ParseTree') -> bool:
         if not isinstance(other, ParseTree):
             return NotImplemented
         return not (self == other)
@@ -696,23 +699,24 @@ class ParseTree:
     def coverage(self) -> int:
         return self._root.coverage
 
-    def to_str(self, simplify=True) -> str:
+    def to_str(self, simplify: bool = True) -> str:
         return ParseTreeUtils.to_str(self._root.best_node, simplify)
 
-    def restrict(self, categories):
+    def restrict(self, categories: Iterable[Category]):
         results = set()
         for node in TreeUtils.restrict(self._root, categories):
+            assert isinstance(node, TreeNodeSet)
             results.add(type(self)(self._tokens, node))
         return results
 
-    def is_ambiguous_with(self, other):
+    def is_ambiguous_with(self, other: 'ParseTree') -> bool:
         return (self.token_start_index <= other.token_start_index < self.token_end_index or
                 other.token_start_index <= self.token_start_index < other.token_end_index)
 
-    def get_weighted_score(self):
+    def get_weighted_score(self) -> Tuple[float, float]:
         return self.root.score
 
-    def adjust_score(self, target):
+    def adjust_score(self, target: float) -> None:
         TreeUtils.adjust_score(self.root, target)
 
         queue = deque(self.root.iter_leaves())

@@ -4,7 +4,8 @@
 Graph representations of parse trees
 """
 
-from typing import NamedTuple, Sequence, Set, FrozenSet, List, Tuple, Optional, Iterator, Union
+from typing import NamedTuple, Sequence, Set, FrozenSet, List, Tuple, Optional, Iterator, Union, \
+    Dict
 
 try:
     from graphviz import Digraph
@@ -31,7 +32,7 @@ class ParseGraph:
     """A simple class for representing language content as a semantic graph."""
 
     @classmethod
-    def from_json(cls, json_data) -> 'ParseGraph':
+    def from_json(cls, json_data: Dict[str, List]) -> 'ParseGraph':
         """Constructs a ParseGraph from a JSON-serializable data structure produced by
         ParseGraph.to_json()."""
         from pyramids.grammar import GrammarParser
@@ -56,7 +57,8 @@ class ParseGraph:
                 phrases[index].append((category, phrase_links))
         return cls(root, tokens, links, phrases)
 
-    def __init__(self, root: int, tokens: Sequence[Token], links, phrases):
+    def __init__(self, root: int, tokens: Sequence[Token], links: List[Dict[int, Set[str]]],
+                 phrases: List[List[Tuple[Category, List[Tuple[int, int]]]]]):
         self._root = root
         self._tokens = tuple(tokens)
         self._links = tuple({sink: frozenset(labels) for sink, labels in dict(sink_map).items()}
@@ -104,7 +106,7 @@ class ParseGraph:
     def __len__(self) -> int:
         return len(self._tokens)
 
-    def to_json(self):
+    def to_json(self) -> Dict[str, List]:
         """Returns a JSON-serializable data structure that represents the contents of the graph."""
         return {
             'roots': [self._root],
@@ -235,7 +237,7 @@ class BuildGraph:
         return combined_graph
 
     @classmethod
-    def from_json(cls, json_data) -> 'BuildGraph':
+    def from_json(cls, json_data: Dict[str, List]) -> 'BuildGraph':
         """Constructs a ParseGraph from a JSON-serializable data structure produced by
         ParseGraph.to_json()."""
         from pyramids.grammar import GrammarParser
@@ -309,7 +311,7 @@ class BuildGraph:
     def find_leaves(self) -> Set[int]:
         return {index for index in range(len(self._tokens)) if not self._links[index]}
 
-    def _is_forest(self, roots) -> bool:
+    def _is_forest(self, roots: Set[int]) -> bool:
         visited = roots
         added = list(visited)
         to_add = []
@@ -343,7 +345,7 @@ class BuildGraph:
         self._links.append({})
         return index
 
-    def clear_token_category(self, index: int):
+    def clear_token_category(self, index: int) -> None:
         token = self._tokens[index]
         self._tokens[index] = Token(token.index, token.spelling, token.span, None)
 
@@ -425,7 +427,7 @@ class BuildGraph:
     def __len__(self) -> int:
         return len(self._tokens)
 
-    def to_json(self):
+    def to_json(self) -> Dict[str, List]:
         """Returns a JSON-serializable data structure that represents the contents of the graph."""
         return {
             'roots': sorted(self.find_roots()),

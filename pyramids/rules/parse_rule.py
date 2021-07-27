@@ -1,21 +1,23 @@
-from typing import Tuple
+from typing import Tuple, Dict, Optional, Iterator, Union
 
-from pyramids import scoring
+from pyramids import scoring, trees
 
 
 class ParseRule:
+    _scoring_features: Dict[Optional[scoring.ScoringFeature], Tuple[float, float, int]]
 
-    def __init__(self, default_score=None, default_accuracy=None):
+    def __init__(self, default_score: float = None, default_accuracy: float = None):
         if default_score is None:
             default_score = .5
         if default_accuracy is None:
             default_accuracy = 0.001
         self._scoring_features = {None: (default_score, default_accuracy, 0)}
 
-    # def __str__(self):
+    # def __str__(self) -> str:
     #     raise NotImplementedError()
 
-    def calculate_weighted_score(self, parse_node):
+    def calculate_weighted_score(self, parse_node: 'trees.TreeNodeInterface') \
+            -> Tuple[float, float]:
         default_score, default_weight, count = self._scoring_features[None]
         total_score = default_score * default_weight
         total_weight = default_weight
@@ -26,7 +28,7 @@ class ParseRule:
                 total_weight += weight
         return total_score, total_weight
 
-    def adjust_score(self, parse_node, target):
+    def adjust_score(self, parse_node: 'trees.TreeNodeInterface', target: float) -> None:
         if not 0 <= target <= 1:
             raise ValueError("Score target must be in the interval [0, 1].")
         default_score, default_weight, count = self._scoring_features[None]
@@ -49,13 +51,14 @@ class ParseRule:
             weight += (weight_target - weight) / count
             self._scoring_features[feature] = (score, weight, count)
 
-    def get_score(self, feature) -> Tuple[float, float, int]:
+    def get_score(self, feature: scoring.ScoringFeature) -> Tuple[float, float, int]:
         if feature in self._scoring_features:
             return self._scoring_features[feature]
         else:
             return 0, 0, 0
 
-    def set_score(self, feature, score, accuracy, count):
+    def set_score(self, feature: Union[scoring.ScoringKey, scoring.ScoringFeature], score: float,
+                  accuracy: float, count: int) -> None:
         if not isinstance(feature, scoring.ScoringFeature):
             feature = scoring.ScoringFeature(feature)
         score = float(score)
@@ -69,8 +72,9 @@ class ParseRule:
         # noinspection PyTypeChecker
         self._scoring_features[feature] = (score, accuracy, count)
 
-    def iter_all_scoring_features(self):
+    def iter_all_scoring_features(self) -> Iterator[Optional[scoring.ScoringFeature]]:
         return iter(self._scoring_features)
 
-    def iter_scoring_features(self, parse_node):
+    def iter_scoring_features(self, parse_node: 'trees.TreeNodeInterface') \
+            -> Iterator[Optional[scoring.ScoringFeature]]:
         raise NotImplementedError()

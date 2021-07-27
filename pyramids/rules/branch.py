@@ -1,9 +1,12 @@
 from abc import ABCMeta, abstractmethod
-from typing import FrozenSet
+from typing import FrozenSet, Iterable, Tuple, Iterator, Sequence, TYPE_CHECKING
 
-from pyramids import scoring, trees
-from pyramids.categorization import LinkLabel
+from pyramids.categorization import LinkLabel, Category
 from pyramids.rules.parse_rule import ParseRule
+from pyramids import scoring
+
+if TYPE_CHECKING:
+    from pyramids import parsing, trees, traversal, model
 
 
 class BranchRule(ParseRule, metaclass=ABCMeta):
@@ -11,7 +14,8 @@ class BranchRule(ParseRule, metaclass=ABCMeta):
     which are the branches in a parse tree."""
 
     @abstractmethod
-    def __call__(self, parser_state, new_node, emergency=False):
+    def __call__(self, parser_state: 'parsing.ParserState', new_node: 'trees.TreeNodeSet',
+                 emergency: bool = False) -> None:
         raise NotImplementedError()
 
     @property
@@ -20,10 +24,38 @@ class BranchRule(ParseRule, metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_link_types(self, parse_node, link_set_index):
+    def get_link_types(self, parse_node: 'traversal.TraversableElement',
+                       link_set_index: int) -> Iterable[Tuple[LinkLabel, bool, bool]]:
         raise NotImplementedError()
 
-    def iter_scoring_features(self, parse_node: 'trees.TreeNode'):
+    @property
+    @abstractmethod
+    def head_category_set(self) -> FrozenSet[Category]:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def link_type_sets(self) -> Tuple[FrozenSet[Tuple[LinkLabel, bool, bool]],
+                                      FrozenSet[Tuple[LinkLabel, bool, bool]]]:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def head_index(self) -> int:
+        """The index of the head element of the sequence."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_category(self, model: 'model.Model', subtree_categories: Sequence[Category],
+                     head_index: int = None) -> Category:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def is_non_recursive(self, result_category: Category, head_category: Category) -> bool:
+        raise NotImplementedError()
+
+    def iter_scoring_features(self, parse_node: 'trees.TreeNode') \
+            -> 'Iterator[scoring.ScoringFeature]':
         # CAREFUL!!! Scoring features must be perfectly recoverable via
         # ast.literal_eval(repr(feature))
 

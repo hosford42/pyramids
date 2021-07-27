@@ -1,4 +1,7 @@
-from pyramids import trees, scoring
+from typing import Tuple, Set, Iterator
+
+from pyramids import trees, scoring, parsing
+from pyramids.categorization import Category, Property
 from pyramids.rules.parse_rule import ParseRule
 from pyramids.properties import CASE_FREE, MIXED_CASE, TITLE_CASE, UPPER_CASE, LOWER_CASE
 from pyramids.utils import extend_properties
@@ -8,18 +11,18 @@ class LeafRule(ParseRule):
     """Used by Parser to identify base-level (atomic) tokens, which are the
     leaves in a parse tree."""
 
-    def __init__(self, category):
+    def __init__(self, category: Category):
         super().__init__()
         self._category = category
 
     @property
-    def category(self):
+    def category(self) -> Category:
         return self._category
 
-    def __contains__(self, token):
+    def __contains__(self, token: str) -> bool:
         raise NotImplementedError()
 
-    def __call__(self, parser_state, new_token, index):
+    def __call__(self, parser_state: 'parsing.ParserState', new_token: str, index: int) -> bool:
         if new_token in self:
             positive, negative = self.discover_case_properties(new_token)
             category = self._category.promote_properties(positive, negative)
@@ -32,7 +35,7 @@ class LeafRule(ParseRule):
             return False
 
     @classmethod
-    def discover_case_properties(cls, token: str):
+    def discover_case_properties(cls, token: str) -> Tuple[Set[Property], Set[Property]]:
         token_uppered = token.upper()
         token_lowered = token.lower()
         positive = set()
@@ -51,7 +54,8 @@ class LeafRule(ParseRule):
         negative = {CASE_FREE, LOWER_CASE, UPPER_CASE, TITLE_CASE, MIXED_CASE} - positive
         return positive, negative
 
-    def iter_scoring_features(self, parse_node: trees.TreeNodeInterface):
+    def iter_scoring_features(self, parse_node: trees.TreeNodeInterface) \
+            -> Iterator[scoring.ScoringFeature]:
         # CAREFUL!!! Scoring features must be perfectly recoverable via
         # ast.literal_eval(repr(feature))
         head_cat = str(parse_node.payload.category.name)

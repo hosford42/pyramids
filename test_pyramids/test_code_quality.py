@@ -74,7 +74,8 @@ def print_pylama_error(error, root_path):
     error_type = ERROR_TYPE_MAP.get(error_type, error_type)
     if relative_file_path:
         print()
-        print('File "%s", line %s, col %s:' % (os.path.join(root_path, relative_file_path), line_no, column))
+        print('File "%s", line %s, col %s:' %
+              (os.path.join(root_path, relative_file_path), line_no, column))
         if line_no is not None:
             with open(relative_file_path, encoding='utf-8') as file:
                 for index, line in enumerate(file):

@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
+from typing import TYPE_CHECKING
 
 from pyramids import categorization
 
+if TYPE_CHECKING:
+    from pyramids.model import Model
+
 
 # TODO: Consider moving this to _categorization.pyx
-def extend_properties(model, category):
+def extend_properties(model: 'Model',
+                      category: 'categorization.Category') -> 'categorization.Category':
     """Extend the category's properties per the inheritance rules."""
     positive = set(category.positive_properties)
     negative = set(category.negative_properties)

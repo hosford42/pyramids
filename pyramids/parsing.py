@@ -2,14 +2,15 @@
 
 import time
 from sys import intern
-from typing import Optional, NamedTuple, List
+from typing import Optional, NamedTuple, List, Union, Tuple, FrozenSet
 
 from pyramids import trees, tokenization
+from pyramids.categorization import Category, Property
 from pyramids.category_maps import CategoryMap
 from pyramids.grammar import GrammarParser
 from pyramids.language import Language
 from pyramids.model import Model
-from pyramids.trees import Parse
+from pyramids.trees import Parse, TreeNode
 from sortedcontainers import SortedSet
 
 __author__ = 'Aaron Hosford'
@@ -17,6 +18,7 @@ __all__ = [
     'ParserState',
     'ParsingAlgorithm',
     'Parser',
+    'ParseResult',
 ]
 
 
@@ -34,7 +36,7 @@ class ParserState:
     #       covered, how much did the maximum parse quality for that token
     #       improve?
     @staticmethod
-    def _insertion_key(node: trees.TreeNode):
+    def _insertion_key(node: trees.TreeNode) -> Tuple[float, float]:
         # width = node.token_end_index - node.token_start_index
         score, confidence = node.score
 
@@ -59,7 +61,7 @@ class ParserState:
         #       finding the best parse when parsing times out.
         return -score, -confidence
 
-    def __init__(self, model):
+    def __init__(self, model: Model):
         if not isinstance(model, Model):
             raise TypeError(model, Model)
         self._model = model
@@ -71,42 +73,42 @@ class ParserState:
         self._roots = set()
 
     @property
-    def model(self):
+    def model(self) -> Model:
         return self._model
 
     @property
-    def tokens(self):
+    def tokens(self) -> tokenization.TokenSequence:
         if self._token_sequence is None:
             self._token_sequence = tokenization.TokenSequence(self._tokens)
         return self._token_sequence
 
     @property
-    def category_map(self):
+    def category_map(self) -> CategoryMap:
         return self._category_map
 
     @property
-    def insertion_queue(self):
+    def insertion_queue(self) -> SortedSet:
         return self._insertion_queue
 
     @property
-    def any_promoted_properties(self):
+    def any_promoted_properties(self) -> FrozenSet[Property]:
         """Properties that may be promoted if any element possesses them."""
         return self._model.any_promoted_properties
 
     @property
-    def all_promoted_properties(self):
+    def all_promoted_properties(self) -> FrozenSet[Property]:
         """Properties that may be promoted if all elements possess them."""
         return self._model.all_promoted_properties
 
-    def has_nodes_pending(self):
+    def has_nodes_pending(self) -> bool:
         """The number of nodes still waiting to be processed."""
         return bool(self._insertion_queue)
 
-    def add_node(self, node):
+    def add_node(self, node: TreeNode) -> None:
         """Add a new parse tree node to the insertion queue."""
         self._insertion_queue.add(node)
 
-    def is_covered(self):
+    def is_covered(self) -> bool:
         """Returns a boolean indicating whether a node exists that covers
         the entire input by itself."""
         for node_set in self._roots:
@@ -116,7 +118,7 @@ class ParserState:
         return False
 
     # TODO: Move to ParsingAlgorithm
-    def add_token(self, token, start=None, end=None):
+    def add_token(self, token: str, start: int = None, end: int = None) -> None:
         """Add a new token to the token sequence."""
         token = intern(str(token))
         index = len(self._tokens)
@@ -130,7 +132,7 @@ class ParserState:
                 leaf_rule(self, token, index)
 
     # TODO: Move to ParsingAlgorithm
-    def process_node(self, timeout=None, emergency=False):
+    def process_node(self, timeout: float = None, emergency: bool = False) -> bool:
         """Search for the next parse tree node in the insertion queue that
         makes an original contribution to the parse. If any is found,
         process it. Return a boolean indicating whether there are more
@@ -154,7 +156,7 @@ class ParserState:
         return bool(self._insertion_queue)
 
     # TODO: Move to ParserAlgorithm
-    def process_necessary_nodes(self, timeout=None, emergency=False):
+    def process_necessary_nodes(self, timeout: float = None, emergency: bool = False) -> None:
         """Process pending nodes until they are exhausted or the entire
         input is covered by a single tree."""
         # TODO: This isn't always working. Sometimes I don't get a complete
@@ -164,12 +166,12 @@ class ParserState:
             pass  # The condition call does all the work.
 
     # TODO: Move to ParsingAlgorithm
-    def process_all_nodes(self, timeout=None, emergency=False):
+    def process_all_nodes(self, timeout: float = None, emergency: bool = False) -> None:
         """Process all pending nodes."""
         while self.process_node(timeout, emergency) and (timeout is None or time.time() < timeout):
             pass  # The condition call does all the work.
 
-    def get_parse(self):
+    def get_parse(self) -> trees.Parse:
         """Create a tree for each node that doesn't get included as a
         component to some other one. Then it make a Parse instance with
         those trees."""
@@ -213,7 +215,7 @@ class Parser:
         self._parser_state = None
 
     @property
-    def state(self):
+    def state(self) -> ParserState:
         return self._parser_state
 
     @property
@@ -224,16 +226,19 @@ class Parser:
     def language(self) -> Optional[Language]:
         return self._model.language
 
-    def clear_state(self):
+    def clear_state(self) -> None:
         self._parser_state = ParsingAlgorithm.new_parser_state(self._model)
 
     # TODO: Fix this so it returns an empty list, rather than a list containing
     #       an empty parse, if the text could not be parsed.
-    def parse(self, text, category=None, fast=False, timeout=None, fresh=True, emergency=False):
+    def parse(self, text: str, category: Union[Category, str] = None, fast: bool = False,
+              timeout: float = None, fresh: bool = True, emergency: bool = False) -> ParseResult:
         if isinstance(category, str):
             category = GrammarParser.parse_category(category)
-        else:
+        elif category is None:
             category = self._model.default_restriction
+        else:
+            assert isinstance(category, Category)
 
         if fresh or not self._parser_state:
             self.clear_state()

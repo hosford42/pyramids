@@ -1,18 +1,25 @@
 # -*- coding: utf-8 -*-
 from itertools import product
+from typing import TYPE_CHECKING, Set, AbstractSet, Mapping, Tuple
 
 from pyramids import graphs, trees
-from pyramids.rules import leaf, conjunction
+from pyramids.rules import leaf, conjunction, sequence
+from pyramids.rules.parse_rule import ParseRule
 from pyramids.utils import extend_properties
+
+if TYPE_CHECKING:
+    from pyramids.model import Model
+    from pyramids import categorization
 
 
 class GenerationAlgorithm:
 
-    def generate(self, model, sentence):
+    def generate(self, model: 'Model', sentence: graphs.ParseGraph) -> Set[trees.BuildTreeNode]:
         assert isinstance(sentence, graphs.ParseGraph)
         return self._generate(model, sentence.root_index, sentence)
 
-    def _generate(self, model, head_node: int, sentence):
+    def _generate(self, model: 'Model', head_node: int,
+                  sentence: graphs.ParseGraph) -> Set[trees.BuildTreeNode]:
         head_spelling = sentence[head_node][1]
         head_category = sentence[head_node][3]
 
@@ -136,8 +143,13 @@ class GenerationAlgorithm:
             return emergency_results
 
     @staticmethod
-    def get_component_candidates(model, head_category, head_node, index, required_incoming,
-                                 required_outgoing, rule, sentence, subnodes, subtrees):
+    def get_component_candidates(model: 'Model', head_category: 'categorization.Category',
+                                 head_node: int, index: int,
+                                 required_incoming: 'AbstractSet[categorization.LinkLabel]',
+                                 required_outgoing: 'AbstractSet[categorization.LinkLabel]',
+                                 rule: 'ParseRule', sentence: 'graphs.ParseGraph',
+                                 subnodes: 'Set[int]',
+                                 subtrees: Mapping[int, Tuple[trees.BuildTreeNode, ...]]):
         component_head_candidates = subnodes.copy()
         for link_type in required_incoming:
             if link_type not in model.sequence_rules_by_link_type:
@@ -169,6 +181,7 @@ class GenerationAlgorithm:
                         component_candidates.add(subtree)
                         break
         else:
+            assert isinstance(rule, sequence.SequenceRule)
             cat_names = {category.name
                          for category
                          in rule.subcategory_sets[index if index < rule.head_index else index + 1]}

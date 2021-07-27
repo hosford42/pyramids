@@ -1,16 +1,18 @@
 from functools import reduce
-from typing import List, Iterator, FrozenSet
+from typing import List, Iterator, FrozenSet, Iterable, Tuple, Set, Sequence
 
-from pyramids import trees, categorization
-from pyramids.categorization import CATEGORY_WILDCARD, LinkLabel
+from pyramids import trees, categorization, parsing, model
+from pyramids.categorization import CATEGORY_WILDCARD, LinkLabel, Category
+from pyramids.category_maps import CategoryMap
 from pyramids.rules.branch import BranchRule
+from pyramids.traversal import TraversableElement
 
 
 class SequenceRule(BranchRule):
 
-    def __init__(self, category, subcategory_sets, head_index, link_type_sets):
+    def __init__(self, category: Category, subcategory_sets: Iterable[Iterable[Category]],
+                 head_index: int, link_type_sets: Iterable[Set[Tuple[LinkLabel, int, int]]]):
         super(BranchRule, self).__init__()
-        # TODO: Type checking
         self._category = category
         self._subcategory_sets = tuple(frozenset(subcategory_set)
                                        for subcategory_set in subcategory_sets)
@@ -25,8 +27,8 @@ class SequenceRule(BranchRule):
         self._all_link_types = frozenset(reduce(lambda a, b: a | {item[0] for item in b},
                                                 self._link_type_sets, set()))
 
-    def _iter_forward_halves(self, category_map, index, start,
-                             emergency) -> Iterator[List[trees.TreeNodeSet]]:
+    def _iter_forward_halves(self, category_map: CategoryMap, index: int, start: int,
+                             emergency: bool) -> Iterator[List[trees.TreeNodeSet]]:
         # Otherwise, we can't possibly find a match since it would have to fall off the edge
         if len(self._subcategory_sets) - index <= category_map.max_end - start:
             if index < len(self._subcategory_sets):
@@ -39,8 +41,8 @@ class SequenceRule(BranchRule):
             else:
                 yield []
 
-    def _iter_backward_halves(self, category_map, index, end,
-                              emergency) -> Iterator[List[trees.TreeNodeSet]]:
+    def _iter_backward_halves(self, category_map: CategoryMap, index: int, end: int,
+                              emergency: bool) -> Iterator[List[trees.TreeNodeSet]]:
         # Otherwise, we can't possibly find a match since it would have to fall off the edge
         if index <= end:
             if index >= 0:
@@ -54,8 +56,9 @@ class SequenceRule(BranchRule):
             else:
                 yield []
 
-    def _find_matches(self, parser_state, index,
-                      new_node_set: trees.TreeNodeSet[trees.ParsingPayload], emergency):
+    def _find_matches(self, parser_state: 'parsing.ParserState', index: int,
+                      new_node_set: trees.TreeNodeSet[trees.ParsingPayload],
+                      emergency: bool) -> None:
         """Given a starting index in the sequence, attempt to find and add
         all parse node sequences in the parser state that can contain the
         new node at that index."""
@@ -76,7 +79,8 @@ class SequenceRule(BranchRule):
                             parser_state.tokens, self, self._head_index, category, subtrees)
                         parser_state.add_node(node)
 
-    def __call__(self, parser_state, new_node_set: trees.TreeNodeSet, emergency=False):
+    def __call__(self, parser_state: 'parsing.ParserState',
+                 new_node_set: trees.TreeNodeSet, emergency: bool = False) -> None:
         if not (self._has_wildcard or new_node_set.payload.category.name in self._references):
             return
         for index, subcategory_set in enumerate(self._subcategory_sets):
@@ -85,10 +89,10 @@ class SequenceRule(BranchRule):
                     self._find_matches(parser_state, index, new_node_set, emergency)
                     break
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return self._hash
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'SequenceRule') -> bool:
         if not isinstance(other, SequenceRule):
             return NotImplemented
         return self is other or (self._hash == other._hash and
@@ -96,7 +100,7 @@ class SequenceRule(BranchRule):
                                  self._subcategory_sets == other._subcategory_sets and
                                  self._link_type_sets == other._link_type_sets)
 
-    def __ne__(self, other):
+    def __ne__(self, other: 'SequenceRule') -> bool:
         if not isinstance(other, SequenceRule):
             return NotImplemented
         return self is not other and (self._hash != other._hash or
@@ -104,7 +108,7 @@ class SequenceRule(BranchRule):
                                       self._subcategory_sets != other._subcategory_sets or
                                       self._link_type_sets != other._link_type_sets)
 
-    def __str__(self):
+    def __str__(self) -> str:
         result = str(self.category) + ':'
         for index in range(len(self._subcategory_sets)):
             result += ' '
@@ -121,7 +125,7 @@ class SequenceRule(BranchRule):
                         result += '>'
         return result
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (type(self).__name__ + "(" + repr(self.category) + ", " +
                 repr([sorted(subcategory_set)
                       for subcategory_set in self.subcategory_sets]) + ", " +
@@ -129,27 +133,27 @@ class SequenceRule(BranchRule):
                 repr([sorted(link_type_set) for link_type_set in self.link_type_sets]) + ")")
 
     @property
-    def category(self):
+    def category(self) -> Category:
         """The category (and required properties) generated by this rule."""
         return self._category
 
     @property
-    def subcategory_sets(self):
+    def subcategory_sets(self) -> Tuple[FrozenSet[Category], ...]:
         """The subcategories that must appear consecutively to satisfy this rule."""
         return self._subcategory_sets
 
     @property
-    def head_index(self):
+    def head_index(self) -> int:
         """The index of the head element of the sequence."""
         return self._head_index
 
     @property
-    def link_type_sets(self):
+    def link_type_sets(self) -> Tuple[FrozenSet[Tuple[LinkLabel, int, int]]]:
         """The link types & directions that are used to build the language graph."""
         return self._link_type_sets
 
     @property
-    def head_category_set(self):
+    def head_category_set(self) -> FrozenSet[Category]:
         """The category set for the head of the generated parse tree nodes."""
         return self._subcategory_sets[self._head_index]
 
@@ -157,10 +161,12 @@ class SequenceRule(BranchRule):
     def all_link_types(self) -> FrozenSet[LinkLabel]:
         return self._all_link_types
 
-    def get_link_types(self, parse_node, link_set_index):
+    def get_link_types(self, parse_node: TraversableElement,
+                       link_set_index: int) -> Iterable[Tuple[LinkLabel, bool, bool]]:
         return self._link_type_sets[link_set_index]
 
-    def get_category(self, model, subtree_categories):
+    def get_category(self, model: 'model.Model',
+                     subtree_categories: Sequence[Category], head_index: int = None) -> Category:
         head_category = subtree_categories[self._head_index]
         if self.category.is_wildcard():
             category = categorization.Category(head_category.name,
@@ -197,7 +203,7 @@ class SequenceRule(BranchRule):
         # return parser.extend_properties(category.promote_properties(positive, negative))
         return category.promote_properties(positive, negative)
 
-    def is_non_recursive(self, result_category, head_category):
+    def is_non_recursive(self, result_category: Category, head_category: Category) -> bool:
         return (len(self.subcategory_sets) > 1 or
 
                 # TODO: Can we make this better?

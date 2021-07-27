@@ -6,7 +6,7 @@ Parser model configuration
 
 import configparser
 import os
-from typing import Optional
+from typing import Optional, Mapping, Any, FrozenSet, Tuple
 
 from pyramids import categorization
 from pyramids.language import Language
@@ -20,7 +20,7 @@ __all__ = [
 class ModelConfig:
     """Parser model configuration"""
 
-    def __init__(self, config_file_path, defaults=None):
+    def __init__(self, config_file_path: str, defaults: Mapping[str, Any] = None):
         config_file_path = os.path.abspath(os.path.expanduser(config_file_path))
 
         if not os.path.isfile(config_file_path):
@@ -126,7 +126,7 @@ class ModelConfig:
             if path.strip()
         )
         self._name_cases = frozenset(
-            prop_name.strip()
+            categorization.Property.get(prop_name.strip())
             for prop_name in config_parser.get('Grammar', 'Name Cases').split(';')
             if prop_name.strip()
         )
@@ -139,7 +139,7 @@ class ModelConfig:
                                             config_parser.get('Benchmarking', 'Benchmark File'))
 
     @property
-    def config_file_path(self):
+    def config_file_path(self) -> str:
         """The expanded, absolute path to the primary configuration file for the model"""
         return self._config_file_path
 
@@ -169,7 +169,7 @@ class ModelConfig:
         return self._tokenizer_language
 
     @property
-    def discard_spaces(self):
+    def discard_spaces(self) -> bool:
         """Whether to discard spaces when tokenizing"""
         return self._discard_spaces
 
@@ -179,61 +179,61 @@ class ModelConfig:
         return self._default_restriction
 
     @property
-    def top_level_properties(self):
+    def top_level_properties(self) -> FrozenSet[categorization.Property]:
         """Properties that are of relevance at the root of the parse tree."""
         return self._top_level_properties
 
     @property
-    def any_promoted_properties(self):
+    def any_promoted_properties(self) -> FrozenSet[categorization.Property]:
         """Properties promoted to the head if any child has them"""
         return self._any_promoted_properties
 
     @property
-    def all_promoted_properties(self):
+    def all_promoted_properties(self) -> FrozenSet[categorization.Property]:
         """Properties promoted to the head if all children have them"""
         return self._all_promoted_properties
 
     @property
-    def property_inheritance_files(self):
+    def property_inheritance_files(self) -> Tuple[str, ...]:
         """Property inheritance rule file paths"""
         return self._property_inheritance_files
 
     @property
-    def grammar_definition_files(self):
+    def grammar_definition_files(self) -> Tuple[str, ...]:
         """Grammar definition file paths"""
         return self._grammar_definition_files
 
     @property
-    def conjunction_files(self):
+    def conjunction_files(self) -> Tuple[str, ...]:
         """Conjunction rule file paths"""
         return self._conjunction_files
 
     @property
-    def word_sets_folders(self):
+    def word_sets_folders(self) -> Tuple[str, ...]:
         """Folder paths where word files can be found"""
         return self._word_sets_folders
 
     @property
-    def suffix_files(self):
+    def suffix_files(self) -> Tuple[str, ...]:
         """Suffix rule file paths"""
         return self._suffix_files
 
     @property
-    def special_words_files(self):
+    def special_words_files(self) -> Tuple[str, ...]:
         """Special word rule file paths"""
         return self._special_words_files
 
     @property
-    def score_file(self):
+    def score_file(self) -> str:
         """Score file path"""
         return self._score_file
 
     @property
-    def benchmark_file(self):
+    def benchmark_file(self) -> str:
         """Benchmark file path"""
         return self._benchmark_file
 
     @property
-    def name_cases(self):
+    def name_cases(self) -> FrozenSet[categorization.Property]:
         """Case properties that indicate names"""
         return self._name_cases

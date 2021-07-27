@@ -1,22 +1,32 @@
-from typing import FrozenSet
+from typing import FrozenSet, Iterable, Tuple, Any, Optional, Sequence, Iterator, List
 
-from pyramids import trees, categorization
-from pyramids.categorization import CATEGORY_WILDCARD, LinkLabel
-from pyramids.rules.branch import BranchRule
+from pyramids import trees, categorization, parsing
+from pyramids.categorization import CATEGORY_WILDCARD, LinkLabel, Category
+from pyramids.category_maps import CategoryMap
+from pyramids.model import Model
 from pyramids.properties import CONJUNCTION_PROPERTY, COMPOUND_PROPERTY, SIMPLE_PROPERTY, \
     SINGLE_PROPERTY
-
-
+from pyramids.rules.branch import BranchRule
 # TODO: This class is eating up more than 2/3 of the parse time, all by itself. It's broken. Rewrite
 #       it.
 # TODO: Define properties in the .ini that are used to indicate compound, simple, and single
 #       conjunctions. These properties should be added automatically by conjunction rules unless
 #       overridden in the properties of the conjunction's category.
+from pyramids.rules.subtree_match import SubtreeMatchRule
+from pyramids.traversal import TraversableElement
+
+
 class ConjunctionRule(BranchRule):
 
-    def __init__(self, category, match_rules, property_rules, leadup_categories,
-                 conjunction_categories, followup_categories, leadup_link_types,
-                 followup_link_types, single=False, compound=True):
+    def __init__(self, category: Category, match_rules: Iterable[Tuple[SubtreeMatchRule]],
+                 property_rules: Iterable[Tuple[FrozenSet[Tuple[Any, bool]],
+                                                Tuple[SubtreeMatchRule, ...]]],
+                 leadup_categories: Optional[Iterable[Category]],
+                 conjunction_categories: Iterable[Category],
+                 followup_categories: Iterable[Category],
+                 leadup_link_types: Iterable[LinkLabel],
+                 followup_link_types: Iterable[LinkLabel],
+                 single: bool = False, compound: bool = True):
         super(BranchRule, self).__init__()
 
         # TODO: Type checking
@@ -54,7 +64,7 @@ class ConjunctionRule(BranchRule):
                                          for item in (self._leadup_link_types |
                                                       self._followup_link_types))
 
-    def _can_match(self, subtree_categories, head_index):
+    def _can_match(self, subtree_categories: Sequence[Category], head_index: int) -> bool:
         if not self._match_rules:
             return True
         for match_rules in self._match_rules:
@@ -62,7 +72,8 @@ class ConjunctionRule(BranchRule):
                 return True
         return False
 
-    def _iter_forward_halves(self, category_map, state, start, emergency):
+    def _iter_forward_halves(self, category_map: CategoryMap, state: int, start: int,
+                             emergency: bool) -> Iterator[List[trees.TreeNodeSet]]:
         if state == -1:  # Leadup case/exception
             for category, end in category_map.iter_forward_matches(start, self._leadup_categories,
                                                                    emergency):
@@ -87,7 +98,8 @@ class ConjunctionRule(BranchRule):
         else:
             raise Exception("Unexpected state: " + repr(state))
 
-    def _iter_backward_halves(self, category_map, state, end, emergency):
+    def _iter_backward_halves(self, category_map: CategoryMap, state: int, end: int,
+                              emergency: bool) -> Iterator[List[trees.TreeNodeSet]]:
         if state == -1:  # Leadup case/exception
             for category, start in category_map.iter_backward_matches(end, self._leadup_categories,
                                                                       emergency):
@@ -110,8 +122,9 @@ class ConjunctionRule(BranchRule):
             # never call this with that state
             raise Exception("Unexpected state: " + repr(state))
 
-    def _find_matches(self, parser_state, state,
-                      new_node_set: trees.TreeNodeSet[trees.ParsingPayload], emergency):
+    def _find_matches(self, parser_state: 'parsing.ParserState', state: int,
+                      new_node_set: trees.TreeNodeSet[trees.ParsingPayload],
+                      emergency: bool) -> None:
         """Given a starting state (-1 for leadup, 0 for conjunction, 1 for followup), attempt to
         find and add all parse node sequences in the parser state that can contain the new node in
         that state."""
@@ -200,7 +213,8 @@ class ConjunctionRule(BranchRule):
     #       other than the final state/index? Maybe there is a good reason, but shouldn't we skip
     #       that if we're strictly appending new tokens? This may be an opportunity for an extreme
     #       speedup.
-    def __call__(self, parser_state, new_node_set: trees.TreeNodeSet, emergency=False):
+    def __call__(self, parser_state: 'parsing.ParserState', new_node_set: trees.TreeNodeSet,
+                 emergency: bool = False) -> None:
         if not (self._has_wildcard or new_node_set.payload.category.name in self._references):
             return
         for state, subcategory_set in ((-1, self._leadup_categories),
@@ -211,10 +225,10 @@ class ConjunctionRule(BranchRule):
                     self._find_matches(parser_state, state, new_node_set, emergency)
                     break  # We only need to do it once for each state
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return self._hash
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'ConjunctionRule') -> bool:
         if not isinstance(other, ConjunctionRule):
             return NotImplemented
         return self is other or (self._hash == other._hash and self._single == other._single and
@@ -226,7 +240,7 @@ class ConjunctionRule(BranchRule):
                                  self._leadup_categories == other._leadup_categories and
                                  self._followup_categories == other._followup_categories)
 
-    def __ne__(self, other):
+    def __ne__(self, other: 'ConjunctionRule') -> bool:
         if not isinstance(other, ConjunctionRule):
             return NotImplemented
         return self is not other and not (self._hash == other._hash and
@@ -241,7 +255,7 @@ class ConjunctionRule(BranchRule):
                                           self._leadup_categories == other._leadup_categories and
                                           self._followup_categories == other._followup_categories)
 
-    def __str__(self):
+    def __str__(self) -> str:
         result = str(self.category) + ':'
         for rules in self._match_rules:
             result += ' [' + ' '.join(str(rule) for rule in rules) + ']'
@@ -266,7 +280,7 @@ class ConjunctionRule(BranchRule):
                         result += '>'
         return result
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (type(self).__name__ + "(" + repr(self.category) + ", " +
                 repr(sorted(self._leadup_categories)) + ", " +
                 repr(sorted(self._conjunction_categories)) + ", " +
@@ -275,49 +289,50 @@ class ConjunctionRule(BranchRule):
                 repr(self._single) + ", " + repr(self._compound) + ")")
 
     @property
-    def category(self):
+    def category(self) -> Category:
         """The category (and required properties) generated by this rule."""
         return self._category
 
     @property
-    def head_category_set(self):
+    def head_category_set(self) -> FrozenSet[Category]:
         """The category set for the head of the generated parse tree nodes."""
         return self._conjunction_categories
 
     @property
-    def leadup_categories(self):
+    def leadup_categories(self) -> FrozenSet[Category]:
         return self._leadup_categories
 
     @property
-    def conjunction_categories(self):
+    def conjunction_categories(self) -> FrozenSet[Category]:
         return self._conjunction_categories
 
     @property
-    def followup_categories(self):
+    def followup_categories(self) -> FrozenSet[Category]:
         return self._followup_categories
 
     @property
-    def leadup_link_types(self):
+    def leadup_link_types(self) -> FrozenSet[LinkLabel]:
         return self._leadup_link_types
 
     @property
-    def followup_link_types(self):
+    def followup_link_types(self) -> FrozenSet[LinkLabel]:
         return self._followup_link_types
 
     @property
-    def single(self):
+    def single(self) -> bool:
         return self._single
 
     @property
-    def compound(self):
+    def compound(self) -> bool:
         return self._compound
 
     @property
-    def head_index(self):
+    def head_index(self) -> int:
         return 1
 
     @property
-    def link_type_sets(self):
+    def link_type_sets(self) -> Tuple[FrozenSet[Tuple[LinkLabel, bool, bool]],
+                                      FrozenSet[Tuple[LinkLabel, bool, bool]]]:
         return (frozenset([(self._leadup_link_types, True, False)]),
                 frozenset([(self._followup_link_types, False, True)]),)
 
@@ -325,15 +340,16 @@ class ConjunctionRule(BranchRule):
     def all_link_types(self) -> FrozenSet[LinkLabel]:
         return self._all_link_types
 
-    def get_link_types(self, parse_node, link_set_index):
+    def get_link_types(self, parse_node: TraversableElement,
+                       link_set_index: int) -> Iterable[Tuple[LinkLabel, bool, bool]]:
         # If it's the last link set interval
         if link_set_index + 2 >= len(parse_node.components):
             return self._followup_link_types
         else:
             return self._leadup_link_types
 
-    # TODO: Add this to BranchRule as unimplemented
-    def get_category(self, parser, subtree_categories, head_index=None):
+    def get_category(self, model: Model, subtree_categories: Sequence[Category],
+                     head_index: int = None) -> Category:
         if head_index is None:
             # Figure out what head index to use
             head_index = len(subtree_categories) - 2
@@ -353,7 +369,7 @@ class ConjunctionRule(BranchRule):
             negative &= set(subtree_categories[index].negative_properties)
 
         # Then apply the standard promotion rules
-        for prop in parser.any_promoted_properties:
+        for prop in model.any_promoted_properties:
             for subtree_category in subtree_categories:
                 if prop in subtree_category.positive_properties:
                     positive.add(prop)
@@ -365,7 +381,7 @@ class ConjunctionRule(BranchRule):
                         break
                 else:
                     negative.add(prop)
-        for prop in parser.all_promoted_properties:
+        for prop in model.all_promoted_properties:
             for subtree_category in subtree_categories:
                 if prop in subtree_category.negative_properties:
                     negative.add(prop)
@@ -418,9 +434,8 @@ class ConjunctionRule(BranchRule):
         # return parser.extend_properties(category.promote_properties(positive, negative))
         return category.promote_properties(positive, negative)
 
-    # noinspection PyUnusedLocal
     @staticmethod
-    def is_non_recursive(result_category, head_category):
+    def is_non_recursive(_result_category: Category, _head_category: Category) -> bool:
         # It's *never* recursive, because we require more than one token for every conjunctive
         # phrase
         return True

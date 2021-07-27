@@ -15,6 +15,7 @@ from pyramids.model import Model
 from pyramids.rules.case import CaseRule
 from pyramids.rules.conjunction import ConjunctionRule
 from pyramids.rules.property_inheritance import PropertyInheritanceRule
+from pyramids.rules.sequence import SequenceRule
 from pyramids.rules.suffix import SuffixRule
 from pyramids.rules.token_set import SetRule
 from pyramids.scoring import ScoringFeature
@@ -77,7 +78,7 @@ class ModelLoader:
 
         return model
 
-    def _init_model_scoring(self, config_info, model):
+    def _init_model_scoring(self, config_info: ModelConfig, model: 'Model') -> None:
         # Scoring
         if self.verbose:
             print("Loading scoring features from", config_info.score_file + "...")
@@ -87,7 +88,7 @@ class ModelLoader:
         else:
             self.save_scoring_features(model, config_info.score_file)
 
-    def _create_model(self, config_info, tokenizer):
+    def _create_model(self, config_info: ModelConfig, tokenizer: Tokenizer) -> 'Model':
         default_restriction = GrammarParser.parse_category(config_info.default_restriction)
         top_level_properties = config_info.top_level_properties
 
@@ -156,7 +157,7 @@ class ModelLoader:
             return self._grammar_parser.parse_property_inheritance_file(inheritance_file,
                                                                         filename=path)
 
-    def load_grammar_definition_file(self, path: str):
+    def load_grammar_definition_file(self, path: str) -> List[SequenceRule]:
         """Load a grammar definition file as a list of branch rules."""
         with open(path, encoding='utf-8') as grammar_file:
             return self._grammar_parser.parse_grammar_definition_file(grammar_file, filename=path)

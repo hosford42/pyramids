@@ -4,7 +4,7 @@
 Parsing of grammar files
 """
 
-from typing import Tuple, List, Iterable
+from typing import Tuple, List, Iterable, FrozenSet, Any
 
 from pyramids.categorization import Category, Property, LinkLabel
 from pyramids.rules.conjunction import ConjunctionRule
@@ -15,6 +15,7 @@ from pyramids.rules.any_term_match import AnyTermMatchRule
 from pyramids.rules.head_match import HeadMatchRule
 from pyramids.rules.compound_match import CompoundMatchRule
 from pyramids.rules.sequence import SequenceRule
+from pyramids.rules.subtree_match import SubtreeMatchRule
 from pyramids.rules.suffix import SuffixRule
 from pyramids.rules.token_set import SetRule
 from pyramids.rules.property_inheritance import PropertyInheritanceRule
@@ -40,12 +41,12 @@ class GrammarParserError(Exception):
         self.offset = offset
         self.text = text
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return type(self).__name__ + repr((self.msg,
                                            (self.filename, self.lineno, self.offset, self.text)))
 
     def set_info(self, filename: str = None, lineno: int = None, offset: int = None,
-                 text: str = None):
+                 text: str = None) -> None:
         """Set additional information on the exception after it has been raised."""
         if filename is not None:
             self.filename = filename
@@ -65,7 +66,7 @@ class GrammarSyntaxError(GrammarParserError, SyntaxError):
                  text: str = None):
         super().__init__(msg, (filename, lineno, offset, text))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return super(GrammarParserError, self).__repr__()
 
 
@@ -154,7 +155,7 @@ class GrammarParser:
         return is_head, subcategories
 
     @staticmethod
-    def parse_branch_rule_link_type(term, offset=1):
+    def parse_branch_rule_link_type(term: str, offset: int = 1) -> Tuple[LinkLabel, bool, bool]:
         if '<' in term[1:]:
             raise GrammarSyntaxError("Unexpected: '<'",
                                      offset=offset + term.find('<', term.find('<') + 1))
@@ -170,7 +171,8 @@ class GrammarParser:
             raise GrammarSyntaxError("Expected: link type", offset=offset + left)
         return LinkLabel.get(term), left, right
 
-    def parse_branch_rule(self, category, definition, offset=1):
+    def parse_branch_rule(self, category: Category, definition: str,
+                          offset: int = 1) -> SequenceRule:
         subcategory_sets = []
         link_types = []
         term = ''
@@ -231,7 +233,8 @@ class GrammarParser:
             head_index = 0
         return SequenceRule(category, subcategory_sets, head_index, link_types)
 
-    def parse_grammar_definition_file(self, lines: Iterable[str], filename: str = None):
+    def parse_grammar_definition_file(self, lines: Iterable[str],
+                                      filename: str = None) -> List[SequenceRule]:
         branch_rules = []
         category = None
         sequence_found = False
@@ -278,7 +281,7 @@ class GrammarParser:
                                          lineno=line_number, text=raw_line) from original_exception
         return branch_rules
 
-    def parse_match_rule(self, definition, offset=1):
+    def parse_match_rule(self, definition: str, offset: int = 1) -> Tuple[SubtreeMatchRule, ...]:
         if not definition.startswith('['):
             raise GrammarSyntaxError("Expected: '['", offset=offset)
         if not definition.endswith(']'):
@@ -305,7 +308,13 @@ class GrammarParser:
             raise GrammarSyntaxError("Expected: category")
         return tuple(rule_list)
 
-    def parse_conjunction_rule(self, category, match_rules, property_rules, definition, offset=1):
+    def parse_conjunction_rule(self,
+                               category: Category,
+                               match_rules: List[Tuple[SubtreeMatchRule, ...]],
+                               property_rules: List[Tuple[FrozenSet[Tuple[Any, bool]],
+                                                    Tuple[SubtreeMatchRule, ...]]],
+                               definition: str,
+                               offset: int = 1) -> ConjunctionRule:
         single = False
         compound = False
         while definition[:1] in ('+', '-'):
