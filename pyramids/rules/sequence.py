@@ -1,11 +1,14 @@
 from functools import reduce
-from typing import List, Iterator, FrozenSet, Iterable, Tuple, Set, Sequence
+from typing import List, Iterator, FrozenSet, Iterable, Tuple, Set, Sequence, TYPE_CHECKING
 
-from pyramids import trees, categorization, parsing, model
+from pyramids import trees
 from pyramids.categorization import CATEGORY_WILDCARD, LinkLabel, Category
 from pyramids.category_maps import CategoryMap
 from pyramids.rules.branch import BranchRule
 from pyramids.traversal import TraversableElement
+
+if TYPE_CHECKING:
+    from pyramids import model, parsing
 
 
 class SequenceRule(BranchRule):
@@ -169,9 +172,9 @@ class SequenceRule(BranchRule):
                      subtree_categories: Sequence[Category], head_index: int = None) -> Category:
         head_category = subtree_categories[self._head_index]
         if self.category.is_wildcard():
-            category = categorization.Category(head_category.name,
-                                               self.category.positive_properties,
-                                               self.category.negative_properties)
+            category = Category(head_category.name,
+                                self.category.positive_properties,
+                                self.category.negative_properties)
         else:
             category = self.category
         positive = set(head_category.positive_properties)

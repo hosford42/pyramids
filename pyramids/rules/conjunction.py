@@ -1,9 +1,8 @@
 from typing import FrozenSet, Iterable, Tuple, Any, Optional, Sequence, Iterator, List
 
-from pyramids import trees, categorization, parsing
+from pyramids import trees, categorization, parsing, model
 from pyramids.categorization import CATEGORY_WILDCARD, LinkLabel, Category
 from pyramids.category_maps import CategoryMap
-from pyramids.model import Model
 from pyramids.properties import CONJUNCTION_PROPERTY, COMPOUND_PROPERTY, SIMPLE_PROPERTY, \
     SINGLE_PROPERTY
 from pyramids.rules.branch import BranchRule
@@ -348,7 +347,7 @@ class ConjunctionRule(BranchRule):
         else:
             return self._leadup_link_types
 
-    def get_category(self, model: Model, subtree_categories: Sequence[Category],
+    def get_category(self, model: 'model.Model', subtree_categories: Sequence[Category],
                      head_index: int = None) -> Category:
         if head_index is None:
             # Figure out what head index to use
@@ -434,8 +433,7 @@ class ConjunctionRule(BranchRule):
         # return parser.extend_properties(category.promote_properties(positive, negative))
         return category.promote_properties(positive, negative)
 
-    @staticmethod
-    def is_non_recursive(_result_category: Category, _head_category: Category) -> bool:
+    def is_non_recursive(self, result_category: Category, head_category: Category) -> bool:
         # It's *never* recursive, because we require more than one token for every conjunctive
         # phrase
         return True
