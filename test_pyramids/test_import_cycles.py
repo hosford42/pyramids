@@ -14,16 +14,18 @@ class TestImportCycles(TestCase):
     be successfully imported itself.
     """
 
+    package_name = 'pyramids'
+
     def test_import_cycles(self):
         base_path = __file__
         while base_path:
-            if base_path.endswith('test_semantics'):
-                base_path = os.path.dirname(base_path)
+            if os.path.isdir(base_path) and self.package_name in os.listdir(base_path):
                 break
-            else:
-                base_path = os.path.dirname(base_path)
+            base_path = os.path.dirname(base_path)
         base_path = base_path + '/'
-        for dir_path, dir_names, file_names in os.walk(base_path + 'semantics'):
+        self.assertIn(self.package_name, os.listdir(base_path),
+                      "Package %s not found." % self.package_name)
+        for dir_path, dir_names, file_names in os.walk(base_path + self.package_name):
             assert dir_path.startswith(base_path)
             relative_dir_path = dir_path[len(base_path):].replace('\\', '/')
             assert os.path.isdir(os.path.join(base_path, relative_dir_path))
@@ -40,7 +42,7 @@ class TestImportCycles(TestCase):
                 else:
                     module_name_identifiers = relative_file_path[:-3].split('/')
                 self.assertTrue(module_name_identifiers)
-                self.assertEqual(module_name_identifiers[0], 'semantics')
+                self.assertEqual(module_name_identifiers[0], self.package_name)
                 for identifier in module_name_identifiers:
                     self.assertTrue(identifier.isidentifier(),
                                     "%s is not a valid Python identifier." % identifier)

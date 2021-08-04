@@ -7,7 +7,6 @@ from typing import Optional, NamedTuple, List, Union, Tuple, FrozenSet
 from pyramids import trees, tokenization
 from pyramids.categorization import Category, Property
 from pyramids.category_maps import CategoryMap
-from pyramids.grammar import GrammarParser
 from pyramids.language import Language
 from pyramids.model import Model
 from pyramids.trees import Parse, TreeNode
@@ -234,7 +233,8 @@ class Parser:
     def parse(self, text: str, category: Union[Category, str] = None, fast: bool = False,
               timeout: float = None, fresh: bool = True, emergency: bool = False) -> ParseResult:
         if isinstance(category, str):
-            category = GrammarParser.parse_category(category)
+            from pyramids import grammar
+            category = grammar.GrammarParser.parse_category(category)
         elif category is None:
             category = self._model.default_restriction
         else:

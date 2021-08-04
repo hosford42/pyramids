@@ -22,7 +22,7 @@ from functools import reduce
 from typing import Sequence, Tuple, NamedTuple, Optional, Iterable, Iterator, Union, Set, \
     FrozenSet, TypeVar, Generic
 
-from pyramids import categorization, graphs, tokenization, traversal
+from pyramids import categorization, tokenization
 from pyramids.categorization import Category
 from pyramids.rules.parse_rule import ParseRule
 from pyramids.tokenization import TokenSequence
@@ -956,7 +956,8 @@ class Parse:
 
     def get_parse_graphs(self):
         assert not self.is_ambiguous()
+        from pyramids import traversal, parse_graph_builder
         traverser = traversal.DepthFirstTraverser()
-        graph_builder = graphs.ParseGraphBuilder()
+        graph_builder = parse_graph_builder.ParseGraphBuilder()
         traverser.traverse(self, graph_builder)
         return graph_builder.get_graphs()

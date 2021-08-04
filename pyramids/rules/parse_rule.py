@@ -1,6 +1,9 @@
-from typing import Tuple, Dict, Optional, Iterator, Union
+from typing import Tuple, Dict, Optional, Iterator, Union, TYPE_CHECKING
 
-from pyramids import scoring, trees
+from pyramids import scoring
+
+if TYPE_CHECKING:
+    from pyramids import trees
 
 
 class ParseRule:
