@@ -3,7 +3,9 @@
 """Model loading & saving."""
 
 import ast
+import logging
 import os
+from itertools import chain
 from typing import List, Iterable, Set, Tuple, Dict
 
 from sortedcontainers import SortedSet
@@ -26,6 +28,9 @@ __all__ = [
     'ModelLoader',
     'ScoreMap',
 ]
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 ScoreMap = Dict[str, Dict[ScoringFeature, Tuple[float, float, int]]]
@@ -82,6 +87,7 @@ class ModelLoader:
         # Scoring
         if self.verbose:
             print("Loading scoring features from", config_info.score_file + "...")
+        LOGGER.info("Loading scoring features from %s.", config_info.score_file)
         if os.path.isfile(config_info.score_file):
             score_map = self.load_scoring_features(model, config_info.score_file)
             self.update_model_scoring_features(model, score_map)
@@ -113,6 +119,17 @@ class ModelLoader:
             primary_leaf_rules.extend(self.load_special_words_file(path))
         for case in config_info.name_cases:
             secondary_leaf_rules.append(CaseRule(Category('name'), case))
+
+        if LOGGER.isEnabledFor(logging.WARNING):
+            covered = {}
+            for rule in chain(branch_rules, primary_leaf_rules, secondary_leaf_rules):
+                rule_str = str(rule)
+                if rule_str in covered:
+                    LOGGER.warning("Conflict for rule key: %s", rule_str)
+                    LOGGER.warning("    Rule #1: %r", covered[rule_str])
+                    LOGGER.warning("    Rule #2: %r", rule)
+                else:
+                    covered[rule_str] = rule
 
         model_link_types = set()
         for rule in branch_rules:
@@ -246,6 +263,8 @@ class ModelLoader:
                 if rule_str not in scores:
                     scores[rule_str] = {}
                 feature = ast.literal_eval(feature_str)
+                if feature in scores[rule_str]:
+                    LOGGER.warning("Duplicate feature key for rule %s: %r", rule_str, feature_str)
                 scores[rule_str][feature] = (float(score_str), float(accuracy_str), int(count_str))
         return scores
 
@@ -253,18 +272,24 @@ class ModelLoader:
     def update_model_scoring_features(model: Model, scores: ScoreMap) -> None:
         """Update the mode's scoring features in place, from a score map returned by
         load_scoring_features."""
+        covered = set()
         for rule in model.primary_leaf_rules | model.secondary_leaf_rules | model.branch_rules:
             rule_str = repr(str(rule))
             if rule_str not in scores:
                 continue
+            covered.add(rule_str)
             for feature, (score, accuracy, count) in scores[rule_str].items():
                 rule.set_score(feature, score, accuracy, count)
+        if LOGGER.isEnabledFor(logging.WARNING):
+            for rule_str in scores.keys() - covered:
+                LOGGER.warning("Unrecognized rule in score map: %s", rule_str)
 
     @staticmethod
     def save_scoring_features(model: Model, path: str = None) -> None:
         """Save the scoring features for a model, gathering them from the model's rules."""
         if path is None:
             path = model.config_info.score_file
+        LOGGER.info("Saving scoring features to %s.", path)
         with open(path, 'w', encoding='utf-8') as save_file:
             for rule in sorted(model.primary_leaf_rules |
                                model.secondary_leaf_rules |
