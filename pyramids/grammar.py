@@ -591,6 +591,7 @@ class GrammarParser:
         """Load a special words grammar file, returning the set rules parsed from it."""
         leaf_rules = []
         line_number = 0
+        already_defined = {}
         for raw_line in lines:
             try:
                 line_number += 1
@@ -604,7 +605,16 @@ class GrammarParser:
                 token_str = ':'.join(pieces)
                 category = self.parse_category(definition)
                 token_set = frozenset(token_str.split())
-                leaf_rules.append(SetRule(category, token_set))
+                rule = SetRule(category, token_set)
+                rule_str = str(rule)
+                if rule_str in already_defined:
+                    # Merge them, so we don't cause a feature conflict downstream.
+                    old_rule: SetRule = already_defined[rule_str]
+                    token_set |= old_rule.tokens
+                    leaf_rules.remove(old_rule)
+                    rule = SetRule(category, token_set)
+                leaf_rules.append(rule)
+                already_defined[rule_str] = rule
             except GrammarParserError as error:
                 error.set_info(filename=filename, lineno=line_number, text=raw_line)
                 raise error
